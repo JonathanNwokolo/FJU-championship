@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   Alert,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,8 +19,11 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-
+import Animated, { SlideInLeft } from 'react-native-reanimated';
 import { AppButton } from '../../components/AppButton';
+import { AppCard } from '../../components/AppCard';
+import { SectionHeader } from '../../components/SectionHeader';
+import { TeamColorDot } from '../../components/TeamColorDot';
 import { colors } from '../../theme/colors';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
@@ -37,18 +43,10 @@ import { useVotingStore } from '../../stores/votingStore';
 type RouteT = RouteProp<FixturesStackParamList, 'MatchRegistration'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const EVENT_ICON: Record<MatchEventType, string> = {
   gol: '⚽',
   cartao_amarelo: '🟨',
   cartao_vermelho: '🟥',
-};
-
-const EVENT_BG: Record<MatchEventType, string> = {
-  gol: `${colors.accent}1A`,
-  cartao_amarelo: `${colors.warning}1A`,
-  cartao_vermelho: `${colors.danger}1A`,
 };
 
 const TYPE_DEFS: Array<{ value: MatchEventType; label: string; color: string }> = [
@@ -64,7 +62,20 @@ function makeId(): string {
   });
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+function EventTypePill({ type }: { type: MatchEventType }) {
+  const background =
+    type === 'gol'
+      ? colors.accent
+      : type === 'cartao_amarelo'
+        ? colors.warning
+        : colors.danger;
+
+  return (
+    <View style={[styles.eventIconPill, { backgroundColor: background }]}>
+      <Text style={styles.eventIconText}>{EVENT_ICON[type]}</Text>
+    </View>
+  );
+}
 
 export function MatchRegistrationScreen() {
   const navigation = useNavigation<NavT>();
@@ -86,7 +97,6 @@ export function MatchRegistrationScreen() {
 
   const isLive = match?.status === 'ao_vivo';
 
-  // Live scores derived from goal events
   const liveHomeScore = matchEvents.filter(
     (e) => e.teamId === match?.homeTeamId && e.type === 'gol',
   ).length;
@@ -94,17 +104,17 @@ export function MatchRegistrationScreen() {
     (e) => e.teamId === match?.awayTeamId && e.type === 'gol',
   ).length;
 
-  // Score state (used in manual/non-live mode)
   const [homeScore, setHomeScore] = useState(
     match?.homeScore != null ? String(match.homeScore) : '',
   );
   const [awayScore, setAwayScore] = useState(
     match?.awayScore != null ? String(match.awayScore) : '',
   );
+  const [homeFocused, setHomeFocused] = useState(false);
+  const [awayFocused, setAwayFocused] = useState(false);
 
-  // BottomSheet state
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['72%'], []);
+  const snapPoints = useMemo(() => ['74%'], []);
 
   const [bsType, setBsType] = useState<MatchEventType>('gol');
   const [bsTeamId, setBsTeamId] = useState('');
@@ -116,10 +126,6 @@ export function MatchRegistrationScreen() {
   const handleTeamSelect = (teamId: string) => {
     setBsTeamId(teamId);
     setBsPlayerId('');
-  };
-
-  const handleTypeSelect = (type: MatchEventType) => {
-    setBsType(type);
   };
 
   const openBottomSheet = () => {
@@ -143,6 +149,12 @@ export function MatchRegistrationScreen() {
       minute,
     };
     addEvent(event);
+
+    if (bsType === 'gol') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
 
     if (isLive && bsType === 'gol' && match) {
       const newHome = liveHomeScore + (bsTeamId === match.homeTeamId ? 1 : 0);
@@ -179,14 +191,16 @@ export function MatchRegistrationScreen() {
           if (isLive && removing?.type === 'gol' && match) {
             const newHome = liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0);
             const newAway = liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0);
-            updateMatch(matchId, { homeScore: Math.max(0, newHome), awayScore: Math.max(0, newAway) });
+            updateMatch(matchId, {
+              homeScore: Math.max(0, newHome),
+              awayScore: Math.max(0, newAway),
+            });
           }
         },
       },
     ]);
   };
 
-  // Validation
   const homeScoreNum = homeScore === '' ? null : parseInt(homeScore, 10);
   const awayScoreNum = awayScore === '' ? null : parseInt(awayScore, 10);
 
@@ -197,13 +211,10 @@ export function MatchRegistrationScreen() {
     (e) => e.teamId === match?.awayTeamId && e.type === 'gol',
   ).length;
 
-  const homeGoalMismatch =
-    homeScoreNum !== null && homeGoalsRegistered !== homeScoreNum;
-  const awayGoalMismatch =
-    awayScoreNum !== null && awayGoalsRegistered !== awayScoreNum;
+  const homeGoalMismatch = homeScoreNum !== null && homeGoalsRegistered !== homeScoreNum;
+  const awayGoalMismatch = awayScoreNum !== null && awayGoalsRegistered !== awayScoreNum;
 
   const canFinalize = isLive || (homeScoreNum !== null && awayScoreNum !== null);
-
   const canAddBsEvent =
     bsTeamId.length > 0 &&
     bsPlayerId.length > 0 &&
@@ -217,6 +228,7 @@ export function MatchRegistrationScreen() {
         text: 'Iniciar',
         onPress: () => {
           startMatch(matchId);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           if (match && homeTeam && awayTeam) {
             notifyMatchStarted(
               match.championshipId,
@@ -240,8 +252,7 @@ export function MatchRegistrationScreen() {
     const champId = match.championshipId;
     const champAwards = awards.filter((a) => a.championshipId === champId);
     const allPlayers = players.filter(
-      (p) =>
-        p.teamId === match.homeTeamId || p.teamId === match.awayTeamId,
+      (p) => p.teamId === match.homeTeamId || p.teamId === match.awayTeamId,
     );
 
     const newDefs: AchievementDefinition[] = [];
@@ -289,9 +300,9 @@ export function MatchRegistrationScreen() {
             finishedAt: updatedMatch.finishedAt,
           });
 
-          const updatedMatches = matches.map((m) =>
-            m.id === matchId ? updatedMatch : m,
-          );
+          const updatedMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
+
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
           if (match && homeTeam && awayTeam) {
             notifyMatchFinished(
@@ -309,9 +320,8 @@ export function MatchRegistrationScreen() {
           if (isLive) {
             navigation.replace('MatchSummary', { matchId });
           } else {
-            Alert.alert('Partida finalizada!', '', [
-              { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
+            Toast.show({ type: 'success', text1: 'Partida finalizada!', text2: `${finalHome} × ${finalAway}`, visibilityTime: 2500 });
+            navigation.goBack();
           }
         },
       },
@@ -332,175 +342,146 @@ export function MatchRegistrationScreen() {
 
   return (
     <View style={styles.root}>
-      {/* ── Dark header ── */}
-      <SafeAreaView style={styles.headerBg} edges={['top']}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={26} color={colors.textOnDark} />
+      <SafeAreaView style={styles.header} edges={['top']}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-
-        <View style={styles.headerBody}>
-          <View style={styles.headerTeamsRow}>
-            <View style={styles.headerTeamLeft}>
-              <View
-                style={[styles.headerDot, { backgroundColor: homeTeam?.primaryColor ?? colors.border }]}
-              />
-              <Text style={styles.headerTeamName} numberOfLines={1}>
-                {homeTeam?.name ?? '—'}
-              </Text>
-            </View>
-            <Text style={styles.headerVs}>vs</Text>
-            <View style={styles.headerTeamRight}>
-              <Text style={[styles.headerTeamName, { textAlign: 'right' }]} numberOfLines={1}>
-                {awayTeam?.name ?? '—'}
-              </Text>
-              <View
-                style={[styles.headerDot, { backgroundColor: awayTeam?.primaryColor ?? colors.border }]}
-              />
-            </View>
-          </View>
-          <Text style={styles.headerRound}>Rodada {match.round}</Text>
+        <Text style={styles.roundLabel}>RODADA {match.round}</Text>
+        <Text style={styles.title} numberOfLines={2}>
+          {homeTeam?.name ?? 'Time Casa'} vs {awayTeam?.name ?? 'Time Fora'}
+        </Text>
+        <View style={styles.headerColorBar}>
+          <View style={[styles.headerColorHalf, { backgroundColor: homeTeam?.primaryColor ?? colors.border }]} />
+          <View style={[styles.headerColorHalf, { backgroundColor: awayTeam?.primaryColor ?? colors.border }]} />
         </View>
       </SafeAreaView>
 
-      {/* ── Scrollable body ── */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Score section */}
-        <View style={styles.scoreSection}>
-          <Text style={styles.sectionLabel}>
-            {isLive ? 'PLACAR AO VIVO' : 'PLACAR'}
-          </Text>
-          {isLive ? (
-            <View style={styles.scoreRow}>
-              <View style={[styles.scoreBox, styles.liveScoreBox]}>
-                <Text style={styles.liveScoreNum}>{liveHomeScore}</Text>
-              </View>
-              <Text style={styles.scoreX}>×</Text>
-              <View style={[styles.scoreBox, styles.liveScoreBox]}>
-                <Text style={styles.liveScoreNum}>{liveAwayScore}</Text>
-              </View>
+        <View style={styles.scorePanel}>
+          <View style={styles.scoreTeamCol}>
+            <View style={styles.scoreTeamInline}>
+              <Text style={styles.scoreTeamNameLeft} numberOfLines={2}>{homeTeam?.name ?? 'Casa'}</Text>
+              <TeamColorDot color={homeTeam?.primaryColor ?? colors.textMuted} size={16} />
             </View>
-          ) : (
-            <View style={styles.scoreRow}>
-              <View style={styles.scoreBox}>
-                <TextInput
-                  style={styles.scoreInput}
-                  value={homeScore}
-                  onChangeText={(t) => setHomeScore(t.replace(/[^0-9]/g, ''))}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  placeholderTextColor={colors.border}
-                  maxLength={2}
-                  textAlign="center"
-                />
+          </View>
+
+          <View style={styles.scoreInputsWrap}>
+            {isLive ? (
+              <View style={styles.liveInputsRow}>
+                <View style={styles.scoreInputBox}>
+                  <Text style={styles.liveScoreText}>{liveHomeScore}</Text>
+                </View>
+                <Text style={styles.scoreDivider}>—</Text>
+                <View style={styles.scoreInputBox}>
+                  <Text style={styles.liveScoreText}>{liveAwayScore}</Text>
+                </View>
               </View>
-              <Text style={styles.scoreX}>×</Text>
-              <View style={styles.scoreBox}>
-                <TextInput
-                  style={styles.scoreInput}
-                  value={awayScore}
-                  onChangeText={(t) => setAwayScore(t.replace(/[^0-9]/g, ''))}
-                  keyboardType="number-pad"
-                  placeholder="0"
-                  placeholderTextColor={colors.border}
-                  maxLength={2}
-                  textAlign="center"
-                />
+            ) : (
+              <View style={styles.liveInputsRow}>
+                <View style={[styles.scoreInputBox, homeFocused && styles.scoreInputFocused]}>
+                  <TextInput
+                    style={styles.scoreInput}
+                    value={homeScore}
+                    onChangeText={(t) => setHomeScore(t.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor={colors.textMuted}
+                    maxLength={2}
+                    textAlign="center"
+                    onFocus={() => setHomeFocused(true)}
+                    onBlur={() => setHomeFocused(false)}
+                  />
+                </View>
+                <Text style={styles.scoreDivider}>—</Text>
+                <View style={[styles.scoreInputBox, awayFocused && styles.scoreInputFocused]}>
+                  <TextInput
+                    style={styles.scoreInput}
+                    value={awayScore}
+                    onChangeText={(t) => setAwayScore(t.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor={colors.textMuted}
+                    maxLength={2}
+                    textAlign="center"
+                    onFocus={() => setAwayFocused(true)}
+                    onBlur={() => setAwayFocused(false)}
+                  />
+                </View>
               </View>
+            )}
+          </View>
+
+          <View style={styles.scoreTeamCol}>
+            <View style={[styles.scoreTeamInline, styles.scoreTeamInlineRight]}>
+              <TeamColorDot color={awayTeam?.primaryColor ?? colors.textMuted} size={16} />
+              <Text style={styles.scoreTeamNameRight} numberOfLines={2}>{awayTeam?.name ?? 'Fora'}</Text>
             </View>
-          )}
+          </View>
         </View>
 
-        <View style={styles.divider} />
+        {(homeGoalMismatch || awayGoalMismatch) && (
+          <View style={styles.warningBanner}>
+            <Text style={styles.warningText}>
+              ⚠️ Gols registrados ({homeGoalsRegistered + awayGoalsRegistered}) não conferem com o placar ({(homeScoreNum ?? 0) + (awayScoreNum ?? 0)})
+            </Text>
+          </View>
+        )}
 
-        {/* Events section */}
         <View style={styles.eventsSection}>
-          <Text style={styles.sectionLabel}>EVENTOS DA PARTIDA</Text>
+          <SectionHeader title="EVENTOS DA PARTIDA" />
 
-          {/* Validation banners */}
-          {homeGoalMismatch && (
-            <View style={styles.warnBanner}>
-              <Text style={styles.warnText}>
-                ⚠️ Gols registrados ({homeGoalsRegistered}) de{' '}
-                <Text style={styles.warnBold}>{homeTeam?.name}</Text> não conferem com o
-                placar ({homeScoreNum})
-              </Text>
-            </View>
-          )}
-          {awayGoalMismatch && (
-            <View style={styles.warnBanner}>
-              <Text style={styles.warnText}>
-                ⚠️ Gols registrados ({awayGoalsRegistered}) de{' '}
-                <Text style={styles.warnBold}>{awayTeam?.name}</Text> não conferem com o
-                placar ({awayScoreNum})
-              </Text>
-            </View>
-          )}
-
-          {/* Events list */}
           {matchEvents.length === 0 ? (
-            <View style={styles.eventsEmpty}>
-              <Text style={styles.eventsEmptyText}>Nenhum evento registrado.</Text>
-            </View>
+            <Text style={styles.emptyEvents}>Nenhum evento registrado.</Text>
           ) : (
-            matchEvents.map((event) => {
-              const player = getPlayer(event.playerId);
-              const team = getTeam(event.teamId);
-              return (
-                <View key={event.id} style={styles.eventItem}>
-                  <View style={[styles.eventIconBg, { backgroundColor: EVENT_BG[event.type] }]}>
-                    <Text style={styles.eventIconEmoji}>{EVENT_ICON[event.type]}</Text>
-                  </View>
-                  <View style={styles.eventInfo}>
-                    <Text style={styles.eventPlayerName} numberOfLines={1}>
-                      {player?.name ?? '—'}
-                    </Text>
-                    <Text style={styles.eventTeamName} numberOfLines={1}>
-                      {team?.name ?? '—'}
-                    </Text>
-                  </View>
-                  <Text style={styles.eventMinute}>{event.minute}'</Text>
-                  <TouchableOpacity
-                    onPress={() => handleRemoveEvent(event.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name="close-circle" size={22} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              );
-            })
+            <View style={styles.eventsList}>
+              {matchEvents.map((event, index) => {
+                const player = getPlayer(event.playerId);
+                const team = getTeam(event.teamId);
+
+                return (
+                  <Animated.View key={event.id} entering={SlideInLeft.delay(index * 40).duration(220)}>
+                    <AppCard style={styles.eventCard}>
+                      <View style={styles.eventRow}>
+                        <EventTypePill type={event.type} />
+                        <View style={styles.minuteBadge}>
+                          <Text style={styles.minuteBadgeText}>{event.minute}'</Text>
+                        </View>
+                        <View style={styles.eventCopy}>
+                          <Text style={styles.eventPlayer}>{player?.name ?? '—'}</Text>
+                          <Text style={styles.eventTeam}>{team?.name ?? '—'}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleRemoveEvent(event.id)}>
+                          <Ionicons name="close" size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    </AppCard>
+                  </Animated.View>
+                );
+              })}
+            </View>
           )}
 
-          {/* Add event button */}
-          <TouchableOpacity style={styles.addEventBtn} onPress={openBottomSheet} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.addButton} onPress={openBottomSheet} activeOpacity={0.8}>
             <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
-            <Text style={styles.addEventText}>Adicionar evento</Text>
+            <Text style={styles.addButtonText}>Adicionar evento</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Spacer so content doesn't hide behind fixed button */}
-        <View style={{ height: 100 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* ── Fixed bottom bar ── */}
       <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
+        <Text style={styles.bottomInfo}>{matchEvents.length} eventos registrados</Text>
         {match.status === 'agendado' ? (
-          <AppButton
-            title="Iniciar Partida"
-            onPress={handleStartLive}
-            fullWidth
-          />
+          <AppButton title="INICIAR PARTIDA" onPress={handleStartLive} fullWidth />
         ) : (
           <AppButton
-            title="Finalizar Partida"
+            title="FINALIZAR PARTIDA"
             onPress={handleFinalize}
             disabled={!canFinalize}
             fullWidth
@@ -508,13 +489,8 @@ export function MatchRegistrationScreen() {
         )}
       </SafeAreaView>
 
-      {/* ── Achievement toast ── */}
-      <AchievementToast
-        queue={toastQueue}
-        onDismiss={() => setToastQueue([])}
-      />
+      <AchievementToast queue={toastQueue} onDismiss={() => setToastQueue([])} />
 
-      {/* ── Add Event BottomSheet ── */}
       <BottomSheet
         ref={bottomSheetRef}
         index={-1}
@@ -532,50 +508,35 @@ export function MatchRegistrationScreen() {
         >
           <Text style={bsStyles.title}>Registrar evento</Text>
 
-          {/* Event type */}
-          <Text style={bsStyles.label}>TIPO</Text>
           <View style={bsStyles.typeRow}>
-            {TYPE_DEFS.map((t) => {
-              const isActive = bsType === t.value;
+            {TYPE_DEFS.map((type) => {
+              const active = bsType === type.value;
               return (
                 <TouchableOpacity
-                  key={t.value}
-                  style={[
-                    bsStyles.typeChip,
-                    isActive && { backgroundColor: t.color },
-                  ]}
-                  onPress={() => handleTypeSelect(t.value)}
+                  key={type.value}
+                  style={[bsStyles.typeChip, active && { backgroundColor: type.color }]}
+                  onPress={() => setBsType(type.value)}
                   activeOpacity={0.8}
                 >
-                  <Text
-                    style={[bsStyles.typeChipText, isActive && bsStyles.typeChipTextActive]}
-                  >
-                    {t.label}
+                  <Text style={[bsStyles.typeChipText, active && bsStyles.typeChipTextActive]}>
+                    {type.label}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Team */}
-          <Text style={bsStyles.label}>TIME</Text>
           <View style={bsStyles.teamRow}>
             {[homeTeam, awayTeam].filter(Boolean).map((team) => {
-              const isActive = bsTeamId === team!.id;
+              const active = bsTeamId === team!.id;
               return (
                 <TouchableOpacity
                   key={team!.id}
-                  style={[bsStyles.teamBtn, isActive && bsStyles.teamBtnActive]}
+                  style={[bsStyles.teamButton, active && bsStyles.teamButtonActive]}
                   onPress={() => handleTeamSelect(team!.id)}
-                  activeOpacity={0.8}
                 >
-                  <View
-                    style={[bsStyles.teamDot, { backgroundColor: team!.primaryColor }]}
-                  />
-                  <Text
-                    style={[bsStyles.teamBtnText, isActive && bsStyles.teamBtnTextActive]}
-                    numberOfLines={1}
-                  >
+                  <TeamColorDot color={team!.primaryColor} size={12} />
+                  <Text style={[bsStyles.teamButtonText, active && bsStyles.teamButtonTextActive]} numberOfLines={2}>
                     {team!.name}
                   </Text>
                 </TouchableOpacity>
@@ -583,63 +544,52 @@ export function MatchRegistrationScreen() {
             })}
           </View>
 
-          {/* Players */}
           {bsTeamId.length > 0 && (
             <>
               <Text style={bsStyles.label}>JOGADOR</Text>
-              <View style={bsStyles.playerGrid}>
-                {bsPlayers.map((player) => {
-                  const isActive = bsPlayerId === player.id;
+              <FlatList
+                data={bsPlayers}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                contentContainerStyle={bsStyles.playerList}
+                renderItem={({ item }) => {
+                  const active = bsPlayerId === item.id;
                   return (
                     <TouchableOpacity
-                      key={player.id}
-                      style={[bsStyles.playerChip, isActive && bsStyles.playerChipActive]}
-                      onPress={() => setBsPlayerId(player.id)}
-                      activeOpacity={0.8}
+                      style={[bsStyles.playerRow, active && bsStyles.playerRowActive]}
+                      onPress={() => setBsPlayerId(item.id)}
                     >
-                      <Text
-                        style={[
-                          bsStyles.playerChipNum,
-                          isActive && bsStyles.playerChipNumActive,
-                        ]}
-                      >
-                        #{player.number}
+                      <Text style={[bsStyles.playerNumber, active && bsStyles.playerNumberActive]}>
+                        #{item.number}
                       </Text>
-                      <Text
-                        style={[
-                          bsStyles.playerChipName,
-                          isActive && bsStyles.playerChipNameActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {player.name}
+                      <Text style={[bsStyles.playerName, active && bsStyles.playerNameActive]}>
+                        {item.name}
                       </Text>
                     </TouchableOpacity>
                   );
-                })}
-              </View>
+                }}
+              />
             </>
           )}
 
-          {/* Minute */}
           <Text style={bsStyles.label}>MINUTO</Text>
           <TextInput
             style={bsStyles.minuteInput}
             value={bsMinute}
             onChangeText={(t) => setBsMinute(t.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
-            placeholder="min"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="0"
+            placeholderTextColor={colors.textMuted}
             maxLength={3}
             textAlign="center"
           />
 
           <AppButton
-            title="Registrar evento"
+            title="REGISTRAR EVENTO"
             onPress={handleAddEvent}
             disabled={!canAddBsEvent}
             fullWidth
-            style={bsStyles.registerBtn}
+            style={bsStyles.submitButton}
           />
         </BottomSheetScrollView>
       </BottomSheet>
@@ -647,304 +597,355 @@ export function MatchRegistrationScreen() {
   );
 }
 
-// ─── Main screen styles ───────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-
-  // Header
-  headerBg: { backgroundColor: colors.primaryDark },
-  backBtn: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  headerBody: { paddingHorizontal: 20, paddingBottom: 16, gap: 6 },
-  headerTeamsRow: {
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg100,
+  },
+  header: {
+    backgroundColor: colors.bg200,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  roundLabel: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1.6,
+  },
+  title: {
+    marginTop: 6,
+    fontFamily: 'Barlow-Bold',
+    fontSize: 24,
+    lineHeight: 28,
+    color: colors.textPrimary,
+  },
+  headerColorBar: {
+    flexDirection: 'row',
+    height: 3,
+    marginTop: 16,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  headerColorHalf: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  scorePanel: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 24,
+    borderRadius: 18,
+    backgroundColor: colors.bg200,
     gap: 12,
   },
-  headerTeamLeft: {
+  scoreTeamCol: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
-  headerTeamRight: {
-    flex: 1,
+  scoreTeamInline: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 8,
   },
-  headerDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    flexShrink: 0,
+  scoreTeamInlineRight: {
+    justifyContent: 'flex-start',
   },
-  headerTeamName: {
+  scoreTeamNameLeft: {
     flex: 1,
+    fontFamily: 'Barlow-SemiBold',
     fontSize: 15,
-    fontWeight: '700',
-    color: colors.textOnDark,
+    color: colors.textPrimary,
+    textAlign: 'right',
   },
-  headerVs: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: `${colors.textOnDark}66`,
+  scoreTeamNameRight: {
+    flex: 1,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 15,
+    color: colors.textPrimary,
   },
-  headerRound: {
-    fontSize: 12,
-    color: `${colors.textOnDark}80`,
-    fontWeight: '500',
+  scoreInputsWrap: {
+    width: 120,
+    alignItems: 'center',
   },
-
-  // Scroll
-  scroll: { flex: 1 },
-  scrollContent: { paddingTop: 24, paddingHorizontal: 20 },
-
-  // Score
-  scoreSection: { gap: 16 },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.textSecondary,
-  },
-  scoreRow: {
+  liveInputsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
+    gap: 10,
   },
-  scoreBox: {
-    width: 120,
-    height: 80,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    justifyContent: 'center',
+  scoreInputBox: {
+    width: 50,
+    height: 70,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg300,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  scoreInputFocused: {
+    borderBottomColor: colors.accent,
   },
   scoreInput: {
     width: '100%',
-    fontSize: 48,
-    fontWeight: '800',
+    fontFamily: 'Barlow-Black',
+    fontSize: 42,
     color: colors.textPrimary,
     textAlign: 'center',
     padding: 0,
   },
-  scoreX: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.accent,
+  liveScoreText: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 42,
+    color: colors.textPrimary,
   },
-  liveScoreBox: {
-    backgroundColor: `${colors.danger}12`,
-    borderWidth: 1,
-    borderColor: `${colors.danger}30`,
+  scoreDivider: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 26,
+    color: colors.textMuted,
   },
-  liveScoreNum: {
-    fontSize: 48,
-    fontWeight: '800',
-    color: colors.danger,
+  warningBanner: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,59,71,0.12)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
+  },
+  warningText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.warning,
+  },
+  eventsSection: {
+    marginTop: 24,
+  },
+  emptyEvents: {
+    marginTop: 16,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
-
-  divider: {
-    height: 1,
-    backgroundColor: colors.borderLight,
-    marginVertical: 24,
+  eventsList: {
+    gap: 10,
+    marginTop: 12,
   },
-
-  // Events
-  eventsSection: { gap: 12 },
-  eventsEmpty: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  eventsEmptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-
-  // Validation banner
-  warnBanner: {
-    backgroundColor: `${colors.warning}18`,
-    borderRadius: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.warning,
+  eventCard: {
     padding: 12,
   },
-  warnText: {
-    fontSize: 13,
-    color: colors.warning,
-    lineHeight: 18,
-  },
-  warnBold: { fontWeight: '700' },
-
-  // Event item
-  eventItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-  },
-  eventIconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  eventIconEmoji: { fontSize: 20 },
-  eventInfo: { flex: 1, gap: 2 },
-  eventPlayerName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  eventTeamName: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  eventMinute: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    minWidth: 32,
-    textAlign: 'right',
-  },
-
-  // Add event button
-  addEventBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    justifyContent: 'center',
-  },
-  addEventText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-
-  // Bottom bar
-  bottomBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-  },
-});
-
-// ─── BottomSheet styles ───────────────────────────────────────────────────────
-
-const bsStyles = StyleSheet.create({
-  bg: { backgroundColor: colors.background },
-  handle: { backgroundColor: colors.border },
-  content: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-
-  // Type chips
-  typeRow: { flexDirection: 'row', gap: 10 },
-  typeChip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-  },
-  typeChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  typeChipTextActive: { color: colors.primaryDark },
-
-  // Team buttons
-  teamRow: { flexDirection: 'row', gap: 10 },
-  teamBtn: {
-    flex: 1,
+  eventRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
-  teamBtnActive: { borderColor: colors.accent },
-  teamDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    flexShrink: 0,
+  eventIconPill: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  teamBtnText: {
+  eventIconText: {
+    fontSize: 12,
+  },
+  minuteBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: colors.bg300,
+  },
+  minuteBadgeText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.textPrimary,
+  },
+  eventCopy: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
+  },
+  eventPlayer: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  eventTeam: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
     color: colors.textSecondary,
   },
-  teamBtnTextActive: { color: colors.textPrimary },
-
-  // Player chips
-  playerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  playerChip: {
+  addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 10,
   },
-  playerChipActive: { backgroundColor: colors.accent },
-  playerChipNum: {
+  addButtonText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 15,
+    color: colors.accent,
+  },
+  bottomSpacer: {
+    height: 120,
+  },
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.bg200,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  bottomInfo: {
+    marginBottom: 10,
+    fontFamily: 'Barlow-Regular',
     fontSize: 12,
-    fontWeight: '700',
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+});
+
+const bsStyles = StyleSheet.create({
+  bg: {
+    backgroundColor: colors.bg200,
+  },
+  handle: {
+    backgroundColor: colors.borderStrong,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  title: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+    marginBottom: 16,
+  },
+  label: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontFamily: 'Barlow-Bold',
+    fontSize: 11,
+    color: colors.textSecondary,
+    letterSpacing: 1.4,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  typeChip: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: colors.bg300,
+  },
+  typeChipText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
     color: colors.textSecondary,
   },
-  playerChipNumActive: { color: colors.primaryDark },
-  playerChipName: {
-    fontSize: 13,
-    fontWeight: '500',
+  typeChipTextActive: {
     color: colors.textPrimary,
   },
-  playerChipNameActive: { color: colors.primaryDark },
-
-  // Minute input
-  minuteInput: {
-    width: 100,
-    height: 52,
-    backgroundColor: colors.surface,
+  teamRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  teamButton: {
+    width: 80,
+    height: 50,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 4,
+  },
+  teamButtonActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+  },
+  teamButtonText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  teamButtonTextActive: {
+    color: colors.textPrimary,
+  },
+  playerList: {
+    gap: 8,
+  },
+  playerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 12,
-    fontSize: 22,
-    fontWeight: '700',
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  playerRowActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+  },
+  playerNumber: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+    color: colors.accent,
+  },
+  playerNumberActive: {
+    color: colors.textPrimary,
+  },
+  playerName: {
+    flex: 1,
+    fontFamily: 'Barlow-Medium',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  playerNameActive: {
+    color: colors.textPrimary,
+  },
+  minuteInput: {
+    width: 110,
+    height: 64,
+    alignSelf: 'center',
+    borderRadius: 16,
+    backgroundColor: colors.bg300,
+    fontFamily: 'Barlow-Black',
+    fontSize: 32,
     color: colors.textPrimary,
     textAlign: 'center',
-    alignSelf: 'flex-start',
   },
-
-  registerBtn: { marginTop: 8 },
+  submitButton: {
+    marginTop: 20,
+  },
 });

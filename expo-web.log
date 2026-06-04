@@ -1,0 +1,218 @@
+Starting project at C:\Users\Home\Desktop\WORKS\FJU-championship
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8081
+3 packages may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.
+Web Bundled 8749ms index.ts (1518 modules)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 93ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web Bundled 56ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web Bundled 58ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web Bundled 76ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web  LOG  [notifications] Permission denied
+Web  LOG  [notifications] Permission denied
+Web  LOG  [notifications] Permission denied
+Web Bundled 81ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web Bundled 72ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+ ERROR  SyntaxError: C:\Users\Home\Desktop\WORKS\FJU-championship\src\screens\team\CreateTeamScreen.tsx: Expected corresponding JSX closing tag for <KeyboardAvoidingView>. (170:4)
+
+  168 |         />
+  169 |       </ScrollView>
+> 170 |     </SafeAreaView>
+      |     ^
+  171 |   );
+  172 | }
+  173 |
+    at constructor (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:365:19)
+    at TypeScriptParserMixin.raise (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:6616:19)
+    at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4739:16)
+    at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4710:32)
+    at TypeScriptParserMixin.jsxParseElement (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4761:17)
+    at TypeScriptParserMixin.parseExprAtom (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4771:19)
+    at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11098:23)
+    at TypeScriptParserMixin.parseUpdate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11083:21)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11063:23)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9854:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10916:61)
+    at TypeScriptParserMixin.parseExprOps (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10921:23)
+    at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10898:23)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10848:21)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9792:39
+    at TypeScriptParserMixin.tryParse (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:6924:20)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9792:18)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10817:39
+    at TypeScriptParserMixin.allowInAnd (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12443:12)
+    at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10817:17)
+    at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12510:17)
+    at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11692:28)
+    at TypeScriptParserMixin.parseExprAtom (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11348:23)
+    at TypeScriptParserMixin.parseExprAtom (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4776:20)
+    at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11098:23)
+    at TypeScriptParserMixin.parseUpdate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11083:21)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11063:23)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9854:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10916:61)
+    at TypeScriptParserMixin.parseExprOps (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10921:23)
+    at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10898:23)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10848:21)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9803:20)
+    at TypeScriptParserMixin.parseExpressionBase (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10801:23)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10797:39
+    at TypeScriptParserMixin.allowInAnd (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12438:16)
+    at TypeScriptParserMixin.parseExpression (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10797:17)
+    at TypeScriptParserMixin.parseReturnStatement (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13159:28)
+    at TypeScriptParserMixin.parseStatementContent (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12815:21)
+    at TypeScriptParserMixin.parseStatementContent (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9525:18)
+    at TypeScriptParserMixin.parseStatementLike (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12784:17)
+    at TypeScriptParserMixin.parseStatementListItem (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12764:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13333:61)
+    at TypeScriptParserMixin.parseBlockBody (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13326:10)
+    at TypeScriptParserMixin.parseBlock (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13314:10)
+    at TypeScriptParserMixin.parseFunctionBody (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12117:24)
+    at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12103:10)
+    at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9189:18)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13462:12
+    at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12420:14)
+ ERROR  SyntaxError: C:\Users\Home\Desktop\WORKS\FJU-championship\src\screens\championship\CreateChampionshipScreen.tsx: Expected corresponding JSX closing tag for <KeyboardAvoidingView>. (396:4)
+
+  394 |         />
+  395 |       </ScrollView>
+> 396 |     </SafeAreaView>
+      |     ^
+  397 |   );
+  398 | }
+  399 |
+    at constructor (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:365:19)
+    at TypeScriptParserMixin.raise (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:6616:19)
+    at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4739:16)
+    at TypeScriptParserMixin.jsxParseElementAt (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4710:32)
+    at TypeScriptParserMixin.jsxParseElement (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4761:17)
+    at TypeScriptParserMixin.parseExprAtom (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4771:19)
+    at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11098:23)
+    at TypeScriptParserMixin.parseUpdate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11083:21)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11063:23)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9854:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10916:61)
+    at TypeScriptParserMixin.parseExprOps (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10921:23)
+    at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10898:23)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10848:21)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9792:39
+    at TypeScriptParserMixin.tryParse (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:6924:20)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9792:18)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10817:39
+    at TypeScriptParserMixin.allowInAnd (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12443:12)
+    at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10817:17)
+    at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12510:17)
+    at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11692:28)
+    at TypeScriptParserMixin.parseExprAtom (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11348:23)
+    at TypeScriptParserMixin.parseExprAtom (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:4776:20)
+    at TypeScriptParserMixin.parseExprSubscripts (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11098:23)
+    at TypeScriptParserMixin.parseUpdate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11083:21)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:11063:23)
+    at TypeScriptParserMixin.parseMaybeUnary (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9854:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10916:61)
+    at TypeScriptParserMixin.parseExprOps (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10921:23)
+    at TypeScriptParserMixin.parseMaybeConditional (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10898:23)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10848:21)
+    at TypeScriptParserMixin.parseMaybeAssign (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9803:20)
+    at TypeScriptParserMixin.parseExpressionBase (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10801:23)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10797:39
+    at TypeScriptParserMixin.allowInAnd (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12438:16)
+    at TypeScriptParserMixin.parseExpression (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:10797:17)
+    at TypeScriptParserMixin.parseReturnStatement (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13159:28)
+    at TypeScriptParserMixin.parseStatementContent (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12815:21)
+    at TypeScriptParserMixin.parseStatementContent (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9525:18)
+    at TypeScriptParserMixin.parseStatementLike (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12784:17)
+    at TypeScriptParserMixin.parseStatementListItem (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12764:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13333:61)
+    at TypeScriptParserMixin.parseBlockBody (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13326:10)
+    at TypeScriptParserMixin.parseBlock (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13314:10)
+    at TypeScriptParserMixin.parseFunctionBody (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12117:24)
+    at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12103:10)
+    at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:9189:18)
+    at C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:13462:12
+    at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@babel\parser\lib\index.js:12420:14)
+Web  LOG  [notifications] Permission denied
+Web Bundled 83ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  LOG  [notifications] Permission denied

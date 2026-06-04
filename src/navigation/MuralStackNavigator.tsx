@@ -13,7 +13,7 @@ const Stack = createNativeStackNavigator<MuralStackParamList>();
 
 export function MuralStackNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{ animation: 'slide_from_right' }}>
       <Stack.Screen
         name="MuralMain"
         component={MuralScreen}
@@ -25,7 +25,7 @@ export function MuralStackNavigator() {
         options={{
           headerShown: false,
           presentation: 'fullScreenModal',
-          animation: 'fade',
+          animation: 'slide_from_bottom',
         }}
       />
     </Stack.Navigator>

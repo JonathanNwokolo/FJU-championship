@@ -1,5 +1,7 @@
 import React from 'react';
+import { TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { CreateChampionshipScreen } from '../screens/championship/CreateChampionshipScreen';
 import { ChampionshipDashboardScreen } from '../screens/championship/ChampionshipDashboardScreen';
@@ -31,39 +33,76 @@ export type HomeStackParamList = {
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
-const headerOptions = {
-  headerTintColor: colors.accent,
-  headerStyle: { backgroundColor: colors.background },
-  headerShadowVisible: false,
-  headerBackTitle: 'Voltar',
-};
-
 export function HomeStackNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        animation: 'slide_from_right',
+        headerStyle: { backgroundColor: colors.bg200 },
+        headerTintColor: colors.textPrimary,
+        headerTitleStyle: { fontFamily: 'Barlow-SemiBold', fontSize: 18 },
+        headerShadowVisible: false,
+        headerBackTitle: '',
+        headerLeft: ({ canGoBack }) =>
+          canGoBack ? (
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ paddingRight: 8 }}
+            >
+              <Ionicons name="chevron-back" size={26} color={colors.accent} />
+            </TouchableOpacity>
+          ) : null,
+      })}
+    >
       <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="CreateChampionship" component={CreateChampionshipScreen}
-        options={{ ...headerOptions, title: 'Novo Campeonato' }} />
-      <Stack.Screen name="ChampionshipDashboard" component={ChampionshipDashboardScreen}
-        options={{ headerShown: false }} />
-      <Stack.Screen name="AvailableChampionships" component={AvailableChampionshipsScreen}
-        options={{ ...headerOptions, title: 'Campeonatos Abertos' }} />
-      <Stack.Screen name="CreateTeam" component={CreateTeamScreen}
-        options={{ ...headerOptions, title: 'Criar Time' }} />
-      <Stack.Screen name="ManageRoster" component={ManageRosterScreen}
-        options={{ ...headerOptions, title: 'Meu Time' }} />
-      <Stack.Screen name="JoinTeam" component={JoinTeamScreen}
-        options={{ ...headerOptions, title: 'Entrar no Time' }} />
-      <Stack.Screen name="DrawScreen" component={DrawScreen}
-        options={{ headerShown: false }} />
-      <Stack.Screen name="DrawFullscreen" component={DrawFullscreenScreen}
-        options={{ headerShown: false, animation: 'fade' }} />
-      <Stack.Screen name="PlayerCard" component={PlayerCardScreen}
-        options={{ headerShown: false }} />
-      <Stack.Screen name="PlayerAchievements" component={PlayerAchievementsScreen}
-        options={{ ...headerOptions, title: 'Conquistas' }} />
-      <Stack.Screen name="RoundAward" component={RoundAwardScreen}
-        options={{ headerShown: false }} />
+      <Stack.Screen
+        name="CreateChampionship"
+        component={CreateChampionshipScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ChampionshipDashboard"
+        component={ChampionshipDashboardScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AvailableChampionships"
+        component={AvailableChampionshipsScreen}
+        options={{ title: 'Campeonatos Abertos' }}
+      />
+      <Stack.Screen
+        name="CreateTeam"
+        component={CreateTeamScreen}
+        options={{ title: 'Criar Time' }}
+      />
+      <Stack.Screen
+        name="ManageRoster"
+        component={ManageRosterScreen}
+        options={{ title: 'Meu Time' }}
+      />
+      <Stack.Screen
+        name="JoinTeam"
+        component={JoinTeamScreen}
+        options={{ title: 'Entrar no Time' }}
+      />
+      <Stack.Screen name="DrawScreen" component={DrawScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="DrawFullscreen"
+        component={DrawFullscreenScreen}
+        options={{ headerShown: false, animation: 'fade' }}
+      />
+      <Stack.Screen name="PlayerCard" component={PlayerCardScreen} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="PlayerAchievements"
+        component={PlayerAchievementsScreen}
+        options={{ title: 'Conquistas' }}
+      />
+      <Stack.Screen
+        name="RoundAward"
+        component={RoundAwardScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
     </Stack.Navigator>
   );
 }

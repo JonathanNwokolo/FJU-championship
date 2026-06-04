@@ -2,59 +2,56 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppCard } from '../../components/AppCard';
-import { colors } from '../../theme/colors';
+import { SectionHeader } from '../../components/SectionHeader';
+import { TeamColorDot } from '../../components/TeamColorDot';
 import { useStats } from '../../hooks/useStats';
+import { colors } from '../../theme/colors';
 import { SuspendedPlayer } from '../../types';
 
 const CHAMP_ID = 'champ-001';
 
-// ─── Stat card ────────────────────────────────────────────────────────────────
-
-interface StatCardProps {
+function HighlightCard({
+  icon,
+  label,
+  value,
+  accent = true,
+}: {
   icon: string;
   label: string;
   value: string;
-  sub?: string;
-}
-
-function StatCard({ icon, label, value, sub }: StatCardProps) {
+  accent?: boolean;
+}) {
   return (
-    <AppCard style={styles.statCard}>
-      <Text style={styles.cardIcon}>{icon}</Text>
-      <Text style={styles.cardValue} numberOfLines={2}>{value}</Text>
-      {!!sub && <Text style={styles.cardSub} numberOfLines={1}>{sub}</Text>}
-      <Text style={styles.cardLabel} numberOfLines={1}>{label}</Text>
+    <AppCard style={styles.highlightCard}>
+      <Text style={styles.highlightIcon}>{icon}</Text>
+      <Text style={[styles.highlightValue, !accent && styles.highlightValueText]} numberOfLines={2}>
+        {value}
+      </Text>
+      <Text style={styles.highlightLabel}>{label}</Text>
     </AppCard>
   );
 }
 
-// ─── Suspended row ────────────────────────────────────────────────────────────
-
 function SuspendedRow({ item }: { item: SuspendedPlayer }) {
   const isRed = item.reason === 'cartao_vermelho';
+
   return (
     <View style={styles.suspendedRow}>
-      <Text style={styles.suspendedIcon}>{isRed ? '🟥' : '🟨'}</Text>
-      <View style={styles.suspendedInfo}>
-        <Text style={styles.suspendedName} numberOfLines={1}>{item.playerName}</Text>
-        <Text style={styles.suspendedTeam} numberOfLines={1}>{item.teamName}</Text>
-      </View>
-      <View style={[
-        styles.suspendedBadge,
-        { backgroundColor: isRed ? `${colors.danger}18` : `${colors.warning}18` },
-      ]}>
-        <Text style={[
-          styles.suspendedBadgeText,
-          { color: isRed ? colors.danger : colors.warning },
-        ]}>
-          {isRed ? 'Cartão vermelho' : '3 amarelos'}
+      <View style={styles.suspendedAvatar}>
+        <Text style={styles.suspendedAvatarText}>
+          {item.playerName.slice(0, 1).toUpperCase()}
         </Text>
       </View>
+      <View style={styles.suspendedCopy}>
+        <Text style={styles.suspendedName}>{item.playerName}</Text>
+        <Text style={styles.suspendedTeam}>{item.teamName}</Text>
+      </View>
+      <Text style={[styles.suspendedReason, isRed ? styles.reasonDanger : styles.reasonWarning]}>
+        {isRed ? 'Cartão vermelho' : '3 amarelos'}
+      </Text>
     </View>
   );
 }
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export function StatsOverviewScreen() {
   const {
@@ -69,146 +66,187 @@ export function StatsOverviewScreen() {
   } = useStats(CHAMP_ID);
 
   const leader = standings[0];
-  const avgGoals =
-    finishedCount > 0 ? (totalGoals / finishedCount).toFixed(1) : '—';
+  const avgGoals = finishedCount > 0 ? (totalGoals / finishedCount).toFixed(1) : '0.0';
+  const totalYellowCards = standings.reduce((sum, standing) => sum + standing.yellowCards, 0);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.pageHeader}>
-        <Text style={styles.title}>Estatísticas</Text>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 2-column grid */}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.grid}>
-          <StatCard
-            icon="🏆"
-            label="Líder"
-            value={leader?.teamName ?? '—'}
-            sub={leader ? `${leader.points} pontos` : undefined}
-          />
-          <StatCard
-            icon="⚽"
-            label="Melhor ataque"
-            value={bestAttack?.teamName ?? '—'}
-            sub={bestAttack ? `${bestAttack.goalsFor} gols marcados` : undefined}
-          />
-          <StatCard
-            icon="🛡️"
-            label="Melhor defesa"
-            value={bestDefense?.teamName ?? '—'}
-            sub={bestDefense ? `${bestDefense.goalsAgainst} sofridos` : undefined}
-          />
-          <StatCard
-            icon="🌟"
-            label={`Time da rodada ${currentRound}`}
-            value={roundMVP?.teamName ?? '—'}
-            sub={
-              roundMVP
-                ? `${roundMVP.goalsFor}-${roundMVP.goalsAgainst} na rodada`
-                : undefined
-            }
-          />
-          <StatCard
-            icon="📊"
-            label="Total de gols"
-            value={String(totalGoals)}
-          />
-          <StatCard
-            icon="📈"
-            label="Média gols/partida"
-            value={avgGoals}
-          />
+          <HighlightCard icon="🏆" label="Líder" value={leader?.teamName ?? '—'} accent={false} />
+          <HighlightCard icon="⚽" label="Gols totais" value={String(totalGoals)} />
+          <HighlightCard icon="📊" label="Média/jogo" value={avgGoals} />
+          <HighlightCard icon="🛡️" label="Melhor defesa" value={bestDefense?.teamName ?? '—'} accent={false} />
+          <HighlightCard icon="⚡" label="Melhor ataque" value={bestAttack?.teamName ?? '—'} accent={false} />
+          <HighlightCard icon="🟨" label="Cartões" value={String(totalYellowCards)} />
         </View>
 
-        {/* Suspended players */}
+        <AppCard variant="accent" style={styles.roundLeaderCard}>
+          <Text style={styles.roundLeaderEyebrow}>TIME DA RODADA</Text>
+          <View style={styles.roundLeaderRow}>
+            <View style={styles.roundLeaderCopy}>
+              <Text style={styles.roundLeaderName}>{roundMVP?.teamName ?? '—'}</Text>
+              <Text style={styles.roundLeaderSub}>Rodada {currentRound}</Text>
+            </View>
+            <Text style={styles.roundLeaderPoints}>{roundMVP?.points ?? 0} pts</Text>
+          </View>
+        </AppCard>
+
         {suspendedPlayers.length > 0 && (
           <View style={styles.suspendedSection}>
-            <Text style={styles.sectionTitle}>Suspensos — próxima rodada</Text>
-            {suspendedPlayers.map((sp) => (
-              <SuspendedRow key={sp.playerId} item={sp} />
-            ))}
+            <View style={styles.suspendedHeaderWrap}>
+              <SectionHeader title="⚠️ SUSPENSOS NA PRÓXIMA RODADA" />
+            </View>
+            <View style={styles.suspendedList}>
+              {suspendedPlayers.map((player) => (
+                <SuspendedRow key={player.playerId} item={player} />
+              ))}
+            </View>
           </View>
         )}
-
-        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-
-  pageHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg100,
   },
-  title: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
-
-  content: { padding: 16, gap: 16 },
-
-  // Grid
+  content: {
+    padding: 20,
+    paddingBottom: 28,
+    gap: 18,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
   },
-  statCard: {
-    flex: 1,
-    flexBasis: '45%',
-    gap: 4,
-    padding: 14,
-    minWidth: 140,
+  highlightCard: {
+    width: '47.5%',
+    height: 100,
+    padding: 16,
+    justifyContent: 'space-between',
   },
-  cardIcon: { fontSize: 28 },
-  cardValue: { fontSize: 15, fontWeight: '800', color: colors.textPrimary, marginTop: 4 },
-  cardSub: { fontSize: 12, color: colors.accent, fontWeight: '600' },
-  cardLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-
-  // Suspended section
+  highlightIcon: {
+    fontSize: 28,
+  },
+  highlightValue: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 24,
+    color: colors.accent,
+    lineHeight: 26,
+  },
+  highlightValueText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 18,
+    color: colors.textPrimary,
+  },
+  highlightLabel: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  roundLeaderCard: {
+    width: '100%',
+    padding: 18,
+    backgroundColor: colors.accentGlow,
+  },
+  roundLeaderEyebrow: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    color: colors.accent,
+  },
+  roundLeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+  },
+  roundLeaderCopy: {
+    flex: 1,
+  },
+  roundLeaderName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 22,
+    color: colors.textPrimary,
+  },
+  roundLeaderSub: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  roundLeaderPoints: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 28,
+    color: colors.accent,
+  },
   suspendedSection: {
-    backgroundColor: colors.background,
+    width: '100%',
     borderRadius: 16,
+    backgroundColor: 'rgba(255,184,0,0.08)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255,184,0,0.14)',
     overflow: 'hidden',
   },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.textSecondary,
+  suspendedHeaderWrap: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    paddingTop: 14,
+  },
+  suspendedList: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
   },
   suspendedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderLight,
+    paddingVertical: 8,
   },
-  suspendedIcon: { fontSize: 20 },
-  suspendedInfo: { flex: 1 },
-  suspendedName: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  suspendedTeam: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
-  suspendedBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  suspendedAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg300,
   },
-  suspendedBadgeText: { fontSize: 11, fontWeight: '700' },
+  suspendedAvatarText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  suspendedCopy: {
+    flex: 1,
+  },
+  suspendedName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  suspendedTeam: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  suspendedReason: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+  },
+  reasonDanger: {
+    color: colors.danger,
+  },
+  reasonWarning: {
+    color: colors.warning,
+  },
 });

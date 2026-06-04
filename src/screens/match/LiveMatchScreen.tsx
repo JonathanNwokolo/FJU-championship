@@ -1,344 +1,512 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
+  Animated as RNAnimated,
   FlatList,
+  ListRenderItem,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-
-import { colors } from '../../theme/colors';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { TeamColorDot } from '../../components/TeamColorDot';
+import { Badge } from '../../components/Badge';
+import { colors, gradients } from '../../theme/colors';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
+import { MatchEvent } from '../../types';
 
 type RouteT = RouteProp<FixturesStackParamList, 'LiveMatch'>;
-type NavT = NativeStackNavigationProp<FixturesStackParamList, 'LiveMatch'>;
+type NavT = NativeStackNavigationProp<FixturesStackParamList>;
 
-const EVENT_ICON: Record<string, string> = {
-  gol: '⚽',
-  cartao_amarelo: '🟨',
-  cartao_vermelho: '🟥',
-};
+const EVENT_META = {
+  gol: { label: 'Gol', icon: 'football-outline', tint: colors.accent },
+  cartao_amarelo: { label: 'Amarelo', icon: 'square', tint: colors.warning },
+  cartao_vermelho: { label: 'Vermelho', icon: 'square', tint: colors.danger },
+} as const;
+
+function EventTimelineCard({
+  event,
+  index,
+  homeTeamId,
+}: {
+  event: MatchEvent;
+  index: number;
+  homeTeamId?: string;
+}) {
+  const { players, teams } = useTeamStore();
+  const player = players.find((item) => item.id === event.playerId);
+  const team = teams.find((item) => item.id === event.teamId);
+  const meta = EVENT_META[event.type];
+  const isHomeEvent = event.teamId === homeTeamId;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 45).duration(260)}>
+      <View
+        style={[
+          styles.timelineCard,
+          isHomeEvent ? styles.timelineCardHome : styles.timelineCardAway,
+        ]}
+      >
+        <View style={styles.timelineMinute}>
+          <Text style={styles.timelineMinuteText}>{event.minute}'</Text>
+        </View>
+        <View
+          style={[
+            styles.timelineIconWrap,
+            {
+              backgroundColor:
+                event.type === 'gol'
+                  ? colors.accentGlow
+                  : event.type === 'cartao_amarelo'
+                    ? 'rgba(245,166,35,0.15)'
+                    : 'rgba(255,59,71,0.15)',
+            },
+          ]}
+        >
+          <Ionicons
+            name={meta.icon}
+            size={event.type === 'gol' ? 16 : 14}
+            color={meta.tint}
+          />
+        </View>
+        <View style={styles.timelineCopy}>
+          <Text style={styles.timelinePlayer} numberOfLines={1}>
+            {player?.name ?? 'Jogador'}
+          </Text>
+          <View style={styles.timelineSubRow}>
+            <Text style={styles.timelineType}>{meta.label}</Text>
+            <Text style={styles.timelineTeam} numberOfLines={1}>
+              {team?.name ?? 'Time'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
 
 export function LiveMatchScreen() {
   const navigation = useNavigation<NavT>();
   const route = useRoute<RouteT>();
   const { matchId } = route.params;
 
-  const matches = useMatchStore((s) => s.matches);
-  const events = useMatchStore((s) => s.events);
-  const { teams, players } = useTeamStore();
+  const { matches, events } = useMatchStore();
+  const { teams } = useTeamStore();
 
-  const match = matches.find((m) => m.id === matchId);
-  const matchEvents = events
-    .filter((e) => e.matchId === matchId)
-    .sort((a, b) => a.minute - b.minute);
+  const match = matches.find((item) => item.id === matchId);
+  const matchEvents = useMemo(
+    () =>
+      events
+        .filter((event) => event.matchId === matchId)
+        .sort((a, b) => b.minute - a.minute),
+    [events, matchId],
+  );
 
-  const homeTeam = match ? teams.find((t) => t.id === match.homeTeamId) : null;
-  const awayTeam = match ? teams.find((t) => t.id === match.awayTeamId) : null;
+  const homeTeam = teams.find((item) => item.id === match?.homeTeamId);
+  const awayTeam = teams.find((item) => item.id === match?.awayTeamId);
 
-  // Auto-navigate when match finishes
+  const [showGoal, setShowGoal] = useState(false);
+  const overlayOpacity = useRef(new RNAnimated.Value(0)).current;
+  const overlayScale = useRef(new RNAnimated.Value(0.92)).current;
+  const pulse = useRef(new RNAnimated.Value(1)).current;
+  const previousGoalCount = useRef(
+    matchEvents.filter((event) => event.type === 'gol').length,
+  );
+
   useEffect(() => {
     if (match?.status === 'finalizado') {
       navigation.replace('MatchSummary', { matchId });
     }
-  }, [match?.status]);
-
-  // GOOOL! animation
-  const goalCount = matchEvents.filter((e) => e.type === 'gol').length;
-  const prevGoalCount = useRef(goalCount);
-  const goalAnimValue = useRef(new Animated.Value(0)).current;
-  const [showGoal, setShowGoal] = useState(false);
+  }, [match?.status, matchId, navigation]);
 
   useEffect(() => {
-    if (goalCount > prevGoalCount.current) {
-      setShowGoal(true);
-      goalAnimValue.setValue(0);
-      Animated.sequence([
-        Animated.timing(goalAnimValue, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.delay(1400),
-        Animated.timing(goalAnimValue, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start(() => setShowGoal(false));
-    }
-    prevGoalCount.current = goalCount;
-  }, [goalCount]);
-
-  const goalScale = goalAnimValue.interpolate({
-    inputRange: [0, 0.6, 1],
-    outputRange: [0.3, 1.15, 1],
-  });
-
-  // Pulsing dot for AO VIVO badge
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.2, duration: 600, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(pulse, {
+          toValue: 1.18,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
       ]),
     ).start();
-  }, []);
+  }, [pulse]);
 
-  if (!match) return null;
+  useEffect(() => {
+    const goalCount = matchEvents.filter((event) => event.type === 'gol').length;
+    if (goalCount > previousGoalCount.current) {
+      previousGoalCount.current = goalCount;
+      setShowGoal(true);
+      overlayOpacity.setValue(0);
+      overlayScale.setValue(0.92);
+      RNAnimated.sequence([
+        RNAnimated.parallel([
+          RNAnimated.timing(overlayOpacity, {
+            toValue: 1,
+            duration: 240,
+            useNativeDriver: true,
+          }),
+          RNAnimated.spring(overlayScale, {
+            toValue: 1,
+            tension: 90,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]),
+        RNAnimated.delay(900),
+        RNAnimated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: 260,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setShowGoal(false));
+    } else {
+      previousGoalCount.current = goalCount;
+    }
+  }, [matchEvents, overlayOpacity, overlayScale]);
+
+  const renderItem: ListRenderItem<MatchEvent> = ({ item, index }) => (
+    <EventTimelineCard event={item} index={index} homeTeamId={match?.homeTeamId} />
+  );
+
+  if (!match) {
+    return null;
+  }
 
   return (
     <View style={styles.root}>
-      {/* Hero header */}
-      <SafeAreaView style={styles.heroBg} edges={['top']}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={26} color={colors.textOnDark} />
-        </TouchableOpacity>
+      <LinearGradient colors={gradients.hero} style={styles.hero}>
+        <SafeAreaView edges={['top']} style={styles.heroSafe}>
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
 
-        <Text style={styles.heroRound}>Rodada {match.round}</Text>
-
-        <View style={styles.liveBadge}>
-          <Animated.View style={[styles.liveDot, { opacity: pulseAnim }]} />
-          <Text style={styles.liveBadgeText}>AO VIVO</Text>
-        </View>
-
-        <View style={styles.heroScoreRow}>
-          <Text
-            style={[styles.heroTeamName, { color: homeTeam?.primaryColor ?? colors.textOnDark }]}
-            numberOfLines={2}
-          >
-            {homeTeam?.name ?? '—'}
-          </Text>
-          <View style={styles.heroScoreCenter}>
-            <Text style={styles.heroScore}>
-              {match.homeScore ?? 0}
-              <Text style={styles.heroScoreX}> × </Text>
-              {match.awayScore ?? 0}
-            </Text>
-          </View>
-          <Text
-            style={[
-              styles.heroTeamName,
-              styles.heroTeamNameRight,
-              { color: awayTeam?.primaryColor ?? colors.textOnDark },
-            ]}
-            numberOfLines={2}
-          >
-            {awayTeam?.name ?? '—'}
-          </Text>
-        </View>
-
-        <View style={styles.heroDotsRow}>
-          <View style={[styles.heroDot, { backgroundColor: homeTeam?.primaryColor ?? colors.border }]} />
-          <View style={[styles.heroDot, { backgroundColor: awayTeam?.primaryColor ?? colors.border }]} />
-        </View>
-      </SafeAreaView>
-
-      {/* Events timeline */}
-      <FlatList
-        data={[...matchEvents].reverse()}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<Text style={styles.sectionLabel}>EVENTOS</Text>}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>Aguardando eventos...</Text>
-        }
-        renderItem={({ item: event }) => {
-          const player = players.find((p) => p.id === event.playerId);
-          const isHome = event.teamId === match.homeTeamId;
-          return (
-            <View style={styles.eventRow}>
-              <View style={styles.eventSide}>
-                {isHome && (
-                  <>
-                    <Text style={styles.eventIcon}>{EVENT_ICON[event.type]}</Text>
-                    <Text style={styles.eventName} numberOfLines={1}>
-                      {player?.name ?? '—'}
-                    </Text>
-                  </>
-                )}
-              </View>
-              <Text style={styles.eventMinute}>{event.minute}'</Text>
-              <View style={[styles.eventSide, styles.eventSideRight]}>
-                {!isHome && (
-                  <>
-                    <Text
-                      style={[styles.eventName, { textAlign: 'right' }]}
-                      numberOfLines={1}
-                    >
-                      {player?.name ?? '—'}
-                    </Text>
-                    <Text style={styles.eventIcon}>{EVENT_ICON[event.type]}</Text>
-                  </>
-                )}
-              </View>
+            <View style={styles.liveBadgeWrap}>
+              <Badge label="AO VIVO" variant="live" />
+              <RNAnimated.View
+                style={[
+                  styles.livePulseDot,
+                  {
+                    transform: [{ scale: pulse }],
+                  },
+                ]}
+              />
             </View>
-          );
-        }}
-      />
 
-      {/* GOOOL! overlay */}
-      {showGoal && (
-        <Animated.View
-          style={[styles.goalOverlay, { opacity: goalAnimValue }]}
+            <View style={styles.topBarSpacer} />
+          </View>
+
+          <Text style={styles.roundLabel}>RODADA {match.round}</Text>
+
+          <View style={styles.scoreRow}>
+            <View style={styles.teamColumn}>
+              <TeamColorDot color={homeTeam?.primaryColor ?? colors.textMuted} size={14} />
+              <Text style={styles.teamName} numberOfLines={2}>
+                {homeTeam?.name ?? 'Casa'}
+              </Text>
+            </View>
+
+            <View style={styles.scoreWrap}>
+              <Text style={styles.scoreValue}>
+                {match.homeScore ?? 0}
+                <Text style={styles.scoreDivider}> - </Text>
+                {match.awayScore ?? 0}
+              </Text>
+            </View>
+
+            <View style={[styles.teamColumn, styles.teamColumnRight]}>
+              <Text style={[styles.teamName, styles.teamNameRight]} numberOfLines={2}>
+                {awayTeam?.name ?? 'Fora'}
+              </Text>
+              <TeamColorDot color={awayTeam?.primaryColor ?? colors.textMuted} size={14} />
+            </View>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      <View style={styles.timelineSection}>
+        <View style={styles.timelineHeader}>
+          <Text style={styles.timelineHeaderTitle}>TIMELINE DA PARTIDA</Text>
+          <Text style={styles.timelineHeaderCount}>{matchEvents.length} eventos</Text>
+        </View>
+
+        <FlatList
+          data={matchEvents}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          inverted
+          contentContainerStyle={styles.timelineListContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Ionicons name="flash-outline" size={54} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>Partida iniciada</Text>
+              <Text style={styles.emptySubtitle}>
+                Os eventos ao vivo vao aparecer aqui conforme forem registrados.
+              </Text>
+            </View>
+          }
+        />
+      </View>
+
+      {showGoal ? (
+        <RNAnimated.View
           pointerEvents="none"
+          style={[
+            styles.goalOverlay,
+            {
+              opacity: overlayOpacity,
+              transform: [{ scale: overlayScale }],
+            },
+          ]}
         >
-          <Animated.Text
-            style={[styles.goalText, { transform: [{ scale: goalScale }] }]}
+          <LinearGradient
+            colors={['rgba(245,166,35,0.92)', 'rgba(196,125,14,0.88)']}
+            style={styles.goalOverlayGradient}
           >
-            GOOOL! ⚽
-          </Animated.Text>
-        </Animated.View>
-      )}
+            <Text style={styles.goalOverlayLabel}>GOOOL!</Text>
+          </LinearGradient>
+        </RNAnimated.View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-
-  heroBg: {
-    backgroundColor: colors.primaryDark,
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg100,
+  },
+  hero: {
     paddingBottom: 24,
   },
-  backBtn: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  heroRound: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: `${colors.textOnDark}66`,
-    textAlign: 'center',
-    marginBottom: 10,
+  heroSafe: {
+    paddingHorizontal: 20,
   },
-
-  liveBadge: {
+  topBar: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-    gap: 6,
-    backgroundColor: `${colors.danger}28`,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginBottom: 16,
+    justifyContent: 'space-between',
   },
-  liveDot: {
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveBadgeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  livePulseDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.danger,
+    backgroundColor: colors.neon,
   },
-  liveBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.danger,
-    letterSpacing: 1,
+  topBarSpacer: {
+    width: 36,
   },
-
-  heroScoreRow: {
+  roundLabel: {
+    marginTop: 18,
+    textAlign: 'center',
+    fontFamily: 'Barlow-Bold',
+    fontSize: 11,
+    letterSpacing: 1.8,
+    color: colors.accent,
+  },
+  scoreRow: {
+    marginTop: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 14,
   },
-  heroTeamName: {
+  teamColumn: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 18,
-    color: colors.textOnDark,
+    alignItems: 'center',
+    gap: 10,
   },
-  heroTeamNameRight: { textAlign: 'right' },
-  heroScoreCenter: { alignItems: 'center', flexShrink: 0 },
-  heroScore: {
-    fontSize: 52,
-    fontWeight: '900',
-    color: colors.textOnDark,
-    letterSpacing: -1,
-  },
-  heroScoreX: {
-    fontSize: 32,
-    fontWeight: '400',
-    color: `${colors.textOnDark}55`,
-  },
-  heroDotsRow: {
+  teamColumnRight: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
-    marginTop: 14,
   },
-  heroDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-
-  listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.textSecondary,
-    marginBottom: 14,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  teamName: {
     textAlign: 'center',
-    marginTop: 24,
-  },
-
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    gap: 6,
-  },
-  eventSide: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  eventSideRight: { justifyContent: 'flex-end' },
-  eventIcon: { fontSize: 15, flexShrink: 0 },
-  eventName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 20,
+    lineHeight: 24,
     color: colors.textPrimary,
   },
-  eventMinute: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    width: 30,
+  teamNameRight: {
     textAlign: 'center',
-    flexShrink: 0,
   },
-
-  goalOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: `${colors.primaryDark}DD`,
-    justifyContent: 'center',
+  scoreWrap: {
+    minWidth: 160,
     alignItems: 'center',
   },
-  goalText: {
-    fontSize: 52,
-    fontWeight: '900',
+  scoreValue: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 72,
+    lineHeight: 78,
     color: colors.accent,
-    textShadowColor: `${colors.accent}88`,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 24,
+    letterSpacing: 0,
+  },
+  scoreDivider: {
+    color: colors.textMuted,
+  },
+  timelineSection: {
+    flex: 1,
+    paddingTop: 18,
+  },
+  timelineHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  timelineHeaderTitle: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    letterSpacing: 1.8,
+    color: colors.textSecondary,
+  },
+  timelineHeaderCount: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  timelineListContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    gap: 10,
+  },
+  timelineCard: {
+    minHeight: 72,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg200,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  timelineCardHome: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+  },
+  timelineCardAway: {
+    borderRightWidth: 3,
+    borderRightColor: colors.neon,
+  },
+  timelineMinute: {
+    width: 42,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg300,
+  },
+  timelineMinuteText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  timelineIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineCopy: {
+    flex: 1,
+  },
+  timelinePlayer: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  timelineSubRow: {
+    marginTop: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timelineType: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  timelineTeam: {
+    flex: 1,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  emptyWrap: {
+    minHeight: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    marginTop: 18,
+    fontFamily: 'Barlow-Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+  },
+  emptySubtitle: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: 'Barlow-Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  goalOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(8,14,23,0.2)',
+  },
+  goalOverlayGradient: {
+    minWidth: 260,
+    paddingHorizontal: 26,
+    paddingVertical: 22,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalOverlayLabel: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 56,
+    color: colors.textOnAccent,
+    letterSpacing: 0,
   },
 });

@@ -19,9 +19,9 @@ export function AppToggle({ label, value, onValueChange, description }: Props) {
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: '#D0D0D0', true: colors.accent }}
+        trackColor={{ false: colors.bg300, true: colors.accent }}
         thumbColor="#FFFFFF"
-        ios_backgroundColor="#D0D0D0"
+        ios_backgroundColor={colors.bg300}
       />
     </View>
   );
@@ -41,10 +41,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   label: {
+    fontFamily: 'Barlow-Medium',
     fontSize: 15,
     color: colors.textPrimary,
   },
   description: {
+    fontFamily: 'Barlow-Regular',
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,

@@ -1,126 +1,181 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  Pressable,
   ScrollView,
-  TouchableOpacity,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import Animated, { SlideInRight } from 'react-native-reanimated';
 import { useAuthStore } from '../../stores/authStore';
 import { colors } from '../../theme/colors';
 import { UserRole } from '../../types';
+import { AuthBackground } from '../auth/AuthBackground';
 
-const roles: Array<{ role: UserRole; icon: string; title: string; description: string }> = [
+const roles: Array<{
+  role: UserRole;
+  icon: keyof typeof FontAwesome5.glyphMap;
+  color: string;
+  title: string;
+  description: string;
+}> = [
   {
     role: 'organizador',
-    icon: '📋',
+    icon: 'clipboard-list',
+    color: colors.accent,
     title: 'Organizador',
     description: 'Crio e gerencio campeonatos da igreja',
   },
   {
     role: 'capitao',
-    icon: '🛡️',
+    icon: 'shield-alt',
+    color: '#4FC3F7',
     title: 'Capitão',
     description: 'Monto e lidero minha equipe',
   },
   {
     role: 'atleta',
-    icon: '⚽',
+    icon: 'running',
+    color: colors.success,
     title: 'Atleta',
     description: 'Participo dos jogos',
   },
 ];
 
 export function RoleSelectionScreen() {
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const setRole = useAuthStore((s) => s.setRole);
 
+  const handleSelect = (role: UserRole) => {
+    setSelectedRole(role);
+    setRole(role);
+  };
+
   return (
-    <View style={styles.container}>
+    <AuthBackground>
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Como você vai{'\n'}participar?</Text>
-        <Text style={styles.subtitle}>Escolha seu perfil para começar</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>Como você vai participar?</Text>
+          <Text style={styles.subtitle}>Escolha seu perfil no campeonato</Text>
+        </View>
 
         <View style={styles.cards}>
-          {roles.map((r) => (
-            <TouchableOpacity
-              key={r.role}
-              style={styles.card}
-              onPress={() => setRole(r.role)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.cardIcon}>{r.icon}</Text>
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>{r.title}</Text>
-                <Text style={styles.cardDescription}>{r.description}</Text>
-              </View>
-              <Text style={styles.arrow}>›</Text>
-            </TouchableOpacity>
-          ))}
+          {roles.map((item, index) => {
+            const selected = selectedRole === item.role;
+            return (
+              <Animated.View
+                key={item.role}
+                entering={SlideInRight.delay(index * 100).duration(420)}
+              >
+                <Pressable
+                  onPress={() => handleSelect(item.role)}
+                  style={[
+                    styles.card,
+                    selected && styles.cardSelected,
+                  ]}
+                >
+                  <View style={[styles.iconWrap, { backgroundColor: `${item.color}18` }]}>
+                    <FontAwesome5 name={item.icon} size={40} color={item.color} />
+                  </View>
+                  <View style={styles.cardCopy}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <Text style={styles.cardDescription}>{item.description}</Text>
+                  </View>
+                  {selected && (
+                    <View style={styles.check}>
+                      <Ionicons name="checkmark" size={16} color={colors.textOnAccent} />
+                    </View>
+                  )}
+                </Pressable>
+              </Animated.View>
+            );
+          })}
         </View>
       </ScrollView>
-    </View>
+    </AuthBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 32,
+    paddingHorizontal: 24,
+    paddingTop: 70,
     paddingBottom: 32,
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: 34,
+  },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontFamily: 'Barlow-Black',
+    fontSize: 34,
+    lineHeight: 38,
     color: colors.textPrimary,
-    letterSpacing: -0.5,
-    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.8,
   },
   subtitle: {
+    marginTop: 10,
+    fontFamily: 'Barlow-Regular',
     fontSize: 15,
     color: colors.textSecondary,
-    marginBottom: 32,
+    textAlign: 'center',
   },
   cards: {
-    gap: 12,
+    gap: 14,
   },
   card: {
+    minHeight: 120,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 12,
-    elevation: 2,
     gap: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 18,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  cardIcon: {
-    fontSize: 32,
+  cardSelected: {
+    backgroundColor: colors.accentGlow,
+    borderWidth: 2,
+    borderColor: colors.accent,
   },
-  cardText: {
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardCopy: {
     flex: 1,
   },
   cardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 18,
     color: colors.textPrimary,
-    marginBottom: 4,
   },
   cardDescription: {
+    marginTop: 5,
+    fontFamily: 'Barlow-Regular',
     fontSize: 13,
-    color: colors.textSecondary,
     lineHeight: 18,
+    color: colors.textSecondary,
   },
-  arrow: {
-    fontSize: 24,
-    color: colors.accent,
-    fontWeight: '600',
+  check: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
   },
 });

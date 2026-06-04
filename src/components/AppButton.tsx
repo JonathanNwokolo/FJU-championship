@@ -1,15 +1,23 @@
 import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
   ActivityIndicator,
   Platform,
+  Pressable,
   StyleSheet,
+  Text,
+  View,
   ViewStyle,
 } from 'react-native';
-import { colors } from '../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { colors, gradients, shadows } from '../theme/colors';
 
-type Variant = 'primary' | 'outline' | 'danger' | 'ghost';
+type Variant = 'primary' | 'outline' | 'danger' | 'ghost' | 'success';
 
 interface Props {
   title: string;
@@ -21,6 +29,8 @@ interface Props {
   style?: ViewStyle;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function AppButton({
   title,
   onPress,
@@ -30,85 +40,148 @@ export function AppButton({
   fullWidth = false,
   style,
 }: Props) {
+  const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
+  const isGradient = variant === 'primary' || variant === 'danger' || variant === 'success';
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    if (!isDisabled) {
+      scale.value = withSpring(0.97, { damping: 16, stiffness: 260 });
+      if (variant === 'primary') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    }
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 16, stiffness: 260 });
+  };
+
+  const content = (
+    <>
+      <Text
+        style={[
+          styles.text,
+          styles[`${variant}Text`],
+          loading && styles.loadingText,
+        ]}
+      >
+        {title}
+      </Text>
+      {loading && (
+        <ActivityIndicator
+          color={variant === 'primary' || variant === 'danger' || variant === 'success' ? colors.textPrimary : colors.accent}
+          size="small"
+          style={styles.loader}
+        />
+      )}
+    </>
+  );
 
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       onPress={onPress}
-      activeOpacity={0.85}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={isDisabled}
       style={[
         styles.base,
-        styles[variant],
         fullWidth && styles.fullWidth,
+        variant === 'outline' && styles.outline,
+        variant === 'ghost' && styles.ghost,
+        variant === 'primary' && !isDisabled && styles.shadowGlow,
         isDisabled && styles.disabled,
+        animatedStyle,
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? colors.textOnAccent : colors.accent}
-          size="small"
-        />
+      {isGradient ? (
+        <LinearGradient
+          colors={variant === 'danger' ? gradients.danger : variant === 'success' ? gradients.success : gradients.accent}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        >
+          {content}
+        </LinearGradient>
       ) : (
-        <Text style={[styles.text, styles[`${variant}Text`]]}>{title}</Text>
+        <View style={styles.plainContent}>{content}</View>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    height: 50,
+    height: 52,
     borderRadius: 14,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  fullWidth: {
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  gradient: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
-  fullWidth: {
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  primary: {
-    backgroundColor: colors.accent,
-    ...Platform.select({
-      default: {
-        shadowColor: colors.accent,
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 8,
-        elevation: 4,
-      },
-      web: {},
-    }),
+  plainContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   outline: {
     backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-  },
-  danger: {
-    backgroundColor: colors.danger,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
+  disabled: {
+    opacity: 0.4,
+  },
+  shadowGlow: {
+    ...Platform.select({
+      default: shadows.shadowGlow,
+      web: {
+        boxShadow: '0 8px 18px rgba(245, 166, 35, 0.28)',
+      } as ViewStyle,
+    }),
+  },
   text: {
+    fontFamily: 'Barlow-Bold',
     fontSize: 15,
-    fontWeight: '500',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   primaryText: {
-    color: colors.textOnAccent,
+    color: colors.textPrimary,
   },
   outlineText: {
     color: colors.accent,
   },
   dangerText: {
-    color: colors.textOnDark,
+    color: colors.textPrimary,
+  },
+  successText: {
+    color: colors.textPrimary,
   },
   ghostText: {
-    color: colors.textSecondary,
+    color: colors.accent,
+  },
+  loadingText: {
+    opacity: 0,
+  },
+  loader: {
+    position: 'absolute',
   },
 });

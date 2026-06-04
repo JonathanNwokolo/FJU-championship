@@ -1,22 +1,64 @@
 import React from 'react';
-import { TouchableOpacity, View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { colors } from '../theme/colors';
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { colors, shadows } from '../theme/colors';
 
 interface Props {
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
-  variant?: 'default' | 'elevated' | 'dark';
+  variant?: 'default' | 'elevated' | 'accent' | 'dark';
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function AppCard({ children, onPress, style, variant = 'default' }: Props) {
-  const cardStyle = [styles.base, styles[variant], style];
+  const pressed = useSharedValue(0);
+  const normalizedVariant = variant === 'dark' ? 'elevated' : variant;
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      pressed.value,
+      [0, 1],
+      [
+        normalizedVariant === 'elevated' ? colors.bg300 : normalizedVariant === 'accent' ? colors.accentGlow : colors.bg200,
+        colors.bg300,
+      ],
+    ),
+  }));
+
+  const cardStyle = [
+    styles.base,
+    normalizedVariant === 'elevated' && styles.elevated,
+    normalizedVariant === 'accent' && styles.accent,
+    style,
+  ];
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={cardStyle}>
+      <AnimatedPressable
+        onPress={onPress}
+        onPressIn={() => {
+          pressed.value = withTiming(1, { duration: 140 });
+        }}
+        onPressOut={() => {
+          pressed.value = withTiming(0, { duration: 180 });
+        }}
+        style={[cardStyle, animatedStyle]}
+      >
         {children}
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   }
 
@@ -25,22 +67,19 @@ export function AppCard({ children, onPress, style, variant = 'default' }: Props
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg200,
     borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 12,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.shadowMd,
   },
-  default: {},
   elevated: {
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    backgroundColor: colors.bg300,
+    borderColor: colors.borderStrong,
   },
-  dark: {
-    backgroundColor: colors.primary,
+  accent: {
+    backgroundColor: colors.accentGlow,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
   },
 });

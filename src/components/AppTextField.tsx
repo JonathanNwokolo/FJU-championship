@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
 import {
-  View,
+  KeyboardTypeOptions,
+  Pressable,
+  StyleProp,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
-  KeyboardTypeOptions,
+  View,
   ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { colors } from '../theme/colors';
+
+type IconName = keyof typeof Ionicons.glyphMap;
 
 interface Props {
   label: string;
@@ -17,8 +28,9 @@ interface Props {
   error?: string;
   keyboardType?: KeyboardTypeOptions;
   secureTextEntry?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   dark?: boolean;
+  leftIcon?: IconName;
 }
 
 export function AppTextField({
@@ -30,29 +42,74 @@ export function AppTextField({
   keyboardType = 'default',
   secureTextEntry = false,
   style,
-  dark = false,
+  leftIcon,
 }: Props) {
   const [focused, setFocused] = useState(false);
+  const [hidden, setHidden] = useState(secureTextEntry);
+  const focusProgress = useSharedValue(0);
+
+  const handleFocus = () => {
+    setFocused(true);
+    focusProgress.value = withTiming(1, { duration: 180 });
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    focusProgress.value = withTiming(value ? 1 : 0, { duration: 180 });
+  };
+
+  const labelStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(focusProgress.value, [0, 1], [colors.textSecondary, colors.accent]),
+    transform: [{ translateY: withTiming(focused || value ? -2 : 0, { duration: 180 }) }],
+  }));
+
+  const underlineStyle = useAnimatedStyle(() => ({
+    opacity: focusProgress.value,
+  }));
 
   return (
     <View style={style}>
-      <Text style={[styles.label, dark && styles.labelDark]}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={dark ? 'rgba(255,255,255,0.4)' : '#B0B0B0'}
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+      <Animated.Text style={[styles.label, labelStyle]}>{label}</Animated.Text>
+      <View
         style={[
-          styles.input,
-          dark && styles.inputDark,
-          focused && styles.inputFocused,
-          !!error && styles.inputError,
+          styles.inputWrap,
+          focused && styles.inputWrapFocused,
+          !!error && styles.inputWrapError,
         ]}
-      />
+      >
+        {leftIcon && (
+          <Ionicons
+            name={leftIcon}
+            size={18}
+            color={focused ? colors.accent : colors.textSecondary}
+            style={styles.leftIcon}
+          />
+        )}
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          keyboardType={keyboardType}
+          secureTextEntry={hidden}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          style={styles.input}
+        />
+        {secureTextEntry && (
+          <Pressable
+            onPress={() => setHidden((current) => !current)}
+            style={styles.eyeButton}
+          >
+            <Ionicons
+              name={hidden ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </Pressable>
+        )}
+        <Animated.View style={[styles.focusLine, underlineStyle]} />
+      </View>
       {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
@@ -60,37 +117,57 @@ export function AppTextField({
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginBottom: 6,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 11,
+    letterSpacing: 1.5,
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
-  labelDark: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  input: {
-    backgroundColor: colors.surface,
+  inputWrap: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg300,
     borderRadius: 12,
-    height: 50,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: colors.textPrimary,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
-  inputDark: {
-    backgroundColor: colors.primary,
-    color: colors.textOnDark,
+  inputWrapFocused: {
+    borderColor: colors.borderStrong,
   },
-  inputFocused: {
-    borderColor: colors.accent,
-  },
-  inputError: {
+  inputWrapError: {
     borderColor: colors.danger,
   },
+  input: {
+    flex: 1,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    fontFamily: 'Barlow-Medium',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  leftIcon: {
+    marginLeft: 14,
+  },
+  eyeButton: {
+    width: 44,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  focusLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    backgroundColor: colors.accent,
+  },
   errorText: {
+    marginTop: 6,
+    fontFamily: 'Barlow-Medium',
     fontSize: 12,
     color: colors.danger,
-    marginTop: 4,
   },
 });

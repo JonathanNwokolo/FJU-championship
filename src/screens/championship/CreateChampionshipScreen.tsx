@@ -8,10 +8,13 @@ import {
   TextInput,
   Alert,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
@@ -19,6 +22,7 @@ import DraggableFlatList, {
 import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
 import { AppToggle } from '../../components/AppToggle';
+import { SectionHeader } from '../../components/SectionHeader';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { Championship, ChampionshipFormat } from '../../types';
@@ -27,6 +31,7 @@ import { generateInviteCode } from '../../utils/generateInviteCode';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'CreateChampionship'>;
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 type TiebreakerItem = { key: string; label: string };
 
@@ -41,11 +46,29 @@ const FORMAT_OPTIONS: Array<{
   value: ChampionshipFormat;
   title: string;
   desc: string;
+  icon: IoniconName;
   disabled?: boolean;
 }> = [
-  { value: 'pontos_corridos',      title: 'Pontos corridos',    desc: 'Todos jogam contra todos' },
-  { value: 'mata_mata',            title: 'Mata-mata',          desc: 'Eliminação direta',          disabled: true },
-  { value: 'grupos_e_mata_mata',   title: 'Grupos + mata-mata', desc: 'Grupos e depois eliminatória', disabled: true },
+  {
+    value: 'pontos_corridos',
+    title: 'Pontos corridos',
+    desc: 'Todos jogam contra todos',
+    icon: 'repeat-outline',
+  },
+  {
+    value: 'mata_mata',
+    title: 'Mata-mata',
+    desc: 'Eliminação direta',
+    icon: 'flash-outline',
+    disabled: true,
+  },
+  {
+    value: 'grupos_e_mata_mata',
+    title: 'Grupos + mata-mata',
+    desc: 'Grupos e depois eliminatória',
+    icon: 'layers-outline',
+    disabled: true,
+  },
 ];
 
 export function CreateChampionshipScreen() {
@@ -53,7 +76,7 @@ export function CreateChampionshipScreen() {
   const user = useAuthStore((s) => s.user);
   const addChampionship = useChampionshipStore((s) => s.addChampionship);
 
-  // Form state
+  // Form state (unchanged)
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
   const [format, setFormat] = useState<ChampionshipFormat>('pontos_corridos');
@@ -105,11 +128,11 @@ export function CreateChampionshipScreen() {
     Alert.alert(
       'Campeonato criado! 🏆',
       `"${championship.name}" está pronto.\n\nCódigo de convite: ${championship.inviteCode}`,
-      [{ text: 'Ver campeonatos', onPress: () => navigation.goBack() }]
+      [{ text: 'Ver campeonatos', onPress: () => navigation.goBack() }],
     );
   };
 
-  // ─── Draggable tiebreaker row ────────────────────────────────────────────
+  // ─── Draggable tiebreaker row ─────────────────────────────────────────────
   const renderTiebreakerItem = ({
     item,
     drag,
@@ -129,21 +152,39 @@ export function CreateChampionshipScreen() {
             <Text style={styles.tiebreakerBadgeText}>{index}</Text>
           </View>
           <Text style={styles.tiebreakerLabel}>{item.label}</Text>
-          <Text style={styles.dragHandle}>☰</Text>
+          <Ionicons name="reorder-three-outline" size={20} color={colors.textMuted} />
         </TouchableOpacity>
       </ScaleDecorator>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      {/* ─── In-screen header ─── */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="chevron-back" size={26} color={colors.accent} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Novo Campeonato</Text>
+          <Text style={styles.headerSubtitle}>Copa Tribo de Judá 2026</Text>
+        </View>
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* ── 1. Nome ── */}
-        <Text style={styles.sectionLabel}>NOME DO CAMPEONATO</Text>
         <AppTextField
           label=""
           value={name}
@@ -153,7 +194,9 @@ export function CreateChampionshipScreen() {
         />
 
         {/* ── 2. Formato ── */}
-        <Text style={styles.sectionLabel}>FORMATO</Text>
+        <View style={styles.sectionGap}>
+          <SectionHeader title="FORMATO" />
+        </View>
         <View style={styles.formatList}>
           {FORMAT_OPTIONS.map((opt) => {
             const selected = format === opt.value && !opt.disabled;
@@ -169,50 +212,64 @@ export function CreateChampionshipScreen() {
                 activeOpacity={opt.disabled ? 1 : 0.8}
                 disabled={opt.disabled}
               >
-                <View style={styles.formatCardRow}>
-                  <View style={[styles.radio, selected && styles.radioSelected]}>
-                    {selected && <View style={styles.radioDot} />}
-                  </View>
+                {/* Icon box */}
+                <View style={styles.formatIconBox}>
+                  <Ionicons
+                    name={opt.icon}
+                    size={18}
+                    color={selected ? colors.accent : colors.textSecondary}
+                  />
+                </View>
+
+                {/* Text */}
+                <View style={styles.formatTextBlock}>
                   <Text style={[styles.formatTitle, selected && styles.formatTitleSelected]}>
                     {opt.title}
                   </Text>
-                  {opt.disabled && (
-                    <View style={styles.comingSoonBadge}>
-                      <Text style={styles.comingSoonText}>Em breve</Text>
-                    </View>
-                  )}
+                  <Text style={styles.formatDesc}>{opt.desc}</Text>
                 </View>
-                <Text style={styles.formatDesc}>{opt.desc}</Text>
+
+                {/* Coming soon badge OR radio */}
+                {opt.disabled ? (
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonText}>Em breve</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.radio, selected && styles.radioSelected]} />
+                )}
               </TouchableOpacity>
             );
           })}
         </View>
 
         {/* ── 3. Pontuação ── */}
-        <Text style={styles.sectionLabel}>PONTUAÇÃO</Text>
+        <View style={styles.sectionGap}>
+          <SectionHeader title="PONTUAÇÃO" />
+        </View>
         <View style={styles.pointsRow}>
           {[
-            { label: 'Vitória', value: pointsWin,  set: setPointsWin  },
-            { label: 'Empate',  value: pointsDraw, set: setPointsDraw },
-            { label: 'Derrota', value: pointsLoss, set: setPointsLoss },
+            { label: 'Vitória',  value: pointsWin,  set: setPointsWin  },
+            { label: 'Empate',   value: pointsDraw, set: setPointsDraw },
+            { label: 'Derrota',  value: pointsLoss, set: setPointsLoss },
           ].map(({ label, value, set }) => (
             <View key={label} style={styles.pointCard}>
-              <Text style={styles.pointCardLabel}>{label}</Text>
               <TextInput
-                style={styles.pointCardValue}
+                style={styles.pointInput}
                 value={String(value)}
                 onChangeText={(t) => set(Math.max(0, parseInt(t) || 0))}
                 keyboardType="number-pad"
                 maxLength={1}
                 selectTextOnFocus
               />
+              <Text style={styles.pointLabel}>{label}</Text>
             </View>
           ))}
         </View>
 
         {/* ── 4. Critérios de desempate ── */}
-        <Text style={styles.sectionLabel}>CRITÉRIOS DE DESEMPATE</Text>
-        <Text style={styles.hint}>Segure e arraste para reordenar a prioridade</Text>
+        <View style={styles.sectionGap}>
+          <SectionHeader title="CRITÉRIOS DE DESEMPATE" subtitle="Segure e arraste para reordenar" />
+        </View>
         <View style={styles.tiebreakerContainer}>
           <DraggableFlatList
             data={tiebreakers}
@@ -224,14 +281,15 @@ export function CreateChampionshipScreen() {
         </View>
 
         {/* ── 5. Disciplina ── */}
-        <Text style={styles.sectionLabel}>DISCIPLINA</Text>
+        <View style={styles.sectionGap}>
+          <SectionHeader title="DISCIPLINA" />
+        </View>
         <View style={styles.card}>
           <AppToggle
             label="Vermelho suspende a próxima"
             value={redCardSuspend}
             onValueChange={setRedCardSuspend}
           />
-          {/* Yellow cards row with inline input */}
           <View style={styles.yellowRow}>
             <TouchableOpacity
               style={styles.yellowTogglePart}
@@ -256,15 +314,17 @@ export function CreateChampionshipScreen() {
             <Switch
               value={yellowSuspend}
               onValueChange={setYellowSuspend}
-              trackColor={{ false: '#D0D0D0', true: colors.accent }}
+              trackColor={{ false: colors.bg300, true: colors.accent }}
               thumbColor="#FFFFFF"
-              ios_backgroundColor="#D0D0D0"
+              ios_backgroundColor={colors.bg300}
             />
           </View>
         </View>
 
         {/* ── 6. Inscrições ── */}
-        <Text style={styles.sectionLabel}>INSCRIÇÕES</Text>
+        <View style={styles.sectionGap}>
+          <SectionHeader title="INSCRIÇÕES" />
+        </View>
         <View style={styles.card}>
           <View style={styles.inlineRow}>
             <Text style={styles.inlineLabel}>Máx. atletas por time</Text>
@@ -295,7 +355,9 @@ export function CreateChampionshipScreen() {
         </View>
 
         {/* ── 7. Extras da FJU ── */}
-        <Text style={styles.sectionLabel}>EXTRAS DA FJU</Text>
+        <View style={styles.sectionGap}>
+          <SectionHeader title="EXTRAS DA FJU" />
+        </View>
         <View style={styles.card}>
           <AppToggle
             label="Prêmio Fair Play"
@@ -331,103 +393,121 @@ export function CreateChampionshipScreen() {
           style={styles.submitButton}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg100,
   },
+
+  // ─── In-screen header ───
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.whiteOverlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+    lineHeight: 24,
+  },
+  headerSubtitle: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+
+  // ─── Scroll body ───
   content: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 20,
     paddingBottom: 48,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    color: colors.textSecondary,
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  hint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: -8,
-    marginBottom: 10,
+
+  sectionGap: {
+    marginTop: 28,
+    marginBottom: 14,
   },
 
-  // Card base (sections)
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 12,
-    elevation: 2,
-  },
-
-  // Format cards
+  // ─── Format cards ───
   formatList: {
     gap: 10,
   },
   formatCard: {
+    height: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 12,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 14,
-    padding: 14,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg200,
   },
   formatCardSelected: {
     borderColor: colors.accent,
-    backgroundColor: `${colors.accent}0D`,
+    borderWidth: 2,
+    backgroundColor: colors.accentGlow,
   },
   formatCardDisabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
-  formatCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 4,
-  },
-  radio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: colors.border,
+  formatIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: colors.bg300,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioSelected: {
-    borderColor: colors.accent,
-  },
-  radioDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
+  formatTextBlock: {
+    flex: 1,
+    gap: 2,
   },
   formatTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 14,
     color: colors.textPrimary,
   },
   formatTitleSelected: {
     color: colors.accent,
   },
   formatDesc: {
-    fontSize: 13,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
     color: colors.textSecondary,
-    marginLeft: 28,
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
+  },
+  radioSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
   },
   comingSoonBadge: {
     backgroundColor: `${colors.textSecondary}22`,
@@ -436,109 +516,103 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   comingSoonText: {
+    fontFamily: 'Barlow-SemiBold',
     fontSize: 11,
-    fontWeight: '600',
     color: colors.textSecondary,
   },
 
-  // Points
+  // ─── Points ───
   pointsRow: {
     flexDirection: 'row',
     gap: 12,
   },
   pointCard: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg300,
     borderRadius: 14,
-    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 12,
-    elevation: 2,
+    gap: 4,
   },
-  pointCardLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  pointCardValue: {
-    fontSize: 30,
-    fontWeight: '700',
+  pointInput: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 32,
     color: colors.textPrimary,
     textAlign: 'center',
     width: '100%',
     padding: 0,
   },
+  pointLabel: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 10,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
 
-  // Tiebreaker drag list
+  // ─── Tiebreaker ───
   tiebreakerContainer: {
-    backgroundColor: colors.background,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 12,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tiebreakerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg200,
     borderBottomWidth: 0.5,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: colors.border,
     gap: 12,
   },
   tiebreakerRowActive: {
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 8,
+    backgroundColor: colors.bg300,
   },
   tiebreakerBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg300,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tiebreakerBadgeActive: {
-    backgroundColor: `${colors.accent}22`,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
   tiebreakerBadgeText: {
+    fontFamily: 'Barlow-Bold',
     fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
+    color: colors.accent,
   },
   tiebreakerLabel: {
     flex: 1,
+    fontFamily: 'Barlow-Medium',
     fontSize: 14,
     color: colors.textPrimary,
   },
-  dragHandle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    letterSpacing: -1,
+
+  // ─── Card sections (Disciplina, Inscrições, Extras) ───
+  card: {
+    backgroundColor: colors.bg200,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
   },
 
-  // Discipline — yellow row with inline input
+  // ─── Yellow cards row ───
   yellowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 0.5,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: colors.border,
     gap: 8,
   },
   yellowTogglePart: {
@@ -548,6 +622,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   yellowLabel: {
+    fontFamily: 'Barlow-Medium',
     fontSize: 15,
     color: colors.textPrimary,
     flex: 1,
@@ -560,19 +635,20 @@ const styles = StyleSheet.create({
   yellowInput: {
     width: 40,
     height: 34,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg300,
     borderRadius: 8,
     textAlign: 'center',
+    fontFamily: 'Barlow-SemiBold',
     fontSize: 15,
-    fontWeight: '600',
     color: colors.textPrimary,
   },
   yellowInputSuffix: {
+    fontFamily: 'Barlow-Regular',
     fontSize: 12,
     color: colors.textSecondary,
   },
 
-  // Inline rows (Inscrições)
+  // ─── Inline rows (Inscrições) ───
   inlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -581,20 +657,21 @@ const styles = StyleSheet.create({
   },
   inlineRowBorder: {
     borderTopWidth: 0.5,
-    borderTopColor: colors.borderLight,
+    borderTopColor: colors.border,
   },
   inlineLabel: {
+    fontFamily: 'Barlow-Medium',
     fontSize: 15,
     color: colors.textPrimary,
   },
   inlineInput: {
     width: 60,
     height: 36,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg300,
     borderRadius: 8,
     textAlign: 'center',
+    fontFamily: 'Barlow-SemiBold',
     fontSize: 15,
-    fontWeight: '600',
     color: colors.textPrimary,
   },
 

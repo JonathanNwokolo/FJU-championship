@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -30,18 +30,32 @@ const RAD_TO_DEG = 180 / Math.PI;
 export function PlayerCardScreen({ route, navigation }: Props) {
   const { playerId, championshipId } = route.params;
 
-  const { players, teams } = useTeamStore();
+  const players = useTeamStore((s) => s.players);
+  const teams = useTeamStore((s) => s.teams);
   const championships = useChampionshipStore((s) => s.championships);
 
-  const player = players.find((p) => p.id === playerId);
-  const team = player ? teams.find((t) => t.id === player.teamId) : undefined;
-  const championship = championships.find((c) => c.id === championshipId);
+  const player = useMemo(
+    () => players.find((p) => p.id === playerId),
+    [players, playerId],
+  );
+  const team = useMemo(
+    () => (player ? teams.find((t) => t.id === player.teamId) : undefined),
+    [player, teams],
+  );
+  const championship = useMemo(
+    () => championships.find((c) => c.id === championshipId),
+    [championships, championshipId],
+  );
 
   const { goals, yellowCards, redCards, overall } = usePlayerStats(playerId, championshipId);
   const { unlocked } = usePlayerAchievements(playerId, championshipId);
-  const topAchievements = [...unlocked]
-    .sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity])
-    .slice(0, 3);
+  const topAchievements = useMemo(
+    () =>
+      [...unlocked]
+        .sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity])
+        .slice(0, 3),
+    [unlocked],
+  );
 
   // ── 3D device motion ───────────────────────────────────────────────────────
   const rotateX = useSharedValue(0);

@@ -7,6 +7,8 @@ import {
   ScrollView,
   Alert,
   Share,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -116,6 +118,10 @@ export function CreateTeamScreen({ route, navigation }: Props) {
   // ── Form state ─────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -161,6 +167,7 @@ export function CreateTeamScreen({ route, navigation }: Props) {
           style={styles.submitBtn}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

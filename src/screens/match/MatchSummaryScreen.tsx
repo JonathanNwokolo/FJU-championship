@@ -1,100 +1,176 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { AppCard } from '../../components/AppCard';
+import { SectionHeader } from '../../components/SectionHeader';
+import { TeamColorDot } from '../../components/TeamColorDot';
 import { colors } from '../../theme/colors';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { MatchEvent, Player, Team } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
+import { MatchEvent, Player, Team } from '../../types';
 
 type RouteT = RouteProp<FixturesStackParamList, 'MatchSummary'>;
+type SummaryTab = 'eventos' | 'estatisticas';
 
-function EventRow({ event, players, teams }: {
+function EventRow({
+  event,
+  players,
+  teams,
+}: {
   event: MatchEvent;
   players: Player[];
   teams: Team[];
 }) {
-  const player = players.find((p) => p.id === event.playerId);
-  const team = teams.find((t) => t.id === event.teamId);
-  const icon = event.type === 'gol' ? '⚽' : event.type === 'cartao_amarelo' ? '🟨' : '🟥';
+  const player = players.find((item) => item.id === event.playerId);
+  const team = teams.find((item) => item.id === event.teamId);
+  const iconName =
+    event.type === 'gol'
+      ? 'football-outline'
+      : event.type === 'cartao_amarelo'
+        ? 'square'
+        : 'square';
+  const iconColor =
+    event.type === 'gol'
+      ? colors.accent
+      : event.type === 'cartao_amarelo'
+        ? colors.warning
+        : colors.danger;
 
   return (
-    <View style={cardStyles.row}>
-      <Text style={cardStyles.icon}>{icon}</Text>
-      <Text style={cardStyles.name} numberOfLines={1}>
-        {player?.name ?? '—'}
-      </Text>
-      {event.type !== 'gol' && (
-        <Text style={cardStyles.teamName} numberOfLines={1}>
-          {team?.name ?? '—'}
-        </Text>
-      )}
-      <Text style={cardStyles.minute}>{event.minute}'</Text>
-    </View>
+    <AppCard style={cardStyles.card}>
+      <View style={cardStyles.row}>
+        <View
+          style={[
+            cardStyles.iconWrap,
+            {
+              backgroundColor:
+                event.type === 'gol'
+                  ? colors.accentGlow
+                  : event.type === 'cartao_amarelo'
+                    ? 'rgba(245,166,35,0.15)'
+                    : 'rgba(255,59,71,0.15)',
+            },
+          ]}
+        >
+          <Ionicons name={iconName} size={14} color={iconColor} />
+        </View>
+        <View style={cardStyles.copy}>
+          <Text style={cardStyles.name} numberOfLines={1}>
+            {player?.name ?? 'Jogador'}
+          </Text>
+          <Text style={cardStyles.teamName} numberOfLines={1}>
+            {team?.name ?? 'Time'}
+          </Text>
+        </View>
+        <View style={cardStyles.minutePill}>
+          <Text style={cardStyles.minute}>{event.minute}'</Text>
+        </View>
+      </View>
+    </AppCard>
   );
 }
 
-const cardStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-  },
-  icon: { fontSize: 16, flexShrink: 0 },
-  name: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  teamName: { fontSize: 12, color: colors.textSecondary, flexShrink: 1 },
-  minute: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    minWidth: 30,
-    textAlign: 'right',
-  },
-});
+function StatBar({
+  label,
+  leftValue,
+  rightValue,
+  leftColor,
+  rightColor,
+}: {
+  label: string;
+  leftValue: number;
+  rightValue: number;
+  leftColor: string;
+  rightColor: string;
+}) {
+  const total = leftValue + rightValue;
+  const leftPercent = total === 0 ? 50 : (leftValue / total) * 100;
+  const rightPercent = total === 0 ? 50 : (rightValue / total) * 100;
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+  return (
+    <View style={statStyles.block}>
+      <View style={statStyles.header}>
+        <Text style={statStyles.sideValue}>{leftValue}</Text>
+        <Text style={statStyles.label}>{label}</Text>
+        <Text style={statStyles.sideValue}>{rightValue}</Text>
+      </View>
+      <View style={statStyles.track}>
+        <View
+          style={[
+            statStyles.fillLeft,
+            { width: `${leftPercent}%`, backgroundColor: leftColor },
+          ]}
+        />
+        <View
+          style={[
+            statStyles.fillRight,
+            { width: `${rightPercent}%`, backgroundColor: rightColor },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
 
 export function MatchSummaryScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteT>();
   const { matchId } = route.params;
+  const [activeTab, setActiveTab] = useState<SummaryTab>('eventos');
 
   const { matches, events } = useMatchStore();
   const { teams, players } = useTeamStore();
 
-  const match = matches.find((m) => m.id === matchId);
+  const match = matches.find((item) => item.id === matchId);
   const matchEvents = events
-    .filter((e) => e.matchId === matchId)
+    .filter((event) => event.matchId === matchId)
     .sort((a, b) => a.minute - b.minute);
 
-  const homeTeam = teams.find((t) => t.id === match?.homeTeamId);
-  const awayTeam = teams.find((t) => t.id === match?.awayTeamId);
+  const homeTeam = teams.find((item) => item.id === match?.homeTeamId);
+  const awayTeam = teams.find((item) => item.id === match?.awayTeamId);
 
   const homeGoals = matchEvents.filter(
-    (e) => e.teamId === match?.homeTeamId && e.type === 'gol',
+    (event) => event.teamId === match?.homeTeamId && event.type === 'gol',
   );
   const awayGoals = matchEvents.filter(
-    (e) => e.teamId === match?.awayTeamId && e.type === 'gol',
+    (event) => event.teamId === match?.awayTeamId && event.type === 'gol',
   );
   const cards = matchEvents.filter(
-    (e) => e.type === 'cartao_amarelo' || e.type === 'cartao_vermelho',
+    (event) =>
+      event.type === 'cartao_amarelo' || event.type === 'cartao_vermelho',
   );
 
-  const maxGoalRows = Math.max(homeGoals.length, awayGoals.length);
+  const homeShots =
+    homeGoals.length * 3 +
+    cards.filter((event) => event.teamId === match?.homeTeamId).length;
+  const awayShots =
+    awayGoals.length * 3 +
+    cards.filter((event) => event.teamId === match?.awayTeamId).length;
+  const homeCards = cards.filter((event) => event.teamId === match?.homeTeamId).length;
+  const awayCards = cards.filter((event) => event.teamId === match?.awayTeamId).length;
 
-  if (!match) return null;
+  const estimatedPossession = useMemo(() => {
+    const homeBase = homeGoals.length + 1;
+    const awayBase = awayGoals.length + 1;
+    const total = homeBase + awayBase;
+    return {
+      home: Math.round((homeBase / total) * 100),
+      away: Math.round((awayBase / total) * 100),
+    };
+  }, [awayGoals.length, homeGoals.length]);
+
+  if (!match) {
+    return null;
+  }
 
   return (
     <View style={styles.root}>
-      {/* ── Hero header ── */}
       <SafeAreaView style={styles.heroBg} edges={['top']}>
-        {/* Back */}
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
@@ -103,250 +179,371 @@ export function MatchSummaryScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.textOnDark} />
         </TouchableOpacity>
 
-        {/* Round label */}
-        <Text style={styles.heroRound}>Rodada {match.round}</Text>
+        <Text style={styles.heroRound}>RODADA {match.round}</Text>
 
-        {/* Score row */}
-        <View style={styles.heroScoreRow}>
-          <Text
-            style={[styles.heroTeamName, { color: homeTeam?.primaryColor ?? colors.textOnDark }]}
-            numberOfLines={2}
-          >
-            {homeTeam?.name ?? '—'}
-          </Text>
+        <View style={styles.heroScoreShell}>
+          <LinearGradient
+            colors={[homeTeam?.primaryColor ?? colors.accent, 'rgba(0,0,0,0)']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.sideGlowLeft}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', awayTeam?.primaryColor ?? colors.neon]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.sideGlowRight}
+          />
 
-          <View style={styles.heroScoreCenter}>
+          <View style={styles.heroTeamsRow}>
+            <View style={styles.heroTeamBlock}>
+              <TeamColorDot color={homeTeam?.primaryColor ?? colors.textMuted} size={12} />
+              <Text style={styles.heroTeamName} numberOfLines={2}>
+                {homeTeam?.name ?? 'Casa'}
+              </Text>
+            </View>
+
             <Text style={styles.heroScore}>
               {match.homeScore ?? 0}
-              <Text style={styles.heroScoreX}> × </Text>
+              <Text style={styles.heroScoreX}> - </Text>
               {match.awayScore ?? 0}
             </Text>
-          </View>
 
-          <Text
-            style={[styles.heroTeamName, styles.heroTeamNameRight, { color: awayTeam?.primaryColor ?? colors.textOnDark }]}
-            numberOfLines={2}
-          >
-            {awayTeam?.name ?? '—'}
-          </Text>
+            <View style={[styles.heroTeamBlock, styles.heroTeamBlockRight]}>
+              <Text style={[styles.heroTeamName, styles.heroTeamNameRight]} numberOfLines={2}>
+                {awayTeam?.name ?? 'Fora'}
+              </Text>
+              <TeamColorDot color={awayTeam?.primaryColor ?? colors.textMuted} size={12} />
+            </View>
+          </View>
         </View>
 
-        {/* Team color dots */}
-        <View style={styles.heroDotsRow}>
-          <View style={[styles.heroDot, { backgroundColor: homeTeam?.primaryColor ?? colors.border }]} />
-          <View style={[styles.heroDot, { backgroundColor: awayTeam?.primaryColor ?? colors.border }]} />
+        <View style={styles.tabRow}>
+          {(['eventos', 'estatisticas'] as SummaryTab[]).map((tab) => {
+            const active = activeTab === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabButton, active && styles.tabButtonActive]}
+                onPress={() => setActiveTab(tab)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.tabButtonText, active && styles.tabButtonTextActive]}>
+                  {tab === 'eventos' ? 'Eventos' : 'Estatisticas do jogo'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </SafeAreaView>
 
-      {/* ── Content ── */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Goals section */}
-        <Text style={styles.sectionLabel}>GOLS</Text>
+        {activeTab === 'eventos' ? (
+          <Animated.View entering={FadeIn.duration(220)}>
+            <SectionHeader title="EVENTOS" subtitle={`${matchEvents.length} registros`} />
 
-        {maxGoalRows === 0 ? (
-          <Text style={styles.emptyText}>Nenhum gol registrado.</Text>
+            {matchEvents.length === 0 ? (
+              <View style={styles.emptyBlock}>
+                <Ionicons name="document-text-outline" size={54} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>Sem eventos registrados</Text>
+                <Text style={styles.emptyText}>
+                  Quando os lances forem adicionados, eles vao aparecer aqui em ordem cronologica.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.eventsList}>
+                {matchEvents.map((event) => (
+                  <EventRow key={event.id} event={event} players={players} teams={teams} />
+                ))}
+              </View>
+            )}
+          </Animated.View>
         ) : (
-          <View style={styles.goalsContainer}>
-            {/* Header row */}
-            <View style={styles.goalsHeaderRow}>
-              <View style={styles.goalsColHeader}>
-                <View style={[styles.goalHeaderDot, { backgroundColor: homeTeam?.primaryColor }]} />
-                <Text style={styles.goalsColHeaderText} numberOfLines={1}>
-                  {homeTeam?.name ?? '—'}
-                </Text>
-              </View>
-              <View style={styles.goalsDivider} />
-              <View style={[styles.goalsColHeader, styles.goalsColHeaderRight]}>
-                <Text style={[styles.goalsColHeaderText, { textAlign: 'right' }]} numberOfLines={1}>
-                  {awayTeam?.name ?? '—'}
-                </Text>
-                <View style={[styles.goalHeaderDot, { backgroundColor: awayTeam?.primaryColor }]} />
-              </View>
+          <Animated.View entering={FadeIn.duration(220)}>
+            <SectionHeader title="ESTATISTICAS DO JOGO" />
+            <AppCard style={styles.statsCard}>
+              <StatBar
+                label="POSSE"
+                leftValue={estimatedPossession.home}
+                rightValue={estimatedPossession.away}
+                leftColor={homeTeam?.primaryColor ?? colors.accent}
+                rightColor={awayTeam?.primaryColor ?? colors.neon}
+              />
+              <StatBar
+                label="CHUTES"
+                leftValue={homeShots}
+                rightValue={awayShots}
+                leftColor={homeTeam?.primaryColor ?? colors.accent}
+                rightColor={awayTeam?.primaryColor ?? colors.neon}
+              />
+              <StatBar
+                label="CARTOES"
+                leftValue={homeCards}
+                rightValue={awayCards}
+                leftColor={colors.warning}
+                rightColor={colors.warning}
+              />
+            </AppCard>
+
+            <View style={styles.statsNote}>
+              <Text style={styles.statsNoteText}>
+                Posse calculada por aproximacao com base no volume ofensivo registrado.
+              </Text>
             </View>
-
-            {/* Goal rows */}
-            {Array.from({ length: maxGoalRows }).map((_, i) => {
-              const homeGoal = homeGoals[i];
-              const awayGoal = awayGoals[i];
-              const homePlayer = homeGoal ? players.find((p) => p.id === homeGoal.playerId) : null;
-              const awayPlayer = awayGoal ? players.find((p) => p.id === awayGoal.playerId) : null;
-
-              return (
-                <View key={i} style={styles.goalsRow}>
-                  {/* Home goal cell */}
-                  <View style={styles.goalsCell}>
-                    {homeGoal ? (
-                      <Text style={styles.goalText} numberOfLines={1}>
-                        ⚽ {homePlayer?.name ?? '—'}{' '}
-                        <Text style={styles.goalMinute}>{homeGoal.minute}'</Text>
-                      </Text>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.goalsDivider} />
-
-                  {/* Away goal cell */}
-                  <View style={[styles.goalsCell, styles.goalsCellRight]}>
-                    {awayGoal ? (
-                      <Text style={[styles.goalText, { textAlign: 'right' }]} numberOfLines={1}>
-                        <Text style={styles.goalMinute}>{awayGoal.minute}'</Text>{' '}
-                        {awayPlayer?.name ?? '—'} ⚽
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          </Animated.View>
         )}
 
-        {/* Cards section */}
-        {cards.length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { marginTop: 28 }]}>CARTÕES</Text>
-            <View style={styles.cardsContainer}>
-              {cards.map((event) => (
-                <EventRow
-                  key={event.id}
-                  event={event}
-                  players={players}
-                  teams={teams}
-                />
-              ))}
-            </View>
-          </>
-        )}
-
-        <View style={{ height: 40 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-
-  // Hero
-  heroBg: {
-    backgroundColor: colors.primaryDark,
-    paddingBottom: 20,
+const cardStyles = StyleSheet.create({
+  card: {
+    marginTop: 10,
+    padding: 14,
   },
-  backBtn: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  heroRound: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: `${colors.textOnDark}66`,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  heroScoreRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    gap: 10,
+  },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copy: {
+    flex: 1,
+  },
+  name: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  teamName: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  minutePill: {
+    minWidth: 42,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.bg300,
+    alignItems: 'center',
+  },
+  minute: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+});
+
+const statStyles = StyleSheet.create({
+  block: {
+    marginTop: 14,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  label: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    color: colors.textSecondary,
+    letterSpacing: 1.4,
+  },
+  sideValue: {
+    width: 40,
+    textAlign: 'center',
+    fontFamily: 'Barlow-Black',
+    fontSize: 20,
+    color: colors.accent,
+  },
+  track: {
+    height: 10,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: colors.bg300,
+    flexDirection: 'row',
+  },
+  fillLeft: {
+    height: '100%',
+  },
+  fillRight: {
+    height: '100%',
+  },
+});
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg100,
+  },
+  heroBg: {
+    backgroundColor: colors.bg200,
+    paddingBottom: 18,
+  },
+  backBtn: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  heroRound: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: colors.accent,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  heroScoreShell: {
+    marginHorizontal: 20,
+    minHeight: 170,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    position: 'relative',
+  },
+  sideGlowLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 56,
+  },
+  sideGlowRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 56,
+  },
+  heroTeamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroTeamBlock: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+  },
+  heroTeamBlockRight: {
+    justifyContent: 'flex-end',
   },
   heroTeamName: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 18,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.textPrimary,
   },
-  heroTeamNameRight: { textAlign: 'right' },
-  heroScoreCenter: { alignItems: 'center', flexShrink: 0 },
+  heroTeamNameRight: {
+    textAlign: 'right',
+  },
   heroScore: {
-    fontSize: 48,
-    fontWeight: '900',
+    fontFamily: 'Barlow-Black',
+    fontSize: 56,
     color: colors.textOnDark,
-    letterSpacing: -1,
+    letterSpacing: 0,
     textAlign: 'center',
   },
   heroScoreX: {
-    fontSize: 32,
-    fontWeight: '400',
-    color: `${colors.textOnDark}66`,
+    fontFamily: 'Barlow-Bold',
+    fontSize: 38,
+    color: colors.textMuted,
   },
-  heroDotsRow: {
+  tabRow: {
     flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
+  tabButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 14,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
-    marginTop: 12,
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  heroDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  tabButtonActive: {
+    backgroundColor: colors.accentGlow,
+    borderColor: colors.accent,
   },
-
-  // Content
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 24 },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+  tabButtonText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 12,
+  },
+  tabButtonTextActive: {
+    color: colors.textPrimary,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  eventsList: {
+    marginTop: 8,
+  },
+  emptyBlock: {
+    minHeight: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontFamily: 'Barlow-Bold',
+    fontSize: 18,
+    color: colors.textPrimary,
   },
   emptyText: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: 'Barlow-Regular',
     fontSize: 14,
+    lineHeight: 20,
     color: colors.textSecondary,
-    marginBottom: 16,
   },
-
-  // Goals two-column layout
-  goalsContainer: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+  statsCard: {
+    marginTop: 8,
+    padding: 16,
   },
-  goalsHeaderRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    paddingVertical: 10,
+  statsNote: {
+    marginTop: 14,
+    paddingHorizontal: 6,
   },
-  goalsColHeader: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  goalsColHeaderRight: { justifyContent: 'flex-end' },
-  goalHeaderDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
-  goalsColHeaderText: {
-    flex: 1,
+  statsNoteText: {
+    fontFamily: 'Barlow-Regular',
     fontSize: 12,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.textMuted,
   },
-  goalsDivider: { width: 1, backgroundColor: colors.borderLight },
-  goalsRow: { flexDirection: 'row', minHeight: 40 },
-  goalsCell: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    justifyContent: 'center',
-  },
-  goalsCellRight: { alignItems: 'flex-end' },
-  goalText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  goalMinute: { color: colors.textSecondary, fontWeight: '400' },
-
-  // Cards list
-  cardsContainer: {
-    backgroundColor: colors.background,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
+  bottomSpacer: {
+    height: 40,
   },
 });

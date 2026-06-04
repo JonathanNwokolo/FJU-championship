@@ -30,6 +30,7 @@ import { Ionicons } from '@expo/vector-icons';
 // @ts-ignore
 import ConfettiCannon from 'react-native-confetti-cannon';
 
+import * as Haptics from 'expo-haptics';
 import { colors } from '../../theme/colors';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
@@ -392,6 +393,7 @@ export function DrawFullscreenScreen() {
     });
     setLoading(false);
     setPhase('confirmed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Dispara os três canhões de confete
     confettiLeft.current?.shoot();
