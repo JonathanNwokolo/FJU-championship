@@ -10,7 +10,6 @@ import { CreateTeamScreen } from '../screens/team/CreateTeamScreen';
 import { ManageRosterScreen } from '../screens/team/ManageRosterScreen';
 import { JoinTeamScreen } from '../screens/team/JoinTeamScreen';
 import { InviteShareScreen } from '../screens/team/InviteShareScreen';
-import { DrawScreen } from '../screens/match/DrawScreen';
 import { DrawFullscreenScreen } from '../screens/match/DrawFullscreenScreen';
 import { PlayerCardScreen } from '../screens/player/PlayerCardScreen';
 import { PlayerAchievementsScreen } from '../screens/player/PlayerAchievementsScreen';
@@ -37,7 +36,6 @@ export type HomeStackParamList = {
   ManageRoster: { teamId: string };
   InviteShare: { teamId: string };
   JoinTeam: { championshipId?: string } | undefined;
-  DrawScreen: { championshipId: string };
   DrawFullscreen: { championshipId: string };
   PlayerCard: { playerId: string; championshipId: string };
   PlayerAchievements: { playerId: string; championshipId: string };
@@ -115,7 +113,6 @@ export function HomeStackNavigator() {
         component={JoinTeamScreen}
         options={{ title: 'Entrar no Time' }}
       />
-      <Stack.Screen name="DrawScreen" component={DrawScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="DrawFullscreen"
         component={DrawFullscreenScreen}

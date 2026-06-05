@@ -5,10 +5,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
-  runOnJS,
 } from 'react-native-reanimated';
 import { AchievementDefinition } from '../types';
-import { RARITY_ORDER } from '../utils/achievementDefinitions';
 
 interface Props {
   queue: AchievementDefinition[];

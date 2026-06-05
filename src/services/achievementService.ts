@@ -1,10 +1,6 @@
 import { Achievement, MatchEvent, MatchModel, Player, RoundAward } from '../types';
 import { useAchievementStore } from '../stores/achievementStore';
 
-function makeId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
 function buildAchievement(
   playerId: string,
   achievementId: string,

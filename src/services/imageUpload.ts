@@ -1,8 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import * as FileSystem from 'expo-file-system';
-import { storage, isFirebaseConfigured } from './firebase';
-
-const IMGUR_CLIENT_ID = 'YOUR_IMGUR_CLIENT_ID'; // Substituir se usar Imgur
+import { storage } from './firebase';
 
 /**
  * Upload image to Firebase Storage
@@ -23,30 +20,6 @@ async function uploadToFirebaseStorage(
 }
 
 /**
- * Upload image to Imgur (fallback if Firebase Storage not available)
- */
-async function uploadToImgur(localUri: string): Promise<string> {
-  const base64 = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  const response = await fetch('https://api.imgur.com/3/image', {
-    method: 'POST',
-    headers: {
-      Authorization: `Client-ID ${IMGUR_CLIENT_ID}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ image: base64, type: 'base64' }),
-  });
-
-  const data = await response.json();
-  if (!data.success) {
-    throw new Error(data.data?.error || 'Imgur upload failed');
-  }
-  return data.data.link;
-}
-
-/**
  * Upload player photo - returns the public URL
  */
 export async function uploadPlayerPhoto(
@@ -54,18 +27,7 @@ export async function uploadPlayerPhoto(
   playerId: string
 ): Promise<string> {
   const path = `players/${playerId}/photo_${Date.now()}.jpg`;
-
-  // Try Firebase Storage first
-  if (isFirebaseConfigured) {
-    try {
-      return await uploadToFirebaseStorage(localUri, path);
-    } catch (error) {
-      console.warn('Firebase Storage failed, trying Imgur...', error);
-    }
-  }
-
-  // Fallback to Imgur
-  return uploadToImgur(localUri);
+  return uploadToFirebaseStorage(localUri, path);
 }
 
 /**
@@ -76,14 +38,5 @@ export async function uploadUserPhoto(
   userId: string
 ): Promise<string> {
   const path = `users/${userId}/avatar.jpg`;
-
-  if (isFirebaseConfigured) {
-    try {
-      return await uploadToFirebaseStorage(localUri, path);
-    } catch (error) {
-      console.warn('Firebase Storage failed, trying Imgur...', error);
-    }
-  }
-
-  return uploadToImgur(localUri);
+  return uploadToFirebaseStorage(localUri, path);
 }

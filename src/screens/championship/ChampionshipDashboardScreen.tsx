@@ -42,7 +42,6 @@ import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { isRoundComplete, closeVoting } from '../../services/votingService';
 import { updateDocument, addDocument, deleteDocument, getCollection } from '../../services/firestore';
 import { calculateStandings, calculateTopScorers } from '../../services/statsService';
-import { saveChampionshipResult } from '../../hooks/useChampionshipHistory';
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';
 import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
