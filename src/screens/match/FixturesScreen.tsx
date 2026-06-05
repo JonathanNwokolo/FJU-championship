@@ -166,14 +166,14 @@ export function FixturesScreen() {
   }, []);
 
   const handleMatchPress = (match: MatchModel) => {
-    const status = match.status as MatchModel['status'] | 'em_andamento';
+    const status = match.status;
 
     if (status === 'finalizado') {
       navigation.navigate('MatchSummary', { matchId: match.id });
       return;
     }
 
-    if (status === 'ao_vivo' || status === 'em_andamento') {
+    if (status === 'ao_vivo') {
       navigation.navigate('LiveMatch', { matchId: match.id });
       return;
     }

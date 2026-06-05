@@ -11,7 +11,7 @@ export function useLiveMatch(championshipId: string) {
     const q = query(
       collection(db, 'matches'),
       where('championshipId', '==', championshipId),
-      where('status', '==', 'em_andamento'),
+      where('status', '==', 'ao_vivo'),
     );
 
     return onSnapshot(q, (snap) => {
