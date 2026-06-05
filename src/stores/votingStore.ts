@@ -10,6 +10,7 @@ interface VotingState {
   addAward: (award: RoundAward) => void;
   setVotes: (votes: RoundVote[]) => void;
   setAwards: (awards: RoundAward[]) => void;
+  reset: () => void;
 }
 
 export const useVotingStore = create<VotingState>()(
@@ -27,6 +28,7 @@ export const useVotingStore = create<VotingState>()(
         })),
       setVotes: (votes) => set({ votes }),
       setAwards: (awards) => set({ awards }),
+      reset: () => set({ votes: [], awards: [] }),
     }),
     {
       name: 'fju-voting-storage',

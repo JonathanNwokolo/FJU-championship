@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppUser, UserRole } from '../types';
 import {
   signIn as authSignIn,
@@ -57,8 +58,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     useChampionshipStore.setState({ championships: [], selectedChampionshipId: null, loading: true });
     useTeamStore.setState({ teams: [], players: [], loading: true });
     useMatchStore.setState({ matches: [], events: [], loading: true });
-    useAchievementStore.setState({ achievements: [] });
-    useVotingStore.setState({ votes: [], awards: [] });
+    useAchievementStore.getState().reset();
+    useVotingStore.getState().reset();
+    await useVotingStore.persist.clearStorage();
+    await useAchievementStore.persist.clearStorage();
+    await AsyncStorage.multiRemove([
+      'fju-voting-storage',
+      'fju-achievements-storage',
+      'pushToken',
+      'muralLastVisit',
+    ]);
     set({ user: null, isOnboarded: false });
   },
 

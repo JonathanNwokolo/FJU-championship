@@ -9,6 +9,7 @@ interface AchievementState {
   grantAchievement: (achievement: Achievement) => void;
   hasAchievement: (playerId: string, achievementId: string) => boolean;
   getPlayerAchievements: (playerId: string, championshipId: string) => Achievement[];
+  reset: () => void;
 }
 
 export const useAchievementStore = create<AchievementState>()(
@@ -45,6 +46,8 @@ export const useAchievementStore = create<AchievementState>()(
           (a) => a.playerId === playerId && a.championshipId === championshipId,
         );
       },
+
+      reset: () => set({ achievements: [] }),
     }),
     {
       name: 'fju-achievements-storage',
