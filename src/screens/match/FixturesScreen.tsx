@@ -328,6 +328,7 @@ export function FixturesScreen() {
                   homeTeam={getTeam(match.homeTeamId)}
                   awayTeam={getTeam(match.awayTeamId)}
                   events={events.filter((event) => event.matchId === match.id)}
+                  players={players}
                   userTeamId={userTeamId}
                   canRegister={isOrganizer && match.status === 'agendado'}
                   onPress={isPressable ? () => handleMatchPress(match) : undefined}

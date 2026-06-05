@@ -17,7 +17,7 @@ import {
 
 type ChampionshipResultDoc = {
   championshipId: string;
-  championTeamId: string;
+  winnerId: string;
 };
 
 export interface AthleteProfileData {
@@ -134,7 +134,7 @@ export function useAthleteProfile(userId?: string, championshipId?: string) {
         const yellowCards = filteredEvents.filter((event) => event.type === 'cartao_amarelo').length;
         const redCards = filteredEvents.filter((event) => event.type === 'cartao_vermelho').length;
         const matchesPlayed = new Set(filteredEvents.map((event) => event.matchId)).size;
-        const overall = calculateOverall(goals, yellowCards, redCards);
+        const overall = calculateOverall(goals, yellowCards, redCards, matchesPlayed);
 
         const achievementScopeChampionshipId = teamChampionshipId ?? activeChampionshipId ?? '';
         const unlockedIds = new Set(
@@ -147,7 +147,7 @@ export function useAthleteProfile(userId?: string, championshipId?: string) {
         const championResults = await Promise.all(
           sortedHistory.slice(0, 8).map(async (entry) => {
             const result = await getDocument<ChampionshipResultDoc>('championship_results', entry.championshipId);
-            return [entry.championshipId, result?.championTeamId === entry.teamId] as const;
+            return [entry.championshipId, result?.winnerId === entry.teamId] as const;
           }),
         );
 

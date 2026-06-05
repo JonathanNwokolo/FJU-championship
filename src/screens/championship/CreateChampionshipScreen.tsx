@@ -205,7 +205,7 @@ export function CreateChampionshipScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Novo Campeonato</Text>
-          <Text style={styles.headerSubtitle}>Copa Tribo de Judá 2026</Text>
+          <Text style={styles.headerSubtitle}>Configure os dados do campeonato</Text>
         </View>
       </View>
 
@@ -223,7 +223,7 @@ export function CreateChampionshipScreen() {
           label=""
           value={name}
           onChangeText={(t) => { setName(t); setNameError(''); }}
-          placeholder="Copa Tribo de Judá 2026"
+          placeholder="Nome do campeonato"
           error={nameError}
         />
 

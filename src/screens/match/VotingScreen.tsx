@@ -18,7 +18,7 @@ import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
-import { getCandidatesForRound, submitVote } from '../../services/votingService';
+import { getCandidatesForRound, isRoundComplete, submitVote } from '../../services/votingService';
 import { Player } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 
@@ -49,6 +49,8 @@ export function VotingScreen() {
     ? players.find((p) => p.userId === user.id)?.teamId
     : undefined;
 
+  const championshipMatches = matches.filter((match) => match.championshipId === championshipId);
+  const roundComplete = isRoundComplete(championshipMatches, round);
   const allCandidates = getCandidatesForRound(championshipId, round, events, players, matches);
   // Votante não pode votar em jogador do próprio time
   const candidates = userTeamId
@@ -58,7 +60,7 @@ export function VotingScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const showVoting = !hasCurrentUserVoted && !winner;
+  const showVoting = roundComplete && !hasCurrentUserVoted && !winner;
 
   const handleVote = async () => {
     if (!selectedId || !user) return;
@@ -193,7 +195,12 @@ export function VotingScreen() {
         </View>
       </SafeAreaView>
 
-      {showVoting ? (
+      {!roundComplete ? (
+        <View style={styles.unavailableBox}>
+          <Ionicons name="lock-closed-outline" size={28} color={colors.textMuted} />
+          <Text style={styles.unavailableTitle}>Votação abre após o fim da rodada</Text>
+        </View>
+      ) : showVoting ? (
         /* ── FASE 1: VOTAÇÃO ── */
         <>
           <FlatList
@@ -395,6 +402,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 16,
+  },
+  unavailableBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 12,
+  },
+  unavailableTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 
   // Bottom bar

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Badge } from './Badge';
 import { TeamColorDot } from './TeamColorDot';
-import { MatchEvent, MatchModel, Team } from '../types';
+import { MatchEvent, MatchModel, Player, Team } from '../types';
 import { colors } from '../theme/colors';
 
 
@@ -12,6 +12,7 @@ interface Props {
   homeTeam?: Team;
   awayTeam?: Team;
   events: MatchEvent[];
+  players?: Player[];
   userTeamId?: string;
   canRegister?: boolean;
   onPress?: () => void;
@@ -68,6 +69,7 @@ export function MatchCard({
   homeTeam,
   awayTeam,
   events,
+  players = [],
   userTeamId,
   canRegister = false,
   onPress,
@@ -181,7 +183,7 @@ export function MatchCard({
         <View style={styles.footer}>
           {goalRows.map((event) => (
             <Text key={event.id} style={styles.goalText} numberOfLines={1}>
-              ⚽ {event.playerId.replace('player-', 'Atleta ')} · {event.minute}'
+              ⚽ {players.find((player) => player.id === event.playerId)?.name ?? 'Atleta'} · {event.minute}'
             </Text>
           ))}
         </View>

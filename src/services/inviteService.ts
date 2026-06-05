@@ -73,7 +73,7 @@ export async function joinByCode(
   code: string,
   userId: string,
   userName: string,
-): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed' | 'already_in_championship'> {
+): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed' | 'already_in_championship' | 'team_not_approved'> {
   const normalizedCode = code.trim().toUpperCase();
   const teams = await getCollection<Team>('teams', [
     { field: 'inviteCode', operator: '==', value: normalizedCode },
@@ -81,6 +81,7 @@ export async function joinByCode(
   const team = teams[0];
 
   if (!team) return 'not_found';
+  if (team.status !== 'aprovado') return 'team_not_approved';
   if (team.registrationOpen === false) return 'closed';
 
   const teamPlayers = await getCollection<Player>('players', [

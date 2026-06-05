@@ -75,6 +75,12 @@ export function ManageRosterScreen({ route, navigation }: Props) {
   const handleAddPlayer = async () => {
     const trimmedName = newName.trim();
     const parsedNumber = Number(newNumber);
+    const rosterSize = players.filter((player) => player.teamId === teamId).length;
+    const maxPlayers = team.maxPlayers ?? 15;
+    if (rosterSize >= maxPlayers) {
+      Alert.alert('Time lotado', `Time lotado (${rosterSize}/${maxPlayers} jogadores)`);
+      return;
+    }
     if (!trimmedName) {
       Toast.show({ type: 'error', text1: 'Informe o nome do atleta', visibilityTime: 2200 });
       return;

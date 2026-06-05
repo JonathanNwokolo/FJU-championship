@@ -113,6 +113,16 @@ export function JoinTeamScreen() {
         return;
       }
 
+      if (result === 'team_not_approved') {
+        Toast.show({
+          type: 'error',
+          text1: 'Time ainda não aprovado',
+          text2: 'Aguarde o organizador aprovar o time antes de entrar.',
+          visibilityTime: 2800,
+        });
+        return;
+      }
+
       const messages: Record<'not_found' | 'already_member' | 'closed' | 'already_in_championship', { text1: string; text2?: string }> = {
         not_found: {
           text1: 'Código não encontrado',

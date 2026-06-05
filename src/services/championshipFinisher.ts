@@ -23,6 +23,7 @@ import {
   CareerStats,
   AllTimeRankingPlayer,
   AllTimeRankingTeam,
+  PlayerHistoryEntry,
 } from '../types';
 import {
   addDocument,
@@ -35,11 +36,33 @@ import {
 import { calculateStandings, calculateTopScorers } from './statsService';
 import { useAchievementStore } from '../stores/achievementStore';
 import { getTokensForChampionship, sendPushNotification } from './notificationService';
+import { calculateOverall } from '../utils/playerOverall';
 
 interface FinishChampionshipResult {
   success: boolean;
   resultData?: ChampionshipResultData;
   error?: string;
+}
+
+const BRACKET_ROUND_RANK: Record<string, number> = {
+  grupo: 0,
+  fase_32: 1,
+  fase_16: 2,
+  oitavas: 3,
+  quartas: 4,
+  semi: 5,
+  final: 6,
+};
+
+function getFinalizedKnockoutFinal(matches: MatchModel[]): MatchModel | null {
+  return [...matches]
+    .filter((match) => match.status === 'finalizado' && !!match.winnerId)
+    .sort((a, b) => {
+      const rankDiff =
+        (BRACKET_ROUND_RANK[b.bracketRound ?? ''] ?? 0) -
+        (BRACKET_ROUND_RANK[a.bracketRound ?? ''] ?? 0);
+      return rankDiff || b.round - a.round;
+    })[0] ?? null;
 }
 
 export async function finishChampionship(
@@ -84,8 +107,22 @@ export async function finishChampionship(
     const winner = standings[0];
     const runnerUp = standings[1];
 
-    const winnerTeam = teams.find((t) => t.id === winner?.teamId);
-    const runnerUpTeam = teams.find((t) => t.id === runnerUp?.teamId);
+    const finalMatch =
+      championship.format === 'mata_mata' ? getFinalizedKnockoutFinal(finishedMatches) : null;
+    const knockoutWinnerTeam = finalMatch?.winnerId
+      ? teams.find((t) => t.id === finalMatch.winnerId)
+      : undefined;
+    const knockoutRunnerUpId = finalMatch?.winnerId
+      ? finalMatch.homeTeamId === finalMatch.winnerId
+        ? finalMatch.awayTeamId
+        : finalMatch.homeTeamId
+      : undefined;
+    const knockoutRunnerUpTeam = knockoutRunnerUpId
+      ? teams.find((t) => t.id === knockoutRunnerUpId)
+      : undefined;
+
+    const winnerTeam = knockoutWinnerTeam ?? teams.find((t) => t.id === winner?.teamId);
+    const runnerUpTeam = knockoutRunnerUpTeam ?? teams.find((t) => t.id === runnerUp?.teamId);
 
     const topScorer = topScorers[0];
     const topScorerPlayer = players.find((p) => p.id === topScorer?.playerId);
@@ -180,11 +217,11 @@ export async function finishChampionship(
       const isChampion = player.teamId === winnerTeam?.id;
       const roundMvpCount = roundMvpCountByPlayerId[player.id] ?? 0;
       const isMvp = roundMvpCount > 0;
-      const playerOverall = calculatePlayerOverall(
+      const playerOverall = calculateOverall(
         playerGoals,
-        playerMatchesPlayed,
         playerYellowCards,
         playerRedCards,
+        playerMatchesPlayed,
       );
 
       if (player.userId) {
@@ -366,9 +403,10 @@ async function upsertCareerStats(params: UpsertCareerStatsParams): Promise<void>
 // ── All-Time Rankings rebuild ─────────────────────────────────────────────────
 
 async function rebuildAllTimeRankings(): Promise<void> {
-  const [allCareerStats, allResults] = await Promise.all([
+  const [allCareerStats, allResults, allPlayerHistory] = await Promise.all([
     getCollection<CareerStats>('career_stats'),
     getCollection<ChampionshipResultData>('championship_results'),
+    getCollection<PlayerHistoryEntry>('player_history'),
   ]);
 
   const toPlayer = (s: CareerStats): Omit<AllTimeRankingPlayer, 'goals' | 'titles' | 'matches' | 'mvps'> => ({
@@ -408,10 +446,23 @@ async function rebuildAllTimeRankings(): Promise<void> {
     }
     teamTitleMap[key].titles += 1;
   }
+
+  const teamParticipationMap: Record<string, Set<string>> = {};
+  for (const entry of allPlayerHistory) {
+    if (!entry.teamName || !entry.championshipId) continue;
+    teamParticipationMap[entry.teamName] ??= new Set<string>();
+    teamParticipationMap[entry.teamName].add(entry.championshipId);
+  }
+
   const topTeams: AllTimeRankingTeam[] = Object.values(teamTitleMap)
     .sort((a, b) => b.titles - a.titles)
     .slice(0, 10)
-    .map((t) => ({ teamId: t.teamId, name: t.name, titles: t.titles, participations: t.titles }));
+    .map((t) => ({
+      teamId: t.teamId,
+      name: t.name,
+      titles: t.titles,
+      participations: teamParticipationMap[t.name]?.size ?? t.titles,
+    }));
 
   await Promise.all([
     upsertDocument('all_time_rankings', 'top_scorers', { players: topScorers }),
@@ -420,20 +471,4 @@ async function rebuildAllTimeRankings(): Promise<void> {
     upsertDocument('all_time_rankings', 'top_mvps', { players: topMvps }),
     upsertDocument('all_time_rankings', 'top_teams', { teams: topTeams }),
   ]);
-}
-
-// ── Overall calculation ───────────────────────────────────────────────────────
-
-function calculatePlayerOverall(
-  goals: number,
-  matchesPlayed: number,
-  yellowCards: number,
-  redCards: number,
-): number {
-  let overall = 50;
-  overall += Math.min(goals * 3, 30);
-  overall += Math.min(matchesPlayed * 1.5, 15);
-  overall -= yellowCards * 1;
-  overall -= redCards * 3;
-  return Math.max(40, Math.min(99, Math.round(overall)));
 }

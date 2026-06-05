@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -16,6 +18,7 @@ import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
 import { useAuthStore } from '../../stores/authStore';
 import { colors, shadows } from '../../theme/colors';
+import { auth } from '../../services/firebase';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { AuthBackground } from './AuthBackground';
 
@@ -29,6 +32,7 @@ export function LoginScreen({ navigation }: Props) {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const signIn = useAuthStore((s) => s.signIn);
 
@@ -56,6 +60,24 @@ export function LoginScreen({ navigation }: Props) {
       setAuthError(mapFirebaseError(e.code));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const resetEmail = email.trim();
+    if (!resetEmail) {
+      Alert.alert('Recuperar senha', 'Digite seu email no campo de email para receber a recuperação.');
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      Alert.alert('Recuperar senha', 'Email de recuperação enviado');
+    } catch (e: any) {
+      Alert.alert('Recuperar senha', mapFirebaseError(e.code));
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -111,7 +133,11 @@ export function LoginScreen({ navigation }: Props) {
               leftIcon="lock-closed-outline"
               error={passwordError}
             />
-            <Pressable style={styles.forgotWrap}>
+            <Pressable
+              style={styles.forgotWrap}
+              onPress={handlePasswordReset}
+              disabled={resettingPassword}
+            >
               <Text style={styles.forgot}>Esqueci minha senha</Text>
             </Pressable>
           </Animated.View>

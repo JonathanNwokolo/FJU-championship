@@ -188,6 +188,10 @@ export function MatchRegistrationScreen() {
   const handleAddEvent = async () => {
     const minute = parseInt(bsMinute, 10);
     if (!bsTeamId || !bsPlayerId || !minute || !match) return;
+    if (minute < 1 || minute > 120) {
+      Alert.alert('Minuto inválido', 'Informe um minuto entre 1 e 120.');
+      return;
+    }
 
     bottomSheetRef.current?.close();
 
@@ -273,11 +277,14 @@ export function MatchRegistrationScreen() {
   const awayGoalMismatch = awayScoreNum !== null && awayGoalsRegistered !== awayScoreNum;
 
   const canFinalize = isLive || (homeScoreNum !== null && awayScoreNum !== null);
+  const bsMinuteNumber = parseInt(bsMinute, 10);
+  const isBsMinuteValid =
+    Number.isInteger(bsMinuteNumber) && bsMinuteNumber >= 1 && bsMinuteNumber <= 120;
   const canAddBsEvent =
     bsTeamId.length > 0 &&
     bsPlayerId.length > 0 &&
     bsMinute.length > 0 &&
-    parseInt(bsMinute, 10) > 0;
+    isBsMinuteValid;
 
   const handleStartLive = () => {
     Alert.alert('Iniciar Partida', 'Iniciar a partida no modo ao vivo?', [
@@ -943,7 +950,7 @@ export function MatchRegistrationScreen() {
             value={bsMinute}
             onChangeText={(t) => setBsMinute(t.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
-            placeholder="0"
+            placeholder="1-120"
             placeholderTextColor={colors.textMuted}
             maxLength={3}
             textAlign="center"

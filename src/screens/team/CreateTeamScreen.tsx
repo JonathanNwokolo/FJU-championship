@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -73,6 +74,19 @@ export function CreateTeamScreen({ route, navigation }: Props) {
         });
         return;
       }
+
+      if (user?.id) {
+        const captainTeams = await getCollection<Team>('teams', [
+          { field: 'captainId', operator: '==', value: user.id },
+          { field: 'championshipId', operator: '==', value: championshipId },
+        ]);
+        const existingCaptainTeam = captainTeams.find((team) => team.status !== 'rejeitado');
+        if (existingCaptainTeam) {
+          Alert.alert('Time já cadastrado', `Você já é capitão de ${existingCaptainTeam.name}`);
+          return;
+        }
+      }
+
       // Validate maxTeams cap
       if (championship.maxTeams) {
         const existingTeams = await getCollection<Team>('teams', [

@@ -1,5 +1,15 @@
-export function calculateOverall(goals: number, yellowCards: number, redCards: number): number {
-  return Math.min(99, Math.max(40, Math.round(50 + goals * 3 - yellowCards * 1 - redCards * 5)));
+export function calculateOverall(
+  goals: number,
+  yellowCards: number,
+  redCards: number,
+  matchesPlayed = 0,
+): number {
+  let overall = 50;
+  overall += Math.min(goals * 3, 30);
+  overall += Math.min(matchesPlayed * 1.5, 15);
+  overall -= yellowCards;
+  overall -= redCards * 3;
+  return Math.max(40, Math.min(99, Math.round(overall)));
 }
 
 export function getOverallColor(overall: number): string {
