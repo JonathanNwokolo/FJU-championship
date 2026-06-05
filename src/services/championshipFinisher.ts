@@ -1,10 +1,12 @@
 /**
  * Championship Finisher Service
- * 
+ *
  * Handles the complete flow of finishing a championship:
  * - Calculates final standings and stats
  * - Creates championship_results document
- * - Creates player_history for each player
+ * - Creates player_history for each player (with career fields)
+ * - Upserts career_stats per userId
+ * - Rebuilds all_time_rankings (top 10 per category)
  * - Grants end-of-championship achievements
  * - Updates championship status
  * - Sends push notifications to all participants
@@ -18,11 +20,16 @@ import {
   MatchEvent,
   RoundAward,
   ChampionshipResultData,
+  CareerStats,
+  AllTimeRankingPlayer,
+  AllTimeRankingTeam,
 } from '../types';
 import {
   addDocument,
   setDocument,
+  upsertDocument,
   updateDocument,
+  getDocument,
   getCollection,
 } from './firestore';
 import { calculateStandings, calculateTopScorers } from './statsService';
@@ -35,9 +42,6 @@ interface FinishChampionshipResult {
   error?: string;
 }
 
-/**
- * Main function to finish a championship
- */
 export async function finishChampionship(
   championshipId: string,
 ): Promise<FinishChampionshipResult> {
@@ -69,7 +73,6 @@ export async function finishChampionship(
       return { success: false, error: 'Campeonato não encontrado' };
     }
 
-    // Filter events that belong to championship matches
     const matchIds = new Set(matches.map((m) => m.id));
     const champEvents = events.filter((e) => matchIds.has(e.matchId));
     const finishedMatches = matches.filter((m) => m.status === 'finalizado');
@@ -84,24 +87,18 @@ export async function finishChampionship(
     const winnerTeam = teams.find((t) => t.id === winner?.teamId);
     const runnerUpTeam = teams.find((t) => t.id === runnerUp?.teamId);
 
-    // Top scorer
     const topScorer = topScorers[0];
     const topScorerPlayer = players.find((p) => p.id === topScorer?.playerId);
 
-    // Best defense (least goals against)
     const bestDefense = [...standings].sort((a, b) => a.goalsAgainst - b.goalsAgainst)[0];
     const bestDefenseTeam = teams.find((t) => t.id === bestDefense?.teamId);
 
-    // MVP (player with most votes across all round_awards)
+    // MVP: player with most total votes across all round_awards
     const votesByPlayer: Record<string, { name: string; teamId: string; votes: number }> = {};
     for (const award of roundAwards) {
       const key = award.winnerPlayerId;
       if (!votesByPlayer[key]) {
-        votesByPlayer[key] = {
-          name: award.winnerName,
-          teamId: award.winnerTeamId,
-          votes: 0,
-        };
+        votesByPlayer[key] = { name: award.winnerName, teamId: award.winnerTeamId, votes: 0 };
       }
       votesByPlayer[key].votes += award.totalVotes;
     }
@@ -110,14 +107,13 @@ export async function finishChampionship(
     const mvpPlayerName = mvpEntry?.[1].name;
     const mvpVotes = mvpEntry?.[1].votes ?? 0;
 
-    // Fair play team (least cards)
     const fairPlayTeam = [...standings].sort((a, b) => a.fairPlayScore - b.fairPlayScore)[0];
     const fairPlayTeamData = teams.find((t) => t.id === fairPlayTeam?.teamId);
 
-    // Total stats
     const totalGoals = champEvents.filter((e) => e.type === 'gol').length;
     const now = new Date().toISOString();
-    const season = new Date(championship.createdAt).getFullYear().toString();
+    // Prefer explicit season field; fall back to year of createdAt
+    const season = championship.season ?? new Date(championship.createdAt).getFullYear().toString();
 
     // 3. Create championship_results document
     const resultData: ChampionshipResultData = {
@@ -132,6 +128,7 @@ export async function finishChampionship(
       totalGoals,
       winnerId: winnerTeam?.id ?? '',
       winnerName: winnerTeam?.name ?? '',
+      winnerTeamColor: winnerTeam?.primaryColor,
       runnerUpId: runnerUpTeam?.id ?? '',
       runnerUpName: runnerUpTeam?.name ?? '',
       topScorerId: topScorerPlayer?.id ?? '',
@@ -152,13 +149,22 @@ export async function finishChampionship(
 
     await setDocument('championship_results', championshipId, resultData);
 
-    // 4. Create player_history for each player and grant achievements
+    // Build round MVP count per player.id (not userId)
+    const roundMvpCountByPlayerId: Record<string, number> = {};
+    for (const award of roundAwards) {
+      roundMvpCountByPlayerId[award.winnerPlayerId] =
+        (roundMvpCountByPlayerId[award.winnerPlayerId] ?? 0) + 1;
+    }
+
+    // 4. Create player_history for each player, grant achievements, upsert career_stats
     const achievementStore = useAchievementStore.getState();
-    
+
     for (const player of players) {
-      // Calculate individual stats
       const playerGoals = champEvents.filter(
         (e) => e.type === 'gol' && e.playerId === player.id,
+      ).length;
+      const playerAssists = champEvents.filter(
+        (e) => e.type === 'assistencia' && e.playerId === player.id,
       ).length;
       const playerYellowCards = champEvents.filter(
         (e) => e.type === 'cartao_amarelo' && e.playerId === player.id,
@@ -171,8 +177,16 @@ export async function finishChampionship(
       ).length;
 
       const team = teams.find((t) => t.id === player.teamId);
+      const isChampion = player.teamId === winnerTeam?.id;
+      const roundMvpCount = roundMvpCountByPlayerId[player.id] ?? 0;
+      const isMvp = roundMvpCount > 0;
+      const playerOverall = calculatePlayerOverall(
+        playerGoals,
+        playerMatchesPlayed,
+        playerYellowCards,
+        playerRedCards,
+      );
 
-      // Create player_history entry
       if (player.userId) {
         await addDocument('player_history', {
           playerId: player.id,
@@ -183,18 +197,36 @@ export async function finishChampionship(
           teamName: team?.name ?? '',
           season,
           goals: playerGoals,
+          assists: playerAssists,
           yellowCards: playerYellowCards,
           redCards: playerRedCards,
           matchesPlayed: playerMatchesPlayed,
-          overall: calculatePlayerOverall(playerGoals, playerMatchesPlayed, playerYellowCards, playerRedCards),
+          overall: playerOverall,
           finishedAt: now,
           position: player.position,
+          isChampion,
+          isMvp,
+          roundMvpCount,
+        });
+
+        // Upsert career_stats/{userId}
+        await upsertCareerStats({
+          userId: player.userId,
+          name: player.name,
+          teamName: team?.name ?? '',
+          goals: playerGoals,
+          assists: playerAssists,
+          matchesPlayed: playerMatchesPlayed,
+          isChampion,
+          roundMvpCount,
+          overall: playerOverall,
+          season,
+          now,
         });
       }
 
       // Grant achievements
-      // Champion achievement
-      if (player.teamId === winnerTeam?.id && !achievementStore.hasAchievement(player.id, 'campeao')) {
+      if (isChampion && !achievementStore.hasAchievement(player.id, 'campeao')) {
         achievementStore.grantAchievement({
           achievementId: 'campeao',
           playerId: player.id,
@@ -203,7 +235,6 @@ export async function finishChampionship(
         });
       }
 
-      // Vice-champion achievement
       if (player.teamId === runnerUpTeam?.id && !achievementStore.hasAchievement(player.id, 'vice_campeao')) {
         achievementStore.grantAchievement({
           achievementId: 'vice_campeao',
@@ -213,7 +244,6 @@ export async function finishChampionship(
         });
       }
 
-      // Top scorer achievement
       if (player.id === topScorerPlayer?.id && !achievementStore.hasAchievement(player.id, 'artilheiro_campeonato')) {
         achievementStore.grantAchievement({
           achievementId: 'artilheiro_campeonato',
@@ -223,7 +253,6 @@ export async function finishChampionship(
         });
       }
 
-      // Fair play achievement (no cards at all)
       if (
         playerYellowCards === 0 &&
         playerRedCards === 0 &&
@@ -239,13 +268,16 @@ export async function finishChampionship(
       }
     }
 
-    // 5. Update championship status
+    // 5. Rebuild all_time_rankings
+    await rebuildAllTimeRankings();
+
+    // 6. Update championship status
     await updateDocument('championships', championshipId, {
       status: 'finalizado',
       finishedAt: now,
     });
 
-    // 6. Send push notification to all participants
+    // 7. Send push notification to all participants
     try {
       const tokens = await getTokensForChampionship(championshipId);
       if (tokens.length > 0) {
@@ -258,7 +290,6 @@ export async function finishChampionship(
       }
     } catch (notifyError) {
       console.warn('[finishChampionship] Push notification error:', notifyError);
-      // Don't fail the whole operation if notifications fail
     }
 
     return { success: true, resultData };
@@ -271,28 +302,138 @@ export async function finishChampionship(
   }
 }
 
-/**
- * Simple overall calculation for player history
- */
+// ── Career Stats upsert ───────────────────────────────────────────────────────
+
+interface UpsertCareerStatsParams {
+  userId: string;
+  name: string;
+  teamName: string;
+  goals: number;
+  assists: number;
+  matchesPlayed: number;
+  isChampion: boolean;
+  roundMvpCount: number;
+  overall: number;
+  season: string;
+  now: string;
+}
+
+async function upsertCareerStats(params: UpsertCareerStatsParams): Promise<void> {
+  const { userId, name, teamName, goals, assists, matchesPlayed, isChampion, roundMvpCount, overall, season, now } = params;
+
+  const existing = await getDocument<CareerStats>('career_stats', userId);
+
+  if (!existing) {
+    await setDocument<CareerStats>('career_stats', userId, {
+      userId,
+      name,
+      lastTeamName: teamName,
+      totalGoals: goals,
+      totalAssists: assists,
+      totalMatches: matchesPlayed,
+      totalTitles: isChampion ? 1 : 0,
+      totalMvps: roundMvpCount,
+      totalChampionships: 1,
+      bestOverall: overall,
+      bestSeason: season,
+      bestSeasonGoals: goals,
+      firstSeasonYear: season,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  const isBetterSeason = goals > existing.bestSeasonGoals;
+
+  await upsertDocument<Omit<CareerStats, 'id'>>('career_stats', userId, {
+    userId,
+    name,
+    lastTeamName: teamName,
+    totalGoals: existing.totalGoals + goals,
+    totalAssists: (existing.totalAssists ?? 0) + assists,
+    totalMatches: existing.totalMatches + matchesPlayed,
+    totalTitles: existing.totalTitles + (isChampion ? 1 : 0),
+    totalMvps: existing.totalMvps + roundMvpCount,
+    totalChampionships: existing.totalChampionships + 1,
+    bestOverall: Math.max(existing.bestOverall, overall),
+    bestSeason: isBetterSeason ? season : existing.bestSeason,
+    bestSeasonGoals: isBetterSeason ? goals : existing.bestSeasonGoals,
+    firstSeasonYear: existing.firstSeasonYear,
+    updatedAt: now,
+  });
+}
+
+// ── All-Time Rankings rebuild ─────────────────────────────────────────────────
+
+async function rebuildAllTimeRankings(): Promise<void> {
+  const [allCareerStats, allResults] = await Promise.all([
+    getCollection<CareerStats>('career_stats'),
+    getCollection<ChampionshipResultData>('championship_results'),
+  ]);
+
+  const toPlayer = (s: CareerStats): Omit<AllTimeRankingPlayer, 'goals' | 'titles' | 'matches' | 'mvps'> => ({
+    userId: s.userId,
+    name: s.name,
+    teamName: s.lastTeamName,
+    seasons: s.totalChampionships,
+  });
+
+  const topScorers: AllTimeRankingPlayer[] = [...allCareerStats]
+    .sort((a, b) => b.totalGoals - a.totalGoals)
+    .slice(0, 10)
+    .map((s) => ({ ...toPlayer(s), goals: s.totalGoals }));
+
+  const topTitles: AllTimeRankingPlayer[] = [...allCareerStats]
+    .sort((a, b) => b.totalTitles - a.totalTitles)
+    .slice(0, 10)
+    .map((s) => ({ ...toPlayer(s), titles: s.totalTitles }));
+
+  const topMatches: AllTimeRankingPlayer[] = [...allCareerStats]
+    .sort((a, b) => b.totalMatches - a.totalMatches)
+    .slice(0, 10)
+    .map((s) => ({ ...toPlayer(s), matches: s.totalMatches }));
+
+  const topMvps: AllTimeRankingPlayer[] = [...allCareerStats]
+    .sort((a, b) => b.totalMvps - a.totalMvps)
+    .slice(0, 10)
+    .map((s) => ({ ...toPlayer(s), mvps: s.totalMvps }));
+
+  // Team titles: group by winner name across all results
+  const teamTitleMap: Record<string, { teamId: string; name: string; titles: number }> = {};
+  for (const result of allResults) {
+    if (!result.winnerId || !result.winnerName) continue;
+    const key = result.winnerName;
+    if (!teamTitleMap[key]) {
+      teamTitleMap[key] = { teamId: result.winnerId, name: result.winnerName, titles: 0 };
+    }
+    teamTitleMap[key].titles += 1;
+  }
+  const topTeams: AllTimeRankingTeam[] = Object.values(teamTitleMap)
+    .sort((a, b) => b.titles - a.titles)
+    .slice(0, 10)
+    .map((t) => ({ teamId: t.teamId, name: t.name, titles: t.titles, participations: t.titles }));
+
+  await Promise.all([
+    upsertDocument('all_time_rankings', 'top_scorers', { players: topScorers }),
+    upsertDocument('all_time_rankings', 'top_titles', { players: topTitles }),
+    upsertDocument('all_time_rankings', 'top_matches', { players: topMatches }),
+    upsertDocument('all_time_rankings', 'top_mvps', { players: topMvps }),
+    upsertDocument('all_time_rankings', 'top_teams', { teams: topTeams }),
+  ]);
+}
+
+// ── Overall calculation ───────────────────────────────────────────────────────
+
 function calculatePlayerOverall(
   goals: number,
   matchesPlayed: number,
   yellowCards: number,
   redCards: number,
 ): number {
-  // Base overall
   let overall = 50;
-
-  // Goals contribution (max +30)
   overall += Math.min(goals * 3, 30);
-
-  // Matches played bonus (max +15)
   overall += Math.min(matchesPlayed * 1.5, 15);
-
-  // Card penalties
   overall -= yellowCards * 1;
   overall -= redCards * 3;
-
-  // Clamp between 40 and 99
   return Math.max(40, Math.min(99, Math.round(overall)));
 }

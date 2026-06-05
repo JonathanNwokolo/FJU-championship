@@ -38,11 +38,12 @@ import { TeamColorDot } from '../../components/TeamColorDot';
 import { colors } from '../../theme/colors';
 import { Team, Player, ChampionshipStatus, MatchModel, MatchEvent } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
-import { isRoundComplete, getVoteResults } from '../../services/votingService';
-import { updateDocument, addDocument } from '../../services/firestore';
+import { isRoundComplete, closeVoting } from '../../services/votingService';
+import { updateDocument, addDocument, deleteDocument, getCollection } from '../../services/firestore';
 import { calculateStandings, calculateTopScorers } from '../../services/statsService';
 import { saveChampionshipResult } from '../../hooks/useChampionshipHistory';
 import { finishChampionship } from '../../services/championshipFinisher';
+import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';
 import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
 
@@ -643,29 +644,25 @@ export function ChampionshipDashboardScreen() {
         {
           text: 'Encerrar',
           onPress: async () => {
-            const results = await getVoteResults(championshipId, round);
-            if (results.length === 0) {
+            const { players: allPlayers } = useTeamStore.getState();
+            const champPlayers = allPlayers.filter((p) =>
+              champTeams.some((t) => t.id === p.teamId),
+            );
+
+            const awardData = await closeVoting(championshipId, round, champPlayers);
+            if (!awardData) {
               Alert.alert('Sem votos', 'Nenhum voto registrado nesta rodada.');
               return;
             }
-            const topPlayerId = results[0].playerId;
-            const { players, teams } = useTeamStore.getState();
-            const wp = players.find((p) => p.id === topPlayerId);
-            const wt = teams.find((t) => t.id === wp?.teamId);
-            if (!wp || !wt) return;
 
-            const award = {
-              id: `award-${championshipId}-${round}`,
-              championshipId,
-              round,
-              winnerPlayerId: topPlayerId,
-              winnerName: wp.name,
-              winnerTeamId: wt.id,
-              totalVotes: results.reduce((s, r) => s + r.votes, 0),
-              closedAt: new Date().toISOString(),
-            };
-            addAward(award);
-            navigation.navigate('RoundAward', { championshipId, round });
+            try {
+              const docId = await addDocument('round_awards', awardData);
+              const award = { ...awardData, id: docId };
+              addAward(award);
+              navigation.navigate('RoundAward', { championshipId, round });
+            } catch {
+              Alert.alert('Erro', 'Não foi possível encerrar a votação.');
+            }
           },
         },
       ],
@@ -747,7 +744,7 @@ export function ChampionshipDashboardScreen() {
           id: `event-${e.id}`,
           icon: '⚽',
           text: `Gol de ${player?.name ?? 'Jogador'} (${team?.name ?? 'Time'})`,
-          timestamp: new Date().toISOString(), // events don't have timestamp in current schema
+          timestamp: e.createdAt ?? new Date().toISOString(),
           type: 'goal',
         });
       });
@@ -827,14 +824,22 @@ export function ChampionshipDashboardScreen() {
   const displayedTeams =
     teamFilter === 'todos' ? champTeams : champTeams.filter((t) => t.status === teamFilter);
 
+  const minTeamsToStart =
+    championship.format === 'mata_mata' ? 2
+    : championship.format === 'grupos_e_mata_mata' ? 4
+    : 2;
   const showGenerateButton =
-    championship.status === 'inscricoes_abertas' && approvedTeams.length >= 3;
+    championship.status === 'inscricoes_abertas' && approvedTeams.length >= minTeamsToStart;
 
   const handleApprove = (team: Team) => {
     updateTeam(team.id, { status: 'aprovado' });
     updateDocument('teams', team.id, { status: 'aprovado' }).catch(() => {});
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Toast.show({ type: 'success', text1: 'Time aprovado!', text2: team.name, visibilityTime: 2500 });
+    // Notifica o capitão do time
+    if (team.captainId && championship?.name) {
+      notifyTeamApproved(team.captainId, team.name, championship.name).catch(() => {});
+    }
   };
 
   const handleReject = (team: Team) => {
@@ -851,6 +856,10 @@ export function ChampionshipDashboardScreen() {
             updateDocument('teams', team.id, { status: 'rejeitado' }).catch(() => {});
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Toast.show({ type: 'error', text1: 'Time rejeitado', text2: team.name, visibilityTime: 2500 });
+            // Notifica o capitão do time
+            if (team.captainId && championship?.name) {
+              notifyTeamRejected(team.captainId, team.name, championship.name).catch(() => {});
+            }
           },
         },
       ],
@@ -871,31 +880,41 @@ export function ChampionshipDashboardScreen() {
 
   const handleSaveMatchResult = useCallback(async () => {
     if (!selectedMatch) return;
-    
+
     const homeScore = parseInt(editHomeScore, 10);
     const awayScore = parseInt(editAwayScore, 10);
-    
+
     if (isNaN(homeScore) || isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
       Alert.alert('Erro', 'Placar inválido');
       return;
     }
-    
+
     try {
+      // Delete existing goal events for this match so artilheiros don't reflect stale data.
+      // Cards are kept (they affect suspensions). Use MatchRegistration for full attribution.
+      const { events: allEvents, removeEvent } = useMatchStore.getState();
+      const goalEventsToDelete = allEvents.filter(
+        (e) => e.matchId === selectedMatch.id && e.type === 'gol',
+      );
+      await Promise.all(
+        goalEventsToDelete.map((e) => deleteDocument('match_events', e.id).catch(() => {})),
+      );
+      goalEventsToDelete.forEach((e) => removeEvent(e.id));
+
       await updateDocument('matches', selectedMatch.id, {
         homeScore,
         awayScore,
         status: 'finalizado',
         finishedAt: new Date().toISOString(),
       });
-      
-      // Update local store
+
       useMatchStore.getState().updateMatch(selectedMatch.id, {
         homeScore,
         awayScore,
         status: 'finalizado',
         finishedAt: new Date().toISOString(),
       });
-      
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({ type: 'success', text1: 'Resultado atualizado!', visibilityTime: 2000 });
       editMatchSheetRef.current?.close();
@@ -973,9 +992,9 @@ export function ChampionshipDashboardScreen() {
                 <td>${i + 1}</td>
                 <td>${s.teamName}</td>
                 <td>${s.played}</td>
-                <td>${s.wins}</td>
-                <td>${s.draws}</td>
-                <td>${s.losses}</td>
+                <td>${s.won}</td>
+                <td>${s.drawn}</td>
+                <td>${s.lost}</td>
                 <td>${s.goalsFor}</td>
                 <td>${s.goalsAgainst}</td>
                 <td>${s.goalDifference}</td>

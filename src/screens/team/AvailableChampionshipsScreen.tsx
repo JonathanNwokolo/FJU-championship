@@ -28,7 +28,7 @@ export function AvailableChampionshipsScreen() {
   const open = championships.filter((c) => c.status === 'inscricoes_abertas');
 
   const spotsLeft = (champ: Championship) => {
-    const maxTeams = 16; // default — future: store this in Championship
+    const maxTeams = champ.maxTeams ?? 16;
     const enrolled = teams.filter((t) => t.championshipId === champ.id && t.status !== 'rejeitado').length;
     return Math.max(0, maxTeams - enrolled);
   };

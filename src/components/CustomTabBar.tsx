@@ -31,6 +31,10 @@ const TAB_CONFIG: Record<string, { active: IoniconName; inactive: IoniconName }>
   Perfil: { active: 'person', inactive: 'person-outline' },
 };
 
+// These tabs stay in the navigator for navigation purposes but are hidden from the bar.
+// Access them via the Acesso Rápido section on the Home screen.
+const HIDDEN_TABS = new Set(['Confrontos', 'Classificacao', 'Artilheiros', 'Mais']);
+
 function TabItem({
   routeName,
   focused,
@@ -135,6 +139,8 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       ]}
     >
       {state.routes.map((route, index) => {
+        if (HIDDEN_TABS.has(route.name)) return null;
+
         const focused = state.index === index;
 
         const onPress = () => {

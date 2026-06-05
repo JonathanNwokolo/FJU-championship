@@ -2,11 +2,11 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 interface Props {
-  color: string;
+  color?: string;
   size?: number;
 }
 
-export function TeamColorDot({ color, size = 10 }: Props) {
+export function TeamColorDot({ color = '#888888', size = 10 }: Props) {
   return (
     <View
       style={[

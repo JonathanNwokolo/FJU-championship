@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -89,7 +89,7 @@ const toastStyles = StyleSheet.create({
 });
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Barlow-Regular': Barlow_400Regular,
     'Barlow-Medium': Barlow_500Medium,
     'Barlow-SemiBold': Barlow_600SemiBold,
@@ -99,13 +99,17 @@ export default function App() {
   });
 
   React.useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded) {
-    return null;
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#080E17', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#F5A623" />
+      </View>
+    );
   }
 
   return (

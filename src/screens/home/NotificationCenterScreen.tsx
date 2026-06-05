@@ -26,6 +26,7 @@ const TYPE_META: Record<InAppNotificationType, { icon: string; color: string }> 
   join_request: { icon: '📨', color: colors.accent },
   join_request_approved: { icon: '✅', color: colors.success },
   join_request_rejected: { icon: '❌', color: colors.danger },
+  waitlist_spot_available: { icon: '🔔', color: colors.warning },
 };
 
 function formatRelative(iso: string): string {

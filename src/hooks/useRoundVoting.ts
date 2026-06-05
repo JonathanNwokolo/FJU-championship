@@ -1,7 +1,14 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { useVotingStore } from '../stores/votingStore';
 import { useAuthStore } from '../stores/authStore';
-import { RoundAward } from '../types';
+import { RoundAward, RoundVote } from '../types';
 
 export interface VoteResult {
   playerId: string;
@@ -13,16 +20,59 @@ export interface RoundVotingState {
   totalVotes: number;
   hasCurrentUserVoted: boolean;
   winner: RoundAward | null;
-  loading: false;
+  loading: boolean;
 }
 
 export function useRoundVoting(
   championshipId: string,
   round: number,
 ): RoundVotingState {
+  const { setVotes, setAwards } = useVotingStore();
   const votes = useVotingStore((s) => s.votes);
   const awards = useVotingStore((s) => s.awards);
   const user = useAuthStore((s) => s.user);
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!championshipId) return;
+
+    setLoading(true);
+
+    const votesQuery = query(
+      collection(db, 'round_votes'),
+      where('championshipId', '==', championshipId),
+      where('round', '==', round),
+    );
+    const awardsQuery = query(
+      collection(db, 'round_awards'),
+      where('championshipId', '==', championshipId),
+      where('round', '==', round),
+    );
+
+    const unsubVotes = onSnapshot(votesQuery, (snap) => {
+      const fresh = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RoundVote));
+      // Merge into the full votes store (replace this round's slice, keep others)
+      const other = useVotingStore
+        .getState()
+        .votes.filter((v) => !(v.championshipId === championshipId && v.round === round));
+      setVotes([...other, ...fresh]);
+      setLoading(false);
+    });
+
+    const unsubAwards = onSnapshot(awardsQuery, (snap) => {
+      const fresh = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RoundAward));
+      const other = useVotingStore
+        .getState()
+        .awards.filter((a) => !(a.championshipId === championshipId && a.round === round));
+      setAwards([...other, ...fresh]);
+    });
+
+    return () => {
+      unsubVotes();
+      unsubAwards();
+    };
+  }, [championshipId, round, setVotes, setAwards]);
 
   const results = useMemo<VoteResult[]>(() => {
     const roundVotes = votes.filter(
@@ -61,5 +111,5 @@ export function useRoundVoting(
     [awards, championshipId, round],
   );
 
-  return { results, totalVotes, hasCurrentUserVoted, winner, loading: false };
+  return { results, totalVotes, hasCurrentUserVoted, winner, loading };
 }

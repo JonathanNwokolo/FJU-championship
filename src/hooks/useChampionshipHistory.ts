@@ -29,7 +29,7 @@ export interface PlayerHistory {
   finishedAt: string;
 }
 
-export function useChampionshipHistory(userId?: string) {
+export function useChampionshipHistory() {
   const championships = useChampionshipStore((s) => s.championships);
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState<Record<string, ChampionshipResultData>>({});
@@ -41,18 +41,20 @@ export function useChampionshipHistory(userId?: string) {
     const fetchResults = async () => {
       setLoading(true);
       try {
+        // Promise.all em paralelo em vez de N chamadas sequenciais
+        const fetched = await Promise.all(
+          finishedChampionships.map((c) =>
+            getDocument<ChampionshipResult>('championship_results', c.id),
+          ),
+        );
+
         const resultsData: Record<string, ChampionshipResult> = {};
-        
-        for (const champ of finishedChampionships) {
-          const result = await getDocument<ChampionshipResult>(
-            'championship_results',
-            champ.id
-          );
+        fetched.forEach((result, i) => {
           if (result) {
-            resultsData[champ.id] = result;
+            resultsData[finishedChampionships[i].id] = result;
           }
-        }
-        
+        });
+
         setResults(resultsData);
       } catch (error) {
         console.warn('[useChampionshipHistory] Error fetching results:', error);
@@ -233,6 +235,7 @@ export async function saveChampionshipResult(
     totalGoals,
     winnerId: championTeam?.id ?? '',
     winnerName: championTeam?.name ?? '',
+    winnerTeamColor: championTeam?.primaryColor,
     runnerUpId: secondTeam?.id ?? '',
     runnerUpName: secondTeam?.name ?? '',
     topScorerId: topScorer?.id ?? '',

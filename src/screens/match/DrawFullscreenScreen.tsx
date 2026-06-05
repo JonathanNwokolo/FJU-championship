@@ -35,7 +35,8 @@ import { colors } from '../../theme/colors';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { generateRoundRobin } from '../../utils/roundRobin';
+import { generateRoundRobin, generateBracketFixtures } from '../../utils/roundRobin';
+import { setDocument, updateDocument } from '../../services/firestore';
 import { MatchModel, Team } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
@@ -297,9 +298,14 @@ export function DrawFullscreenScreen() {
   );
   const teamsById = Object.fromEntries(storeTeams.map((t) => [t.id, t]));
 
+  const isBracket =
+    championship?.format === 'mata_mata' || championship?.format === 'grupos_e_mata_mata';
+
   const [phase, setPhase] = useState<Phase>('presenting');
   const [shuffledTeams, setShuffledTeams] = useState<Team[]>(approvedTeams);
   const [rounds, setRounds] = useState<Array<Array<[string, string]>>>([]);
+  // Stores full MatchModel list for bracket formats (mata_mata / grupos_e_mata_mata)
+  const [bracketMatches, setBracketMatches] = useState<MatchModel[]>([]);
   const [currentRevealRound, setCurrentRevealRound] = useState(0);
   const [visibleMatchCount, setVisibleMatchCount] = useState(0);
   const [shuffleActive, setShuffleActive] = useState(false);
@@ -356,9 +362,22 @@ export function DrawFullscreenScreen() {
 
   const handleStartDraw = () => {
     const shuffled = fisherYates(approvedTeams);
-    const roundPairs = generateRoundRobin(shuffled.map((t) => t.id));
     setShuffledTeams(shuffled);
-    setRounds(roundPairs);
+
+    if (isBracket) {
+      // Bracket formats: generate full MatchModel list and convert round 1 to display pairs
+      const matches = generateBracketFixtures(shuffled, championshipId);
+      setBracketMatches(matches);
+      // Only show first-round matchups (future rounds depend on results)
+      const firstRoundPairs: Array<[string, string]> = matches
+        .filter((m) => m.round === 1 && m.homeTeamId && m.awayTeamId)
+        .map((m) => [m.homeTeamId, m.awayTeamId] as [string, string]);
+      setRounds([firstRoundPairs]);
+    } else {
+      const roundPairs = generateRoundRobin(shuffled.map((t) => t.id));
+      setRounds(roundPairs);
+    }
+
     setPhase('shuffling');
     setShuffleActive(true);
 
@@ -382,29 +401,42 @@ export function DrawFullscreenScreen() {
     setCurrentRevealRound((r) => r + 1);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setLoading(true);
-    const matchModels = buildMatchModels(rounds, championshipId);
-    addMatches(matchModels);
-    updateChampionship(championshipId, {
-      status: 'em_andamento',
-      currentRound: 1,
-      totalRounds: rounds.length,
-    });
-    setLoading(false);
-    setPhase('confirmed');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      // For bracket formats use the pre-generated MatchModel list; for round-robin build from pairs
+      const matchModels = isBracket
+        ? bracketMatches
+        : buildMatchModels(rounds, championshipId);
+      const totalRounds = isBracket
+        ? Math.max(...matchModels.map((m) => m.round), 1)
+        : rounds.length;
+      const champUpdate = { status: 'em_andamento', currentRound: 1, totalRounds };
 
-    // Dispara os três canhões de confete
-    confettiLeft.current?.shoot();
-    confettiCenter.current?.shoot();
-    confettiRight.current?.shoot();
+      await Promise.all(matchModels.map((m) => setDocument('matches', m.id, m)));
+      await updateDocument('championships', championshipId, champUpdate);
 
-    const t = setTimeout(() => {
-      StatusBar.setHidden(false, 'fade');
-      (navigation.getParent() as any)?.navigate('Confrontos');
-    }, 2500);
-    pendingTimers.current.push(t);
+      addMatches(matchModels);
+      updateChampionship(championshipId, champUpdate as any);
+
+      setPhase('confirmed');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      confettiLeft.current?.shoot();
+      confettiCenter.current?.shoot();
+      confettiRight.current?.shoot();
+
+      const t = setTimeout(() => {
+        StatusBar.setHidden(false, 'fade');
+        (navigation.getParent() as any)?.navigate('Confrontos');
+      }, 2500);
+      pendingTimers.current.push(t);
+    } catch (err) {
+      console.warn('[DrawFullscreen] handleConfirm failed:', err);
+      Alert.alert('Erro', 'Não foi possível gerar os confrontos. Verifique sua conexão e tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExit = () => {

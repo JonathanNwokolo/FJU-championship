@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useTeamStore } from '../../stores/teamStore';
 import { usePlayerStats, MatchPerformance } from '../../hooks/usePlayerStats';
+import { Team } from '../../types';
 import { colors, gradients } from '../../theme/colors';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'PlayerStatsDetail'>;
@@ -38,7 +39,7 @@ function GoalBarChart({
   teams,
 }: {
   performances: MatchPerformance[];
-  teams: ReturnType<typeof useTeamStore>['teams'];
+  teams: Team[];
 }) {
   if (performances.length === 0) return null;
 
@@ -77,7 +78,7 @@ function MatchRow({
   teams,
 }: {
   performance: MatchPerformance;
-  teams: ReturnType<typeof useTeamStore>['teams'];
+  teams: Team[];
 }) {
   const { match, events, goals, yellowCards, redCards } = performance;
   const home = teams.find((t) => t.id === match.homeTeamId);

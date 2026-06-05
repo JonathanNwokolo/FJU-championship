@@ -22,8 +22,8 @@ import { SearchBar } from '../../components/SearchBar';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { addDocument } from '../../services/firestore';
-import { respondToRequest } from '../../services/inviteService';
+import { addDocument, deleteDocument } from '../../services/firestore';
+import { respondToRequest, processWaitlistOnVacancy } from '../../services/inviteService';
 import { usePendingJoinRequests } from '../../hooks/usePendingJoinRequests';
 import { colors } from '../../theme/colors';
 import { Player, PlayerPosition } from '../../types';
@@ -96,6 +96,9 @@ export function ManageRosterScreen({ route, navigation }: Props) {
       name: trimmedName,
       position: newPosition,
       number: parsedNumber,
+      status: 'ativo',
+      joinedAt: new Date().toISOString(),
+      guestPlayer: true,
     };
 
     try {
@@ -118,8 +121,16 @@ export function ManageRosterScreen({ route, navigation }: Props) {
       {
         text: 'Remover',
         style: 'destructive',
-        onPress: () => {
-          removePlayerLocal(player.id);
+        onPress: async () => {
+          try {
+            await deleteDocument('players', player.id);
+            removePlayerLocal(player.id);
+            processWaitlistOnVacancy(teamId).catch(() => {});
+            Toast.show({ type: 'success', text1: 'Atleta removido', visibilityTime: 1800 });
+          } catch (error) {
+            console.warn('[ManageRoster] remove player failed:', error);
+            Toast.show({ type: 'error', text1: 'Não foi possível remover', visibilityTime: 2200 });
+          }
         },
       },
     ]);

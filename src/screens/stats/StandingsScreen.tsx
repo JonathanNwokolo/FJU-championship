@@ -13,7 +13,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { captureRef } from 'react-native-view-shot';
 import { PodiumCard } from '../../components/PodiumCard';
 import { TeamColorDot } from '../../components/TeamColorDot';
@@ -24,8 +24,9 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { getCollection } from '../../services/firestore';
 import { colors, shadows } from '../../theme/colors';
-import { MatchModel, TeamStanding } from '../../types';
+import { MatchModel, Player, Team, TeamStanding } from '../../types';
 
 const W = {
   pos: 28,
@@ -168,6 +169,19 @@ function StandingRow({
         <Animated.View entering={FadeIn.duration(180)} style={styles.expandedRow}>
           <Text style={styles.formLabel}>Últimas 5</Text>
           <FormDots form={form} />
+          <View style={styles.cardStats}>
+            <Text style={styles.cardStat}>
+              <Text style={styles.cardYellow}>🟨 </Text>
+              {item.yellowCards}
+            </Text>
+            <Text style={styles.cardStat}>
+              <Text style={styles.cardRed}>🟥 </Text>
+              {item.redCards}
+            </Text>
+            <Text style={styles.fairPlayStat}>
+              Fair Play: {item.fairPlayScore === 0 ? 'Perfeito ✓' : item.fairPlayScore}
+            </Text>
+          </View>
         </Animated.View>
       )}
     </TouchableOpacity>
@@ -239,10 +253,28 @@ export function StandingsScreen() {
     return result;
   }, [matches, standings]);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
+    if (!champId) return;
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500);
-  }, []);
+    try {
+      const [freshMatches, freshTeams, freshPlayers] = await Promise.all([
+        getCollection<MatchModel>('matches', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Team>('teams', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Player>('players', [{ field: 'championshipId', operator: '==', value: champId }]),
+      ]);
+      // Merge fresh data into stores — only replace records for this championship
+      const prevMatches = useMatchStore.getState().matches.filter((m) => m.championshipId !== champId);
+      useMatchStore.getState().setMatches([...prevMatches, ...freshMatches]);
+      const prevTeams = useTeamStore.getState().teams.filter((t) => t.championshipId !== champId);
+      const prevPlayers = useTeamStore.getState().players.filter((p) => p.championshipId !== champId);
+      useTeamStore.getState().setTeams([...prevTeams, ...freshTeams]);
+      useTeamStore.setState({ players: [...prevPlayers, ...freshPlayers] });
+    } catch (e) {
+      console.warn('[StandingsScreen] onRefresh error:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [champId]);
 
   if (isLoading) {
     return (
@@ -576,6 +608,7 @@ const styles = StyleSheet.create({
   expandedRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 10,
     paddingHorizontal: 56,
     paddingVertical: 10,
@@ -589,6 +622,24 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  cardStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginLeft: 'auto',
+  },
+  cardStat: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  cardYellow: {},
+  cardRed: {},
+  fairPlayStat: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 11,
+    color: colors.textMuted,
   },
   formDots: {
     flexDirection: 'row',

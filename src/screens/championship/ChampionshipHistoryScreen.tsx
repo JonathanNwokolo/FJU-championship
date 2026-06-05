@@ -58,7 +58,7 @@ export function ChampionshipHistoryScreen() {
   });
 
   const handlePress = (championship: Championship) => {
-    navigation.navigate('ChampionshipResult', { championshipId: championship.id });
+    navigation.navigate('Season', { championshipId: championship.id });
   };
 
   const renderItem = ({ item }: { item: Championship }) => {
@@ -91,9 +91,9 @@ export function ChampionshipHistoryScreen() {
           {result && (
             <View style={styles.championRow}>
               <Text style={styles.championLabel}>🏆 Campeão:</Text>
-              <TeamColorDot color={result.championTeamColor} size={8} />
+              <TeamColorDot color={result.winnerTeamColor ?? '#F5A623'} size={8} />
               <Text style={styles.championName} numberOfLines={1}>
-                {result.championTeamName}
+                {result.winnerName}
               </Text>
             </View>
           )}

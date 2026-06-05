@@ -45,15 +45,20 @@ export function VotingScreen() {
     round,
   );
 
-  const candidates = getCandidatesForRound(championshipId, round, events, players, matches);
+  const userTeamId = user
+    ? players.find((p) => p.userId === user.id)?.teamId
+    : undefined;
+
+  const allCandidates = getCandidatesForRound(championshipId, round, events, players, matches);
+  // Votante não pode votar em jogador do próprio time
+  const candidates = userTeamId
+    ? allCandidates.filter((p) => p.teamId !== userTeamId)
+    : allCandidates;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const showVoting = !hasCurrentUserVoted && !winner;
-  const userTeamId = user
-    ? players.find((p) => p.userId === user.id)?.teamId
-    : undefined;
 
   const handleVote = async () => {
     if (!selectedId || !user) return;

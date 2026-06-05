@@ -38,9 +38,9 @@ export function ChampionshipHistoryCard({ championship, result, onPress }: Props
       
       {result ? (
         <View style={styles.championRow}>
-          <TeamColorDot color={result.championTeamColor} size={8} />
+          <TeamColorDot color={result.winnerTeamColor ?? '#F5A623'} size={8} />
           <Text style={styles.championText} numberOfLines={1}>
-            Campeão: {result.championTeamName}
+            Campeão: {result.winnerName}
           </Text>
         </View>
       ) : (

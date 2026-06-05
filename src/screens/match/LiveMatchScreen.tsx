@@ -27,6 +27,7 @@ type NavT = NativeStackNavigationProp<FixturesStackParamList>;
 
 const EVENT_META = {
   gol: { label: 'Gol', icon: 'football-outline', tint: colors.accent },
+  assistencia: { label: 'Assistência', icon: 'footsteps-outline', tint: colors.success },
   cartao_amarelo: { label: 'Amarelo', icon: 'square', tint: colors.warning },
   cartao_vermelho: { label: 'Vermelho', icon: 'square', tint: colors.danger },
 } as const;
@@ -64,9 +65,11 @@ function EventTimelineCard({
               backgroundColor:
                 event.type === 'gol'
                   ? colors.accentGlow
-                  : event.type === 'cartao_amarelo'
-                    ? 'rgba(245,166,35,0.15)'
-                    : 'rgba(255,59,71,0.15)',
+                  : event.type === 'assistencia'
+                    ? 'rgba(46,204,113,0.15)'
+                    : event.type === 'cartao_amarelo'
+                      ? 'rgba(245,166,35,0.15)'
+                      : 'rgba(255,59,71,0.15)',
             },
           ]}
         >

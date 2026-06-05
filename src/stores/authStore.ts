@@ -7,6 +7,11 @@ import {
   saveRole,
   listenToAuthChanges,
 } from '../services/auth';
+import { useChampionshipStore } from './championshipStore';
+import { useTeamStore } from './teamStore';
+import { useMatchStore } from './matchStore';
+import { useAchievementStore } from './achievementStore';
+import { useVotingStore } from './votingStore';
 
 interface AuthState {
   user: AppUser | null;
@@ -48,6 +53,12 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   signOut: async () => {
     await authSignOut();
+    // Limpa dados de todos os stores para evitar vazamento entre usuários
+    useChampionshipStore.setState({ championships: [], selectedChampionshipId: null, loading: true });
+    useTeamStore.setState({ teams: [], players: [], loading: true });
+    useMatchStore.setState({ matches: [], events: [], loading: true });
+    useAchievementStore.setState({ achievements: [] });
+    useVotingStore.setState({ votes: [], awards: [] });
     set({ user: null, isOnboarded: false });
   },
 

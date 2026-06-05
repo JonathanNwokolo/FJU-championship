@@ -16,11 +16,12 @@ import { AppTextField } from '../../components/AppTextField';
 import { AppButton } from '../../components/AppButton';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { colors } from '../../theme/colors';
 import { TEAM_COLORS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { createInviteLink, createTeamInvite, generateInviteCode } from '../../services/inviteService';
-import { setDocument } from '../../services/firestore';
+import { setDocument, getCollection } from '../../services/firestore';
 import { Team } from '../../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CreateTeam'>;
@@ -32,6 +33,9 @@ export function CreateTeamScreen({ route, navigation }: Props) {
   const { championshipId } = route.params;
   const user = useAuthStore((s) => s.user);
   const addTeam = useTeamStore((s) => s.addTeam);
+  const championship = useChampionshipStore((s) =>
+    s.championships.find((c) => c.id === championshipId),
+  );
 
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
@@ -46,6 +50,47 @@ export function CreateTeamScreen({ route, navigation }: Props) {
       return;
     }
 
+    // Validate that championship is still accepting registrations
+    if (championship) {
+      const deadlinePassed =
+        championship.registrationDeadline &&
+        new Date(championship.registrationDeadline).getTime() < Date.now();
+      if (championship.registrationsClosed || deadlinePassed) {
+        Toast.show({
+          type: 'error',
+          text1: 'Inscrições encerradas',
+          text2: 'O prazo de inscrição deste campeonato já encerrou.',
+          visibilityTime: 3000,
+        });
+        return;
+      }
+      if (championship.status === 'em_andamento' || championship.status === 'finalizado') {
+        Toast.show({
+          type: 'error',
+          text1: 'Campeonato em andamento',
+          text2: 'Não é possível inscrever novos times neste momento.',
+          visibilityTime: 3000,
+        });
+        return;
+      }
+      // Validate maxTeams cap
+      if (championship.maxTeams) {
+        const existingTeams = await getCollection<Team>('teams', [
+          { field: 'championshipId', operator: '==', value: championshipId },
+          { field: 'status', operator: '!=', value: 'rejeitado' },
+        ]);
+        if (existingTeams.length >= championship.maxTeams) {
+          Toast.show({
+            type: 'error',
+            text1: 'Limite de times atingido',
+            text2: `Este campeonato aceita no máximo ${championship.maxTeams} times.`,
+            visibilityTime: 3500,
+          });
+          return;
+        }
+      }
+    }
+
     setLoading(true);
     try {
       const inviteCode = await generateInviteCode();
@@ -58,10 +103,10 @@ export function CreateTeamScreen({ route, navigation }: Props) {
         primaryColor,
         secondaryColor,
         captainId: user?.id ?? '',
-        status: 'pendente',
+        status: championship?.rules?.manualApproval !== false ? 'pendente' : 'aprovado',
         inviteCode,
         inviteLink,
-        maxPlayers: DEFAULT_MAX_PLAYERS,
+        maxPlayers: championship?.maxPlayers ?? DEFAULT_MAX_PLAYERS,
         registrationOpen: true,
         pendingRequests: [],
         createdAt: new Date().toISOString(),

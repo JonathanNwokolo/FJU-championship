@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"try { const m = require\\('firebase/auth/react-native'\\); console.log\\(Object.keys\\(m\\)\\) } catch\\(e\\) { console.log\\('ERROR:', e.message\\) }\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Home\\\\Desktop\\\\WORKS\\\\FJU-championship\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
+    ]
+  },
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   }

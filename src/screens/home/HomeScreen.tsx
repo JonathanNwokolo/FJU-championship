@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  FlatList,
   Modal,
   Pressable,
   ScrollView,
@@ -225,6 +226,10 @@ function HeroCard({
   const progress =
     championship.totalRounds > 0 ? championship.currentRound / championship.totalRounds : 0;
 
+  const seasonLabel = championship.season
+    ? `Temporada ${championship.season}${championship.edition ? ` · Edição ${championship.edition}ª` : ''}`
+    : null;
+
   return (
     <LinearGradient
       colors={[colors.bg300, colors.bg200]}
@@ -237,7 +242,7 @@ function HeroCard({
       <View style={styles.heroBadge}>{getStatusBadge(championship)}</View>
       <Text style={styles.heroTitle} numberOfLines={2}>{championship.name}</Text>
       <Text style={styles.heroSubtitle}>
-        {formatChampionshipFormat(championship.format)} · {teamsCount} times
+        {seasonLabel ?? formatChampionshipFormat(championship.format)} · {teamsCount} times
       </Text>
       {championship.status === 'em_andamento' && (
         <View style={styles.heroProgressBlock}>
@@ -400,14 +405,39 @@ function TeamSection({
     : activeChampionship;
 
   if (!myTeam) {
+    const isAthlete = role === 'atleta';
+    const isCaptain = role === 'capitao';
+
     return (
       <View style={styles.section}>
         <SectionHeader title="MEU TIME" />
         <AppCard variant="elevated" style={styles.emptyTeamCard}>
           <Text style={styles.emptyTitle}>Você ainda não está em um time</Text>
           <Text style={styles.emptyDescription}>
-            Entre em um campeonato aberto para acompanhar sua equipe por aqui.
+            {isAthlete
+              ? 'Peça ao seu capitão o código de convite do time e use-o para entrar.'
+              : isCaptain
+              ? 'Crie um time e inscreva-o em um campeonato aberto.'
+              : 'Acesse "Mais" para criar ou gerenciar campeonatos.'}
           </Text>
+          {isAthlete && (
+            <TouchableOpacity
+              style={styles.emptyActionBtn}
+              onPress={() => navigation.navigate('JoinTeam')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.emptyActionBtnText}>Usar código de convite</Text>
+            </TouchableOpacity>
+          )}
+          {isCaptain && (
+            <TouchableOpacity
+              style={styles.emptyActionBtn}
+              onPress={() => navigation.navigate('AvailableChampionships')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.emptyActionBtnText}>Ver campeonatos disponíveis</Text>
+            </TouchableOpacity>
+          )}
         </AppCard>
       </View>
     );
@@ -839,7 +869,7 @@ export function HomeScreen() {
     () => championships.filter((c) => c.status === 'finalizado').slice(0, 6),
     [championships],
   );
-  const { results: historyResults } = useChampionshipHistory(finishedChampionships.map((c) => c.id));
+  const { results: historyResults } = useChampionshipHistory();
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -954,15 +984,14 @@ export function HomeScreen() {
             title="PRÓXIMAS PARTIDAS"
             action={{ text: 'Ver todas ›', onPress: () => navigateToTab(navigation, 'Confrontos') }}
           />
-          <ScrollView
+          <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
-          >
-            {(upcomingMatches.length > 0 ? upcomingMatches : championshipMatches.slice(0, 4)).map((match) => (
-              <MatchCard key={match.id} match={match} teams={teams} />
-            ))}
-          </ScrollView>
+            data={upcomingMatches.length > 0 ? upcomingMatches : championshipMatches.slice(0, 4)}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item: match }) => <MatchCard match={match} teams={teams} />}
+          />
         </View>
 
         {latestResults.length > 0 && (
@@ -985,25 +1014,33 @@ export function HomeScreen() {
                 onPress: () => navigation.navigate('ChampionshipHistory'),
               }}
             />
-            <ScrollView
+            <AppCard
+              variant="accent"
+              style={styles.rankingHistCard}
+              onPress={() => navigation.navigate('AllTimeRankings')}
+            >
+              <View style={styles.rankingHistRow}>
+                <View style={styles.rankingHistText}>
+                  <Text style={styles.rankingHistTitle}>🏅 Ranking Histórico</Text>
+                  <Text style={styles.rankingHistSub}>Veja os maiores da FJU de todos os tempos</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.accent} />
+              </View>
+            </AppCard>
+            <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalList}
-            >
-              {finishedChampionships.map((championship) => (
+              data={finishedChampionships}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item: championship }) => (
                 <ChampionshipHistoryCard
-                  key={championship.id}
                   championship={championship}
-                  result={historyResults.find((r) => r.championshipId === championship.id)}
-                  onPress={() =>
-                    navigation.navigate('ChampionshipResult', {
-                      championshipId: championship.id,
-                      readOnly: true,
-                    })
-                  }
+                  result={historyResults[championship.id]}
+                  onPress={() => navigation.navigate('Season', { championshipId: championship.id })}
                 />
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
         )}
       </Animated.ScrollView>
@@ -1267,6 +1304,21 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.textSecondary,
   },
+  emptyActionBtn: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  emptyActionBtnText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.accent,
+  },
   quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1301,6 +1353,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-SemiBold',
     fontSize: 22,
     color: colors.accent,
+  },
+  rankingHistCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 16,
+  },
+  rankingHistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rankingHistText: {
+    flex: 1,
+    gap: 2,
+  },
+  rankingHistTitle: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  rankingHistSub: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   horizontalList: {
     gap: 12,

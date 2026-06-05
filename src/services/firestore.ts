@@ -22,6 +22,10 @@ export interface FirestoreFilter {
   value: unknown;
 }
 
+/**
+ * Cria ou SUBSTITUI um documento adicionando createdAt.
+ * Use apenas para criação inicial de documentos.
+ */
 export async function setDocument<T extends object>(
   collectionName: string,
   docId: string,
@@ -31,6 +35,18 @@ export async function setDocument<T extends object>(
     ...data,
     createdAt: serverTimestamp(),
   });
+}
+
+/**
+ * Atualiza (upsert) um documento sem sobrescrever createdAt existente.
+ * Use para updates de documentos já existentes.
+ */
+export async function upsertDocument<T extends object>(
+  collectionName: string,
+  docId: string,
+  data: T
+): Promise<void> {
+  await setDoc(doc(db, collectionName, docId), data, { merge: true });
 }
 
 export async function addDocument<T extends object>(

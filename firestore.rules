@@ -1,0 +1,294 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(uid())).data.role;
+    }
+
+    function isOrganizer() {
+      return userRole() == 'organizador';
+    }
+
+    function isChampionshipOrganizer(champId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/championships/$(champId)).data.organizerId == uid();
+    }
+
+    function isTeamCaptain(teamId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/teams/$(teamId)).data.captainId == uid();
+    }
+
+    function isPlayerInTeam(teamId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/players/$(uid())) == false &&
+        // Check via players collection query isn't possible in rules — use userId field on player docs
+        // Fallback: trust captainId or membership via users.teamId
+        get(/databases/$(database)/documents/users/$(uid())).data.teamId == teamId;
+    }
+
+    function isChampionshipParticipant(champId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(uid())).data.championshipId == champId;
+    }
+
+    // ── /users ───────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      // Each user may write their own doc; organizer can update any
+      allow write: if isSignedIn() && (uid() == userId || isOrganizer());
+    }
+
+    // ── /championships ───────────────────────────────────────────────────────
+
+    match /championships/{champId} {
+      allow read: if isSignedIn();
+      // Only organizer can create/update their own championship
+      allow create: if isSignedIn() && isOrganizer() &&
+        request.resource.data.organizerId == uid();
+      allow update: if isSignedIn() && (
+        resource.data.organizerId == uid() ||
+        // Allow system fields (currentRound, status) to be updated by organizer
+        isOrganizer()
+      );
+      allow delete: if isSignedIn() && resource.data.organizerId == uid();
+    }
+
+    // ── /teams ───────────────────────────────────────────────────────────────
+
+    match /teams/{teamId} {
+      allow read: if isSignedIn();
+      // Team creation: any signed-in user (will be captain)
+      allow create: if isSignedIn() &&
+        request.resource.data.captainId == uid();
+      // Updates: captain or organizer of the championship
+      allow update: if isSignedIn() && (
+        resource.data.captainId == uid() ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.captainId == uid() ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+    }
+
+    // ── /players ─────────────────────────────────────────────────────────────
+
+    match /players/{playerId} {
+      allow read: if isSignedIn();
+      // Player can be created by captain or the player themselves (joining via invite)
+      allow create: if isSignedIn();
+      // Update: the player themselves, their captain, or the championship organizer
+      allow update: if isSignedIn() && (
+        resource.data.userId == uid() ||
+        isTeamCaptain(resource.data.teamId) ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.userId == uid() ||
+        isTeamCaptain(resource.data.teamId) ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+    }
+
+    // ── /matches ─────────────────────────────────────────────────────────────
+
+    match /matches/{matchId} {
+      allow read: if isSignedIn();
+      // Only organizer can create/update/delete matches
+      allow write: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId);
+      // Allow update by organizer of existing match championship
+      allow update: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId);
+      allow delete: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId);
+    }
+
+    // ── /match_events ─────────────────────────────────────────────────────────
+
+    match /match_events/{eventId} {
+      allow read: if isSignedIn();
+      // Events can be created by organizer only (they control match registration)
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId);
+      allow update, delete: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId);
+    }
+
+    // ── /join_requests ────────────────────────────────────────────────────────
+
+    match /join_requests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.requesterId == uid() ||
+        isTeamCaptain(resource.data.teamId) ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+      // Any signed-in user can create a join request for themselves
+      allow create: if isSignedIn() &&
+        request.resource.data.requesterId == uid();
+      // Only captain or organizer can update (approve/reject)
+      allow update: if isSignedIn() && (
+        isTeamCaptain(resource.data.teamId) ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.requesterId == uid() ||
+        isTeamCaptain(resource.data.teamId)
+      );
+    }
+
+    // ── /team_invites ─────────────────────────────────────────────────────────
+
+    match /team_invites/{inviteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isTeamCaptain(request.resource.data.teamId);
+      allow update: if isSignedIn() && (
+        isTeamCaptain(resource.data.teamId) ||
+        // Athlete marking invite as used
+        uid() == resource.data.teamId  // fallback — invite service handles this
+        || true  // invite code join flow: any signed-in user can mark as used
+      );
+      allow delete: if isSignedIn() && isTeamCaptain(resource.data.teamId);
+    }
+
+    // ── /round_votes ──────────────────────────────────────────────────────────
+
+    match /round_votes/{voteId} {
+      allow read: if isSignedIn() && isChampionshipParticipant(resource.data.championshipId);
+      // Vote doc ID = championshipId_round_voterId — only the voter can create their own vote
+      allow create: if isSignedIn() &&
+        request.resource.data.voterId == uid() &&
+        // Prevent voting for own team: enforced client-side; here we block duplicate docs
+        !exists(/databases/$(database)/documents/round_votes/$(voteId));
+      // Votes are immutable
+      allow update, delete: if false;
+    }
+
+    // ── /round_awards ─────────────────────────────────────────────────────────
+
+    match /round_awards/{awardId} {
+      allow read: if isSignedIn();
+      // Only organizer closes voting and creates awards
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId);
+      allow update, delete: if false;
+    }
+
+    // ── /championship_results ────────────────────────────────────────────────
+
+    match /championship_results/{resultId} {
+      allow read: if isSignedIn();
+      // Written by finisher service running as organizer
+      allow write: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId);
+    }
+
+    // ── /player_history ──────────────────────────────────────────────────────
+
+    match /player_history/{entryId} {
+      allow read: if isSignedIn();
+      // Written only by championship finisher (organizer context)
+      allow create: if isSignedIn() && isOrganizer();
+      allow update, delete: if false;
+    }
+
+    // ── /career_stats ─────────────────────────────────────────────────────────
+
+    match /career_stats/{userId} {
+      allow read: if isSignedIn();
+      // Written by finisher (organizer) or the user themselves
+      allow write: if isSignedIn() && (uid() == userId || isOrganizer());
+    }
+
+    // ── /all_time_rankings ────────────────────────────────────────────────────
+
+    match /all_time_rankings/{rankId} {
+      allow read: if true;
+      // Only organizer rebuilds rankings via finisher
+      allow write: if isSignedIn() && isOrganizer();
+    }
+
+    // ── /notifications ────────────────────────────────────────────────────────
+
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.userId == uid();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == uid();
+      allow delete: if isSignedIn() && resource.data.userId == uid();
+    }
+
+    // ── /push_tokens ──────────────────────────────────────────────────────────
+
+    match /push_tokens/{tokenId} {
+      // Any signed-in user can read tokens (needed to send push to others client-side)
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.resource.data.userId == uid();
+    }
+
+    // ── /mural_posts ─────────────────────────────────────────────────────────
+
+    match /mural_posts/{postId} {
+      allow read: if isSignedIn();
+      // Any championship participant can post
+      allow create: if isSignedIn() &&
+        request.resource.data.authorId == uid();
+      // Only the author or organizer can delete
+      allow delete: if isSignedIn() && (
+        resource.data.authorId == uid() ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+      allow update: if isSignedIn() &&
+        // Only likesCount can be updated by anyone (via transaction)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']);
+
+      match /likes/{likeId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && likeId == uid();
+      }
+    }
+
+    // ── /announcements ────────────────────────────────────────────────────────
+
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      // Only organizer or captain can create announcements
+      allow create: if isSignedIn() && (
+        isChampionshipOrganizer(request.resource.data.championshipId) ||
+        request.resource.data.authorRole == 'capitao'
+      );
+      allow update: if isSignedIn() &&
+        resource.data.authorId == uid();
+      allow delete: if isSignedIn() && (
+        resource.data.authorId == uid() ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+    }
+
+    // ── /achievements ─────────────────────────────────────────────────────────
+
+    match /achievements/{achievementId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isOrganizer();
+    }
+
+    // ── Convocations (subcollection of teams) ────────────────────────────────
+
+    match /teams/{teamId}/convocations/{round} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isTeamCaptain(teamId);
+    }
+  }
+}

@@ -152,47 +152,35 @@ export async function getTokensForUsers(userIds: string[]): Promise<string[]> {
 
 export async function getTokensForChampionship(championshipId: string): Promise<string[]> {
   try {
-    // 1. Encontrar todos os jogadores do campeonato
     const playersQuery = query(
       collection(db, 'players'),
       where('championshipId', '==', championshipId)
     );
     const playersSnapshot = await getDocs(playersQuery);
-    
     if (playersSnapshot.empty) return [];
-    
-    // Extrair os IDs de usuário únicos que não sejam undefined
+
     const userIds = new Set<string>();
     playersSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      if (data.userId) {
-        userIds.add(data.userId);
-      }
+      if (data.userId) userIds.add(data.userId);
     });
 
     const uniqueUserIds = Array.from(userIds);
     if (uniqueUserIds.length === 0) return [];
 
-    // 2. Buscar os tokens desses usuários em push_tokens.
-    // Como "in" aceita no máximo 10 valores, processamos em lotes de 10
     const tokens: string[] = [];
-    
     for (let i = 0; i < uniqueUserIds.length; i += 10) {
       const batchIds = uniqueUserIds.slice(i, i + 10);
       const tokensQuery = query(
         collection(db, 'push_tokens'),
         where('userId', 'in', batchIds)
       );
-      
       const tokensSnapshot = await getDocs(tokensQuery);
       tokensSnapshot.docs.forEach(doc => {
         const data = doc.data();
-        if (data.token) {
-          tokens.push(data.token);
-        }
+        if (data.token) tokens.push(data.token);
       });
     }
-
     return tokens;
   } catch (e) {
     console.warn('[notifications] getTokensForChampionship error:', e);
@@ -222,7 +210,6 @@ export async function sendPushNotification(
   if (tokens.length === 0) return;
 
   const BATCH_SIZE = 100;
-
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     const batch = tokens.slice(i, i + BATCH_SIZE);
     const messages: NotificationPayload[] = batch.map((to) => ({
@@ -244,10 +231,7 @@ export async function sendPushNotification(
         },
         body: JSON.stringify(messages),
       });
-
-      if (!res.ok) {
-        console.warn('[notifications] Push API HTTP error:', res.status);
-      }
+      if (!res.ok) console.warn('[notifications] Push API HTTP error:', res.status);
     } catch (e) {
       console.warn('[notifications] sendPushNotification error:', e);
     }
@@ -398,4 +382,42 @@ export async function notifyWaitlistSpotAvailable(
     await sendPushNotification(tokens, title, body, { type: 'waitlist_spot_available', teamName, inviteCode });
   }
   await saveInAppNotification([athleteId], 'waitlist_spot_available', title, body, { teamName, inviteCode });
+}
+
+// ---------------------------------------------------------------------------
+// 12. notifyTeamApproved — notifica o capitão quando seu time é aprovado
+// ---------------------------------------------------------------------------
+
+export async function notifyTeamApproved(
+  captainId: string,
+  teamName: string,
+  championshipName: string,
+): Promise<void> {
+  const title = '✅ Time aprovado!';
+  const body = `O time ${teamName} foi aprovado para participar do ${championshipName}`;
+  const tokens = await getTokensForUsers([captainId]);
+
+  if (tokens.length > 0) {
+    await sendPushNotification(tokens, title, body, { type: 'team_approved', teamName, championshipName });
+  }
+  await saveInAppNotification([captainId], 'team_approved', title, body, { teamName, championshipName });
+}
+
+// ---------------------------------------------------------------------------
+// 13. notifyTeamRejected — notifica o capitão quando seu time é rejeitado
+// ---------------------------------------------------------------------------
+
+export async function notifyTeamRejected(
+  captainId: string,
+  teamName: string,
+  championshipName: string,
+): Promise<void> {
+  const title = '❌ Time não aprovado';
+  const body = `O time ${teamName} não foi aprovado para o ${championshipName}. Entre em contato com o organizador.`;
+  const tokens = await getTokensForUsers([captainId]);
+
+  if (tokens.length > 0) {
+    await sendPushNotification(tokens, title, body, { type: 'team_rejected', teamName, championshipName });
+  }
+  await saveInAppNotification([captainId], 'team_rejected', title, body, { teamName, championshipName });
 }

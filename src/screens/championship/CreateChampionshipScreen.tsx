@@ -25,10 +25,10 @@ import { AppTextField } from '../../components/AppTextField';
 import { AppToggle } from '../../components/AppToggle';
 import { SectionHeader } from '../../components/SectionHeader';
 import { useAuthStore } from '../../stores/authStore';
-import { useChampionshipStore } from '../../stores/championshipStore';
 import { Championship, ChampionshipFormat } from '../../types';
 import { colors } from '../../theme/colors';
 import { generateInviteCode } from '../../utils/generateInviteCode';
+import { setDocument } from '../../services/firestore';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'CreateChampionship'>;
@@ -37,10 +37,10 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 type TiebreakerItem = { key: string; label: string };
 
 const DEFAULT_TIEBREAKERS: TiebreakerItem[] = [
-  { key: 'goalDiff',   label: 'Saldo de gols' },
-  { key: 'goalsFor',   label: 'Gols marcados' },
-  { key: 'headToHead', label: 'Confronto direto' },
-  { key: 'fairPlay',   label: 'Fair play (menos cartões)' },
+  { key: 'saldo_gols',       label: 'Saldo de gols' },
+  { key: 'gols_pro',         label: 'Gols marcados' },
+  { key: 'confronto_direto', label: 'Confronto direto' },
+  { key: 'fair_play',        label: 'Fair play (menos cartões)' },
 ];
 
 const FORMAT_OPTIONS: Array<{
@@ -61,25 +61,23 @@ const FORMAT_OPTIONS: Array<{
     title: 'Mata-mata',
     desc: 'Eliminação direta',
     icon: 'flash-outline',
-    disabled: true,
   },
   {
     value: 'grupos_e_mata_mata',
     title: 'Grupos + mata-mata',
     desc: 'Grupos e depois eliminatória',
     icon: 'layers-outline',
-    disabled: true,
   },
 ];
 
 export function CreateChampionshipScreen() {
   const navigation = useNavigation<NavProp>();
   const user = useAuthStore((s) => s.user);
-  const addChampionship = useChampionshipStore((s) => s.addChampionship);
 
   // Form state (unchanged)
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [format, setFormat] = useState<ChampionshipFormat>('pontos_corridos');
   const [pointsWin, setPointsWin] = useState(3);
   const [pointsDraw, setPointsDraw] = useState(1);
@@ -97,44 +95,74 @@ export function CreateChampionshipScreen() {
   const [liveMode, setLiveMode] = useState(false);
   const [registrationDeadline, setRegistrationDeadline] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [season, setSeason] = useState(new Date().getFullYear().toString());
+  const [edition, setEdition] = useState('1');
+  const [isOfficial, setIsOfficial] = useState(true);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!name.trim()) {
       setNameError('Digite o nome do campeonato');
+      Alert.alert('Campo obrigatório', 'Digite o nome do campeonato antes de continuar.');
       return;
     }
 
-    const maxT = parseInt(maxTeams) || 8;
-    const totalRounds = maxT % 2 === 0 ? maxT - 1 : maxT;
+    setSaving(true);
+    try {
+      const maxT = parseInt(maxTeams) || 8;
+      const totalRounds =
+        format === 'mata_mata'
+          ? Math.ceil(Math.log2(maxT))
+          : format === 'grupos_e_mata_mata'
+          ? Math.ceil(Math.log2(maxT)) + 1 // 1 rodada de grupos + fases eliminatórias
+          : maxT % 2 === 0
+          ? maxT - 1
+          : maxT;
+      const champId = `champ-${Date.now()}`;
 
-    const championship: Championship = {
-      id: `champ-${Date.now()}`,
-      name: name.trim(),
-      format,
-      status: 'inscricoes_abertas',
-      currentRound: 0,
-      totalRounds,
-      organizerId: user?.id ?? '',
-      inviteCode: generateInviteCode(),
-      rules: {
-        pointsWin,
-        pointsDraw,
-        pointsLoss,
-        tiebreakers: tiebreakers.map((t) => t.key),
-        fairPlay: fairPlayPrize,
-        craqueDaRodada: playerOfRound,
-        yellowCardLimit: yellowSuspend ? parseInt(yellowsToSuspend) || 3 : undefined,
-      },
-      createdAt: new Date().toISOString(),
-      registrationDeadline: registrationDeadline?.toISOString(),
-    };
+      const championship: Championship = {
+        id: champId,
+        name: name.trim(),
+        format,
+        status: 'inscricoes_abertas',
+        currentRound: 0,
+        totalRounds,
+        organizerId: user?.id ?? '',
+        inviteCode: generateInviteCode(),
+        maxPlayers: parseInt(maxPlayers) || 15,
+        maxTeams: maxT,
+        matchVerse,
+        liveMode,
+        rules: {
+          pointsWin,
+          pointsDraw,
+          pointsLoss,
+          tiebreakers: tiebreakers.map((t) => t.key),
+          fairPlay: fairPlayPrize,
+          craqueDaRodada: playerOfRound,
+          yellowCardLimit: yellowSuspend ? parseInt(yellowsToSuspend) || 3 : undefined,
+          redCardSuspend,
+          manualApproval,
+        },
+        createdAt: new Date().toISOString(),
+        ...(registrationDeadline ? { registrationDeadline: registrationDeadline.toISOString() } : {}),
+        season: season.trim() || new Date().getFullYear().toString(),
+        edition: parseInt(edition) || 1,
+        isOfficial,
+      };
 
-    addChampionship(championship);
-    Alert.alert(
-      'Campeonato criado! 🏆',
-      `"${championship.name}" está pronto.\n\nCódigo de convite: ${championship.inviteCode}`,
-      [{ text: 'Ver campeonatos', onPress: () => navigation.goBack() }],
-    );
+      await setDocument('championships', champId, championship);
+      Alert.alert(
+        'Campeonato criado!',
+        `"${championship.name}" está pronto.\n\nCódigo de convite: ${championship.inviteCode}`,
+        [{ text: 'Ver campeonatos', onPress: () => navigation.goBack() }],
+      );
+    } catch (err: any) {
+      console.error('[CreateChampionship] failed:', err);
+      const msg = err?.message ?? 'Verifique sua conexão e tente novamente.';
+      Alert.alert('Erro ao criar campeonato', msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ─── Draggable tiebreaker row ─────────────────────────────────────────────
@@ -444,10 +472,44 @@ export function CreateChampionshipScreen() {
           />
         </View>
 
+        {/* ── 8. Temporada ── */}
+        <View style={styles.sectionGap}>
+          <SectionHeader title="TEMPORADA" />
+        </View>
+        <View style={styles.card}>
+          <View style={styles.inlineRow}>
+            <Text style={styles.inlineLabel}>Ano da temporada</Text>
+            <TextInput
+              style={styles.inlineInput}
+              value={season}
+              onChangeText={setSeason}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+          <View style={[styles.inlineRow, styles.inlineRowBorder]}>
+            <Text style={styles.inlineLabel}>Edição (nº)</Text>
+            <TextInput
+              style={styles.inlineInput}
+              value={edition}
+              onChangeText={setEdition}
+              keyboardType="number-pad"
+              maxLength={3}
+            />
+          </View>
+          <AppToggle
+            label="Temporada oficial"
+            value={isOfficial}
+            onValueChange={setIsOfficial}
+            description="Desmarque para torneios amistosos"
+          />
+        </View>
+
         {/* ── Submit ── */}
         <AppButton
           title="Criar campeonato"
           onPress={handleCreate}
+          loading={saving}
           fullWidth
           style={styles.submitButton}
         />

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import { AppButton } from '../../components/AppButton';
@@ -24,10 +24,12 @@ import { colors } from '../../theme/colors';
 import { Team } from '../../types';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'JoinTeam'>;
+type RouteType = RouteProp<HomeStackParamList, 'JoinTeam'>;
 type JoinMode = 'code' | 'search';
 
 export function JoinTeamScreen() {
   const navigation = useNavigation<NavProp>();
+  const route = useRoute<RouteType>();
   const user = useAuthStore((s) => s.user);
   const teams = useTeamStore((s) => s.teams);
   const players = useTeamStore((s) => s.players);
@@ -44,6 +46,7 @@ export function JoinTeamScreen() {
   const [joiningWaitlist, setJoiningWaitlist] = useState(false);
 
   const activeChampionshipId =
+    route.params?.championshipId ??
     selectedChampionshipId ??
     championships.find((item) => item.status === 'em_andamento')?.id ??
     championships.find((item) => item.status === 'inscricoes_abertas')?.id ??
@@ -110,13 +113,17 @@ export function JoinTeamScreen() {
         return;
       }
 
-      const messages: Record<'not_found' | 'already_member' | 'closed', { text1: string; text2?: string }> = {
+      const messages: Record<'not_found' | 'already_member' | 'closed' | 'already_in_championship', { text1: string; text2?: string }> = {
         not_found: {
           text1: 'Código não encontrado',
           text2: 'Confira com o capitão e tente novamente.',
         },
         already_member: {
           text1: 'Você já faz parte desse time',
+        },
+        already_in_championship: {
+          text1: 'Você já está em outro time',
+          text2: 'Você já participa deste campeonato em outro time.',
         },
         closed: {
           text1: 'Inscrições fechadas',
@@ -147,13 +154,29 @@ export function JoinTeamScreen() {
     if (!user?.id) return;
     setRequestingTeamId(team.id);
     try {
-      await requestToJoin(team.id, user.id, user.name);
-      Toast.show({
-        type: 'success',
-        text1: 'Solicitação enviada!',
-        text2: 'Aguarde a aprovação do capitão.',
-        visibilityTime: 2200,
-      });
+      const result = await requestToJoin(team.id, user.id, user.name);
+      
+      if (result === 'success') {
+        Toast.show({
+          type: 'success',
+          text1: 'Solicitação enviada!',
+          text2: 'Aguarde a aprovação do capitão.',
+          visibilityTime: 2200,
+        });
+        return;
+      }
+
+      const requestMessages: Record<string, { type: 'error' | 'info'; text1: string; text2?: string }> = {
+        already_pending: { type: 'info', text1: 'Solicitação já enviada', text2: 'Aguarde a resposta do capitão.' },
+        already_member: { type: 'info', text1: 'Você já faz parte desse time' },
+        already_in_championship: { type: 'error', text1: 'Você já está em outro time', text2: 'Você já participa deste campeonato em outro time.' },
+        full: { type: 'error', text1: 'Time lotado', text2: 'Este time não tem mais vagas.' },
+        closed: { type: 'error', text1: 'Inscrições fechadas', text2: 'O time não está aceitando novos membros.' },
+        team_not_found: { type: 'error', text1: 'Time não encontrado' },
+      };
+
+      const msg = requestMessages[result] ?? { type: 'error', text1: 'Não foi possível enviar a solicitação' };
+      Toast.show({ ...msg, visibilityTime: 2400 });
     } catch (error) {
       console.warn('[JoinTeamScreen] requestToJoin failed:', error);
       Toast.show({
@@ -284,7 +307,7 @@ export function JoinTeamScreen() {
                 <AppButton
                   title={joiningWaitlist ? 'Entrando...' : 'Entrar na lista de espera'}
                   onPress={handleJoinWaitlist}
-                  variant="secondary"
+                  variant="outline"
                   fullWidth
                   disabled={joiningWaitlist}
                 />

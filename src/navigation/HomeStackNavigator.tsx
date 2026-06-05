@@ -22,7 +22,10 @@ import { ChampionshipResultScreen } from '../screens/championship/ChampionshipRe
 import { NotificationCenterScreen } from '../screens/home/NotificationCenterScreen';
 import { GlobalSearchScreen } from '../screens/home/GlobalSearchScreen';
 import { PlayerStatsDetailScreen } from '../screens/player/PlayerStatsDetailScreen';
+import { CareerCardScreen } from '../screens/player/CareerCardScreen';
 import { AnnouncementsScreen } from '../screens/championship/AnnouncementsScreen';
+import { AllTimeRankingsScreen } from '../screens/player/AllTimeRankingsScreen';
+import { SeasonScreen } from '../screens/championship/SeasonScreen';
 import { colors } from '../theme/colors';
 
 export type HomeStackParamList = {
@@ -33,7 +36,7 @@ export type HomeStackParamList = {
   CreateTeam: { championshipId: string };
   ManageRoster: { teamId: string };
   InviteShare: { teamId: string };
-  JoinTeam: undefined;
+  JoinTeam: { championshipId?: string } | undefined;
   DrawScreen: { championshipId: string };
   DrawFullscreen: { championshipId: string };
   PlayerCard: { playerId: string; championshipId: string };
@@ -41,12 +44,15 @@ export type HomeStackParamList = {
   PlayerStatsDetail: { playerId: string; championshipId: string };
   RoundAward: { championshipId: string; round: number };
   AthleteProfile: { userId?: string; championshipId?: string } | undefined;
+  CareerCard: { userId: string };
   EditProfile: undefined;
   ChampionshipHistory: undefined;
   ChampionshipResult: { championshipId: string; readOnly?: boolean };
   NotificationCenter: undefined;
   GlobalSearch: undefined;
   Announcements: { championshipId: string };
+  AllTimeRankings: undefined;
+  Season: { championshipId: string };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -132,6 +138,11 @@ export function HomeStackNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="CareerCard"
+        component={CareerCardScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
         options={{ headerShown: false }}
@@ -164,6 +175,16 @@ export function HomeStackNavigator() {
       <Stack.Screen
         name="Announcements"
         component={AnnouncementsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AllTimeRankings"
+        component={AllTimeRankingsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Season"
+        component={SeasonScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

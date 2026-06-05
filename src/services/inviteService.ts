@@ -73,7 +73,7 @@ export async function joinByCode(
   code: string,
   userId: string,
   userName: string,
-): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed'> {
+): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed' | 'already_in_championship'> {
   const normalizedCode = code.trim().toUpperCase();
   const teams = await getCollection<Team>('teams', [
     { field: 'inviteCode', operator: '==', value: normalizedCode },
@@ -89,6 +89,15 @@ export async function joinByCode(
 
   if (teamPlayers.some((player) => player.userId === userId)) {
     return 'already_member';
+  }
+
+  // Verificar se o usuário já está em outro time do mesmo campeonato
+  const userPlayersInChampionship = await getCollection<Player>('players', [
+    { field: 'championshipId', operator: '==', value: team.championshipId },
+    { field: 'userId', operator: '==', value: userId },
+  ]);
+  if (userPlayersInChampionship.length > 0) {
+    return 'already_in_championship';
   }
 
   const maxPlayers = team.maxPlayers ?? DEFAULT_MAX_PLAYERS;
@@ -134,7 +143,7 @@ export async function requestToJoin(
   teamId: string,
   requesterId: string,
   requesterName: string,
-): Promise<void> {
+): Promise<'success' | 'already_pending' | 'team_not_found' | 'closed' | 'already_member' | 'full' | 'already_in_championship'> {
   const pending = await getCollection<JoinRequest>('join_requests', [
     { field: 'teamId', operator: '==', value: teamId },
     { field: 'requesterId', operator: '==', value: requesterId },
@@ -142,18 +151,27 @@ export async function requestToJoin(
   ]);
 
   if (pending.length > 0) {
-    return;
+    return 'already_pending';
   }
 
   const team = await getDocument<Team>('teams', teamId);
-  if (!team) return;
-  if (team.registrationOpen === false) return;
+  if (!team) return 'team_not_found';
+  if (team.registrationOpen === false) return 'closed';
 
   const roster = await getCollection<Player>('players', [
     { field: 'teamId', operator: '==', value: teamId },
   ]);
-  if (roster.some((player) => player.userId === requesterId)) return;
-  if (roster.length >= (team.maxPlayers ?? DEFAULT_MAX_PLAYERS)) return;
+  if (roster.some((player) => player.userId === requesterId)) return 'already_member';
+  if (roster.length >= (team.maxPlayers ?? DEFAULT_MAX_PLAYERS)) return 'full';
+
+  // Verificar se o usuário já está em outro time do mesmo campeonato
+  const userPlayersInChampionship = await getCollection<Player>('players', [
+    { field: 'championshipId', operator: '==', value: team.championshipId },
+    { field: 'userId', operator: '==', value: requesterId },
+  ]);
+  if (userPlayersInChampionship.length > 0) {
+    return 'already_in_championship';
+  }
 
   const userData = await getDocument<{ photoUrl?: string }>('users', requesterId);
 
@@ -171,6 +189,7 @@ export async function requestToJoin(
   const updatedPendingRequests = Array.from(new Set([...(team.pendingRequests ?? []), requesterId]));
   await updateDocument('teams', teamId, { pendingRequests: updatedPendingRequests });
   await notifyJoinRequest(team.captainId, team.name, requesterName);
+  return 'success';
 }
 
 export async function respondToRequest(

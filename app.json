@@ -6,10 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "backgroundColor": "#080E17",
-      "resizeMode": "contain"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -24,24 +20,24 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-sharing",
-      "expo-notifications",
-      "expo-splash-screen",
+      ["expo-notifications", {
+        "icon": "./assets/icon.png",
+        "color": "#F5A623"
+      }],
+      ["expo-splash-screen", {
+        "backgroundColor": "#080E17",
+        "resizeMode": "contain"
+      }],
       "expo-image-picker",
       "@react-native-community/datetimepicker"
     ],
-    "notification": {
-      "icon": "./assets/icon.png",
-      "color": "#F5A623"
-    },
     "extra": {
       "eas": {
         "projectId": "5ec2467f-8312-4bc0-94a4-704fa0700e99"

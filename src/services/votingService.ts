@@ -1,5 +1,6 @@
 import { MatchEvent, MatchModel, Player, RoundVote, RoundAward } from '../types';
 import { useVotingStore } from '../stores/votingStore';
+import { upsertDocument, getCollection } from './firestore';
 
 // ---------------------------------------------------------------------------
 // 1. getCandidatesForRound
@@ -34,11 +35,11 @@ export function getCandidatesForRound(
       .filter((m) => m.championshipId === championshipId)
       .flatMap((m) => [m.homeTeamId, m.awayTeamId]),
   );
-  return players.filter((p) => champTeamIds.has(p.teamId));
+  return players.filter((p) => p.teamId != null && champTeamIds.has(p.teamId));
 }
 
 // ---------------------------------------------------------------------------
-// 2. hasVoted
+// 2. hasVoted — verifica no Firestore (fonte de verdade)
 // ---------------------------------------------------------------------------
 
 export async function hasVoted(
@@ -46,22 +47,25 @@ export async function hasVoted(
   round: number,
   voterId: string,
 ): Promise<boolean> {
-  const { votes } = useVotingStore.getState();
-  return votes.some(
+  // Verifica primeiro no cache local para resposta rápida
+  const localVotes = useVotingStore.getState().votes;
+  const inLocal = localVotes.some(
     (v) => v.championshipId === championshipId && v.round === round && v.voterId === voterId,
   );
+  if (inLocal) return true;
+
+  // Confirma no Firestore (evita duplo voto cross-device)
+  const firestoreVotes = await getCollection<RoundVote>('round_votes', [
+    { field: 'championshipId', operator: '==', value: championshipId },
+    { field: 'round', operator: '==', value: round },
+    { field: 'voterId', operator: '==', value: voterId },
+  ]);
+  return firestoreVotes.length > 0;
 }
 
 // ---------------------------------------------------------------------------
-// 3. submitVote
+// 3. submitVote — grava no Firestore E no store local
 // ---------------------------------------------------------------------------
-
-function makeId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.floor(Math.random() * 16);
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
 
 export async function submitVote(
   championshipId: string,
@@ -74,8 +78,9 @@ export async function submitVote(
     throw new Error('Você já votou nesta rodada');
   }
 
-  const vote: RoundVote = {
-    id: makeId(),
+  // ID determinístico previne voto duplo em race condition cross-device
+  const docId = `${championshipId}_${round}_${voterId}`;
+  const voteData = {
     championshipId,
     round,
     voterId,
@@ -83,24 +88,30 @@ export async function submitVote(
     createdAt: new Date().toISOString(),
   };
 
+  // Persiste no Firestore como fonte de verdade
+  await upsertDocument('round_votes', docId, voteData);
+
+  const vote: RoundVote = { id: docId, ...voteData };
+
+  // Atualiza cache local
   useVotingStore.getState().addVote(vote);
 }
 
 // ---------------------------------------------------------------------------
-// 4. getVoteResults
+// 4. getVoteResults — lê do Firestore para resultado definitivo
 // ---------------------------------------------------------------------------
 
 export async function getVoteResults(
   championshipId: string,
   round: number,
 ): Promise<{ playerId: string; votes: number }[]> {
-  const { votes } = useVotingStore.getState();
-  const roundVotes = votes.filter(
-    (v) => v.championshipId === championshipId && v.round === round,
-  );
+  const firestoreVotes = await getCollection<RoundVote>('round_votes', [
+    { field: 'championshipId', operator: '==', value: championshipId },
+    { field: 'round', operator: '==', value: round },
+  ]);
 
   const tally: Record<string, number> = {};
-  for (const v of roundVotes) {
+  for (const v of firestoreVotes) {
     tally[v.candidatePlayerId] = (tally[v.candidatePlayerId] ?? 0) + 1;
   }
 
@@ -120,28 +131,27 @@ export function isRoundComplete(matches: MatchModel[], round: number): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// closeVoting — used by organizer to seal a round and create a RoundAward
+// closeVoting — cria RoundAward com dados completos
 // ---------------------------------------------------------------------------
 
 export async function closeVoting(
   championshipId: string,
   round: number,
+  players: Player[],
 ): Promise<RoundAward | null> {
   const results = await getVoteResults(championshipId, round);
   if (results.length === 0) return null;
 
   const winner = results[0];
-  const { votes } = useVotingStore.getState();
+  const winnerPlayer = players.find((p) => p.id === winner.playerId);
 
-  // We need player name and teamId — these are passed by the caller
-  // Return data to let the caller enrich with player info before addAward
   return {
-    id: makeId(),
+    id: '',  // será preenchido pelo caller após addDocument
     championshipId,
     round,
     winnerPlayerId: winner.playerId,
-    winnerName: '', // filled by caller
-    winnerTeamId: '', // filled by caller
+    winnerName: winnerPlayer?.name ?? '',
+    winnerTeamId: winnerPlayer?.teamId ?? '',
     totalVotes: results.reduce((sum, r) => sum + r.votes, 0),
     closedAt: new Date().toISOString(),
   };

@@ -1,9 +1,16 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { initializeAuth, getAuth,  } from 'firebase/auth';
-import { getReactNativePersistence } from 'firebase/auth/react-native';
+import { initializeAuth, getAuth, browserLocalPersistence } from 'firebase/auth';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// getReactNativePersistence lives in Firebase's RN build, resolved by Metro at runtime.
+// The TypeScript browser types don't include it, so we access it via require.
+const { getReactNativePersistence } = require('firebase/auth') as {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getReactNativePersistence: (storage: typeof AsyncStorage) => any;
+};
 
 const firebaseConfig = {
   apiKey: "AIzaSyBJOcFPXVsaV6xOQWfdd2oX3hRopgszFZI",
@@ -20,7 +27,10 @@ export const isFirebaseConfigured = firebaseConfig.apiKey !== 'YOUR_API_KEY';
 let app;
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
-  initializeAuth(app, { persistence: (AsyncStorage) });
+  const persistence = Platform.OS === 'web'
+    ? browserLocalPersistence
+    : getReactNativePersistence(AsyncStorage);
+  initializeAuth(app, { persistence });
 } else {
   app = getApp();
 }

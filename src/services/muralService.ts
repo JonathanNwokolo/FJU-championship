@@ -5,6 +5,7 @@ import {
   deleteDoc,
   updateDoc,
   increment,
+  runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -66,19 +67,17 @@ export async function createPost(
 export async function toggleLike(postId: string, userId: string): Promise<void> {
   const likeRef = doc(db, 'mural_posts', postId, 'likes', userId);
   const postRef = doc(db, 'mural_posts', postId);
-  const likeSnap = await getDoc(likeRef);
 
-  if (likeSnap.exists()) {
-    await Promise.all([
-      deleteDoc(likeRef),
-      updateDoc(postRef, { likesCount: increment(-1) }),
-    ]);
-  } else {
-    await Promise.all([
-      setDoc(likeRef, { userId, createdAt: serverTimestamp() }),
-      updateDoc(postRef, { likesCount: increment(1) }),
-    ]);
-  }
+  await runTransaction(db, async (tx) => {
+    const likeSnap = await tx.get(likeRef);
+    if (likeSnap.exists()) {
+      tx.delete(likeRef);
+      tx.update(postRef, { likesCount: increment(-1) });
+    } else {
+      tx.set(likeRef, { userId, createdAt: serverTimestamp() });
+      tx.update(postRef, { likesCount: increment(1) });
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

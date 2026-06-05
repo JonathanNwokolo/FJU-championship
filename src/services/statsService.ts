@@ -154,7 +154,7 @@ export function calculateTopScorers(
     scorers.push({
       playerId,
       playerName: player.name,
-      teamId: player.teamId,
+      teamId: player.teamId ?? '',
       teamName: team?.name ?? '',
       teamColor: team?.primaryColor ?? '#888',
       goals,
@@ -231,7 +231,7 @@ export function getSuspendedPlayers(
       result.push({
         playerId: player.id,
         playerName: player.name,
-        teamId: player.teamId,
+        teamId: player.teamId ?? '',
         teamName,
         reason: 'cartao_vermelho',
       });
@@ -240,7 +240,7 @@ export function getSuspendedPlayers(
       result.push({
         playerId: player.id,
         playerName: player.name,
-        teamId: player.teamId,
+        teamId: player.teamId ?? '',
         teamName,
         reason: 'amarelos_acumulados',
       });

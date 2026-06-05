@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Achievement } from '../types';
+import { addDocument } from '../services/firestore';
 
 interface AchievementState {
   achievements: Achievement[];
@@ -24,6 +25,12 @@ export const useAchievementStore = create<AchievementState>()(
               a.championshipId === achievement.championshipId,
           );
           if (exists) return state;
+
+          // Persiste no Firestore para não perder ao reinstalar o app
+          addDocument('achievements', achievement).catch((e) =>
+            console.warn('[achievementStore] Firestore write error:', e),
+          );
+
           return { achievements: [...state.achievements, achievement] };
         }),
 

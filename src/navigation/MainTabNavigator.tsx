@@ -12,6 +12,7 @@ import { CustomTabBar } from '../components/CustomTabBar';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuthStore } from '../stores/authStore';
 import { useTeamStore } from '../stores/teamStore';
+import { TAB_NAMES } from './constants';
 
 const Tab = createBottomTabNavigator();
 
@@ -35,16 +36,16 @@ export function MainTabNavigator() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="Inicio" component={withErrorBoundary(HomeStackNavigator)} />
-      <Tab.Screen name="Confrontos" component={withErrorBoundary(FixturesStackNavigator)} />
-      <Tab.Screen name="Mural" component={withErrorBoundary(MuralStackNavigator)} />
-      <Tab.Screen name="Classificacao" component={withErrorBoundary(StandingsScreen)} />
-      <Tab.Screen name="Artilheiros" component={withErrorBoundary(TopScorersScreen)} />
+      <Tab.Screen name={TAB_NAMES.INICIO} component={withErrorBoundary(HomeStackNavigator)} />
+      <Tab.Screen name={TAB_NAMES.CONFRONTOS} component={withErrorBoundary(FixturesStackNavigator)} />
+      <Tab.Screen name={TAB_NAMES.MURAL} component={withErrorBoundary(MuralStackNavigator)} />
+      <Tab.Screen name={TAB_NAMES.CLASSIFICACAO} component={withErrorBoundary(StandingsScreen)} />
+      <Tab.Screen name={TAB_NAMES.ARTILHEIROS} component={withErrorBoundary(TopScorersScreen)} />
       {isCaptain && (
-        <Tab.Screen name="Time" component={withErrorBoundary(CaptainStackNavigator)} />
+        <Tab.Screen name={TAB_NAMES.TIME} component={withErrorBoundary(CaptainStackNavigator)} />
       )}
-      <Tab.Screen name="Mais" component={withErrorBoundary(StatsOverviewScreen)} />
-      <Tab.Screen name="Perfil" component={withErrorBoundary(ProfileStackNavigator)} />
+      <Tab.Screen name={TAB_NAMES.MAIS} component={withErrorBoundary(StatsOverviewScreen)} />
+      <Tab.Screen name={TAB_NAMES.PERFIL} component={withErrorBoundary(ProfileStackNavigator)} />
     </Tab.Navigator>
   );
 }

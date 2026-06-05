@@ -2,6 +2,9 @@ import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,7 +32,7 @@ import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { MatchEvent, MatchEventType } from '../../types';
-import { addDocument, updateDocument, deleteDocument } from '../../services/firestore';
+import { addDocument, setDocument, updateDocument, deleteDocument } from '../../services/firestore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import {
   notifyGoal,
@@ -37,6 +40,7 @@ import {
   notifyMatchFinished,
 } from '../../services/notificationService';
 import { checkAndGrantAchievements } from '../../services/achievementService';
+import { finishChampionship } from '../../services/championshipFinisher';
 import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
 import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
@@ -48,12 +52,14 @@ type NavT = NativeStackNavigationProp<FixturesStackParamList>;
 
 const EVENT_ICON: Record<MatchEventType, string> = {
   gol: '⚽',
+  assistencia: '👟',
   cartao_amarelo: '🟨',
   cartao_vermelho: '🟥',
 };
 
 const TYPE_DEFS: Array<{ value: MatchEventType; label: string; color: string }> = [
   { value: 'gol', label: '⚽ Gol', color: colors.accent },
+  { value: 'assistencia', label: '👟 Assistência', color: colors.success },
   { value: 'cartao_amarelo', label: '🟨 Amarelo', color: colors.warning },
   { value: 'cartao_vermelho', label: '🟥 Vermelho', color: colors.danger },
 ];
@@ -62,9 +68,11 @@ function EventTypePill({ type }: { type: MatchEventType }) {
   const background =
     type === 'gol'
       ? colors.accent
+      : type === 'assistencia'
+      ? colors.success
       : type === 'cartao_amarelo'
-        ? colors.warning
-        : colors.danger;
+      ? colors.warning
+      : colors.danger;
 
   return (
     <View style={[styles.eventIconPill, { backgroundColor: background }]}>
@@ -84,6 +92,10 @@ export function MatchRegistrationScreen() {
   const { awards } = useVotingStore();
   const [toastQueue, setToastQueue] = useState<AchievementDefinition[]>([]);
   const [showPenaltySheet, setShowPenaltySheet] = useState(false);
+  const [penaltyHome, setPenaltyHome] = useState('');
+  const [penaltyAway, setPenaltyAway] = useState('');
+  const [pendingFinalScores, setPendingFinalScores] = useState<{ home: number; away: number } | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
 
   const match = matches.find((m) => m.id === matchId);
   const matchEvents = events
@@ -119,10 +131,46 @@ export function MatchRegistrationScreen() {
   const [bsPlayerId, setBsPlayerId] = useState('');
   const [bsMinute, setBsMinute] = useState('');
 
-  // Filter players to only show active players (not suspended, injured, or without team)
-  const bsPlayers = bsTeamId 
-    ? players.filter((p) => p.teamId === bsTeamId && (!p.status || p.status === 'ativo')) 
+  const championshipRules = championships.find((c) => c.id === match?.championshipId)?.rules;
+  const yellowLimit = championshipRules?.yellowCardLimit ?? 3;
+  const redCardSuspend = championshipRules?.redCardSuspend !== false;
+
+  const yellowsByPlayer = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of events) {
+      if (e.type === 'cartao_amarelo') {
+        counts[e.playerId] = (counts[e.playerId] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [events]);
+
+  const checkSuspended = useCallback(
+    (p: (typeof players)[0]) => {
+      if (p.status === 'suspenso' || p.status === 'lesionado') return true;
+      if (p.suspendedRound != null && match && p.suspendedRound === match.round) return true;
+      if ((yellowsByPlayer[p.id] ?? 0) >= yellowLimit) return true;
+      return false;
+    },
+    [match, yellowsByPlayer, yellowLimit],
+  );
+
+  // Filter players to only show active, non-suspended players
+  const bsPlayers = bsTeamId
+    ? players.filter((p) => p.teamId === bsTeamId && !checkSuspended(p))
     : [];
+
+  const suspendedWarning = useMemo(
+    () =>
+      match
+        ? players.filter(
+            (p) =>
+              (p.teamId === match.homeTeamId || p.teamId === match.awayTeamId) &&
+              checkSuspended(p),
+          )
+        : [],
+    [players, match, checkSuspended],
+  );
 
   const handleTeamSelect = (teamId: string) => {
     setBsTeamId(teamId);
@@ -144,6 +192,7 @@ export function MatchRegistrationScreen() {
     bottomSheetRef.current?.close();
 
     try {
+      const createdAt = new Date().toISOString();
       const eventData = {
         matchId,
         championshipId: match.championshipId,
@@ -151,9 +200,10 @@ export function MatchRegistrationScreen() {
         teamId: bsTeamId,
         playerId: bsPlayerId,
         minute,
+        createdAt,
       };
       const firestoreId = await addDocument('match_events', eventData);
-      const event: MatchEvent = { id: firestoreId, matchId, type: bsType, teamId: bsTeamId, playerId: bsPlayerId, minute };
+      const event: MatchEvent = { id: firestoreId, matchId, championshipId: match.championshipId, type: bsType, teamId: bsTeamId, playerId: bsPlayerId, minute, createdAt };
       addEvent(event);
 
       if (bsType === 'gol') {
@@ -295,41 +345,12 @@ export function MatchRegistrationScreen() {
     const finalAway = isLive ? liveAwayScore : awayScoreNum!;
     const isTie = finalHome === finalAway;
 
-    // No mata-mata, empate requer pênaltis
+    // No mata-mata, empate requer pênaltis — abre modal cross-platform
     if (isKnockout && isTie) {
-      Alert.alert(
-        'Empate no Mata-Mata',
-        'No formato eliminatório, é necessário definir um vencedor. Deseja registrar pênaltis?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Registrar Pênaltis',
-            onPress: () => {
-              Alert.prompt(
-                'Pênaltis',
-                `Placar: ${finalHome} × ${finalAway}\n\nDigite o resultado dos pênaltis (formato: 4-3):`,
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Confirmar',
-                    onPress: (penaltyText) => {
-                      if (!penaltyText) return;
-                      const [hp, ap] = penaltyText.split('-').map((s) => parseInt(s.trim(), 10));
-                      if (isNaN(hp) || isNaN(ap) || hp === ap) {
-                        Toast.show({ type: 'error', text1: 'Formato inválido', text2: 'Use o formato: 4-3', visibilityTime: 2500 });
-                        return;
-                      }
-                      const winnerId = hp > ap ? match!.homeTeamId : match!.awayTeamId;
-                      finalizeMatch(finalHome, finalAway, winnerId, hp, ap);
-                    },
-                  },
-                ],
-                'plain-text',
-              );
-            },
-          },
-        ],
-      );
+      setPenaltyHome('');
+      setPenaltyAway('');
+      setPendingFinalScores({ home: finalHome, away: finalAway });
+      setShowPenaltySheet(true);
       return;
     }
 
@@ -348,13 +369,16 @@ export function MatchRegistrationScreen() {
     ]);
   };
 
-  const finalizeMatch = (
+  const finalizeMatch = async (
     finalHome: number,
     finalAway: number,
     winnerId: string | null,
     homePenalty: number | null,
     awayPenalty: number | null,
   ) => {
+    if (finalizing) return;
+    setFinalizing(true);
+    try {
     const finishedAt = new Date().toISOString();
     const championship = championships.find((c) => c.id === match?.championshipId);
     const isKnockout = championship?.format === 'mata_mata' || match?.bracketRound;
@@ -383,6 +407,48 @@ export function MatchRegistrationScreen() {
     updateMatch(matchId, updatedMatchData);
     updateDocument('matches', matchId, updatedMatchData).catch(console.warn);
 
+    // Auto-suspender jogadores com cartão vermelho (se a regra do campeonato permitir)
+    if (match && redCardSuspend) {
+      const nextRound = match.round + 1;
+      const redCardPlayerIds = matchEvents
+        .filter((e) => e.type === 'cartao_vermelho')
+        .map((e) => e.playerId);
+      for (const pid of redCardPlayerIds) {
+        updateDocument('players', pid, { status: 'suspenso', suspendedRound: nextRound }).catch(console.warn);
+        useTeamStore.getState().updatePlayer(pid, { status: 'suspenso', suspendedRound: nextRound });
+      }
+    }
+
+    // Reativar jogadores suspensos na rodada que acabou de terminar
+    if (match) {
+      const finishedRound = match.round;
+      const suspendedInRound = players.filter(
+        (p) => p.suspendedRound === finishedRound && p.status === 'suspenso',
+      );
+      for (const p of suspendedInRound) {
+        updateDocument('players', p.id, { status: 'ativo', suspendedRound: null }).catch(console.warn);
+        useTeamStore.getState().updatePlayer(p.id, { status: 'ativo', suspendedRound: undefined });
+      }
+    }
+
+    // Verificar se toda a rodada foi concluída e avançar currentRound
+    if (match && championship) {
+      const champId = match.championshipId;
+      const roundNum = match.round;
+      // Build the updated matches list locally (updatedMatch already applied)
+      const allChampMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
+      const roundMatches = allChampMatches.filter(
+        (m) => m.championshipId === champId && m.round === roundNum,
+      );
+      const roundComplete = roundMatches.length > 0 && roundMatches.every((m) => m.status === 'finalizado');
+
+      if (roundComplete && championship.currentRound === roundNum) {
+        const nextCurrentRound = roundNum + 1;
+        updateChampionship(champId, { currentRound: nextCurrentRound });
+        updateDocument('championships', champId, { currentRound: nextCurrentRound }).catch(console.warn);
+      }
+    }
+
     // Processar avanço no mata-mata
     if (isKnockout && winnerId && match?.nextMatchId) {
       const { updatedNextMatch, isFinal } = processKnockoutResult(
@@ -402,9 +468,13 @@ export function MatchRegistrationScreen() {
       }
 
       if (isFinal) {
-        // Campeonato finalizado!
+        // Campeonato finalizado — chama rotina completa (histórico, career stats, rankings)
+        try {
+          await finishChampionship(match.championshipId);
+        } catch (e) {
+          console.warn('[MatchRegistration] finishChampionship failed:', e);
+        }
         updateChampionship(match.championshipId, { status: 'finalizado' });
-        updateDocument('championships', match.championshipId, { status: 'finalizado' }).catch(console.warn);
         Toast.show({
           type: 'success',
           text1: '🏆 Campeonato Finalizado!',
@@ -413,9 +483,13 @@ export function MatchRegistrationScreen() {
         });
       }
     } else if (isKnockout && winnerId && !match?.nextMatchId) {
-      // Era a final (não tem nextMatchId)
+      // Era a final (não tem nextMatchId) — chama rotina completa
+      try {
+        await finishChampionship(match!.championshipId);
+      } catch (e) {
+        console.warn('[MatchRegistration] finishChampionship failed:', e);
+      }
       updateChampionship(match!.championshipId, { status: 'finalizado' });
-      updateDocument('championships', match!.championshipId, { status: 'finalizado' }).catch(console.warn);
       Toast.show({
         type: 'success',
         text1: '🏆 Campeonato Finalizado!',
@@ -467,10 +541,8 @@ export function MatchRegistrationScreen() {
         const { addMatches } = useMatchStore.getState();
         addMatches(knockoutMatches);
 
-        // Salvar no Firestore
-        for (const km of knockoutMatches) {
-          addDocument('matches', km).catch(console.warn);
-        }
+        // Salvar no Firestore com os mesmos IDs para manter referências (nextMatchId, etc.)
+        knockoutMatches.forEach((km) => setDocument('matches', km.id, km).catch(console.warn));
 
         // Atualizar campeonato
         updateChampionship(championship.id, {
@@ -522,6 +594,23 @@ export function MatchRegistrationScreen() {
       });
       navigation.goBack();
     }
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
+  const handleConfirmPenalty = () => {
+    const hp = parseInt(penaltyHome, 10);
+    const ap = parseInt(penaltyAway, 10);
+    if (isNaN(hp) || isNaN(ap) || hp === ap) {
+      Toast.show({ type: 'error', text1: 'Pênaltis inválidos', text2: 'Os valores devem ser números distintos', visibilityTime: 2500 });
+      return;
+    }
+    if (!pendingFinalScores || !match) return;
+    const winnerId = hp > ap ? match.homeTeamId : match.awayTeamId;
+    setShowPenaltySheet(false);
+    setPendingFinalScores(null);
+    finalizeMatch(pendingFinalScores.home, pendingFinalScores.away, winnerId, hp, ap);
   };
 
   const renderBackdrop = useCallback(
@@ -537,7 +626,75 @@ export function MatchRegistrationScreen() {
   if (!match) return null;
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
     <View style={styles.root}>
+      {/* Modal de pênaltis — substitui Alert.prompt (funciona em iOS e Android) */}
+      <Modal
+        visible={showPenaltySheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPenaltySheet(false)}
+      >
+        <View style={penaltyStyles.overlay}>
+          <View style={penaltyStyles.sheet}>
+            <Text style={penaltyStyles.title}>Disputa de Pênaltis</Text>
+            <Text style={penaltyStyles.subtitle}>
+              Placar: {pendingFinalScores?.home ?? 0} × {pendingFinalScores?.away ?? 0}
+            </Text>
+            <View style={penaltyStyles.row}>
+              <View style={penaltyStyles.teamCol}>
+                <Text style={penaltyStyles.teamLabel} numberOfLines={1}>
+                  {homeTeam?.name ?? 'Casa'}
+                </Text>
+                <TextInput
+                  style={penaltyStyles.input}
+                  value={penaltyHome}
+                  onChangeText={(t) => setPenaltyHome(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                  maxLength={2}
+                  textAlign="center"
+                />
+              </View>
+              <Text style={penaltyStyles.divider}>×</Text>
+              <View style={penaltyStyles.teamCol}>
+                <Text style={penaltyStyles.teamLabel} numberOfLines={1}>
+                  {awayTeam?.name ?? 'Fora'}
+                </Text>
+                <TextInput
+                  style={penaltyStyles.input}
+                  value={penaltyAway}
+                  onChangeText={(t) => setPenaltyAway(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                  maxLength={2}
+                  textAlign="center"
+                />
+              </View>
+            </View>
+            <View style={penaltyStyles.actions}>
+              <TouchableOpacity
+                style={[penaltyStyles.btn, penaltyStyles.btnCancel]}
+                onPress={() => setShowPenaltySheet(false)}
+              >
+                <Text style={penaltyStyles.btnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[penaltyStyles.btn, penaltyStyles.btnConfirm]}
+                onPress={handleConfirmPenalty}
+              >
+                <Text style={penaltyStyles.btnConfirmText}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <SafeAreaView style={styles.header} edges={['top']}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
@@ -620,6 +777,17 @@ export function MatchRegistrationScreen() {
           </View>
         </View>
 
+        {suspendedWarning.length > 0 && (
+          <View style={styles.suspensionBanner}>
+            <Text style={styles.suspensionBannerTitle}>🚫 Jogadores suspensos nesta rodada</Text>
+            {suspendedWarning.map((p) => (
+              <Text key={p.id} style={styles.suspensionBannerItem}>
+                • {p.name} ({teams.find((t) => t.id === p.teamId)?.name ?? ''})
+              </Text>
+            ))}
+          </View>
+        )}
+
         {(homeGoalMismatch || awayGoalMismatch) && (
           <View style={styles.warningBanner}>
             <Text style={styles.warningText}>
@@ -679,7 +847,8 @@ export function MatchRegistrationScreen() {
           <AppButton
             title="FINALIZAR PARTIDA"
             onPress={handleFinalize}
-            disabled={!canFinalize}
+            disabled={!canFinalize || finalizing}
+            loading={finalizing}
             fullWidth
           />
         )}
@@ -790,6 +959,7 @@ export function MatchRegistrationScreen() {
         </BottomSheetScrollView>
       </BottomSheet>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -912,6 +1082,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Bold',
     fontSize: 26,
     color: colors.textMuted,
+  },
+  suspensionBanner: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(231,76,60,0.10)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.danger,
+    gap: 4,
+  },
+  suspensionBannerTitle: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.danger,
+  },
+  suspensionBannerItem: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   warningBanner: {
     marginTop: 14,
@@ -1143,5 +1332,102 @@ const bsStyles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
+  },
+});
+
+const penaltyStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  sheet: {
+    width: '100%',
+    backgroundColor: colors.bg200,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  title: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  subtitle: {
+    marginTop: 6,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 20,
+  },
+  teamCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  teamLabel: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  input: {
+    width: 72,
+    height: 72,
+    borderRadius: 14,
+    backgroundColor: colors.bg300,
+    fontFamily: 'Barlow-Black',
+    fontSize: 34,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  divider: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 28,
+    color: colors.textMuted,
+    marginTop: 24,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  btn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnCancel: {
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  btnCancelText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  btnConfirm: {
+    backgroundColor: colors.accent,
+  },
+  btnConfirmText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 15,
+    color: colors.bg100,
   },
 });

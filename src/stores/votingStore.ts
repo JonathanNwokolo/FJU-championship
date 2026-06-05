@@ -8,6 +8,8 @@ interface VotingState {
   awards: RoundAward[];
   addVote: (vote: RoundVote) => void;
   addAward: (award: RoundAward) => void;
+  setVotes: (votes: RoundVote[]) => void;
+  setAwards: (awards: RoundAward[]) => void;
 }
 
 export const useVotingStore = create<VotingState>()(
@@ -15,8 +17,16 @@ export const useVotingStore = create<VotingState>()(
     (set) => ({
       votes: [],
       awards: [],
-      addVote: (vote) => set((s) => ({ votes: [...s.votes, vote] })),
-      addAward: (award) => set((s) => ({ awards: [...s.awards, award] })),
+      addVote: (vote) =>
+        set((s) => ({
+          votes: s.votes.some((v) => v.id === vote.id) ? s.votes : [...s.votes, vote],
+        })),
+      addAward: (award) =>
+        set((s) => ({
+          awards: s.awards.some((a) => a.id === award.id) ? s.awards : [...s.awards, award],
+        })),
+      setVotes: (votes) => set({ votes }),
+      setAwards: (awards) => set({ awards }),
     }),
     {
       name: 'fju-voting-storage',

@@ -6,6 +6,7 @@ export interface AppUser {
   email?: string;
   role: UserRole;
   photoUrl?: string;
+  teamId?: string | null;
 }
 
 export type ChampionshipFormat = 'pontos_corridos' | 'mata_mata' | 'grupos_e_mata_mata';
@@ -19,6 +20,8 @@ export interface ChampionshipRules {
   fairPlay: boolean;
   craqueDaRodada: boolean;
   yellowCardLimit?: number;
+  redCardSuspend?: boolean;
+  manualApproval?: boolean;
 }
 
 export interface Championship {
@@ -35,6 +38,13 @@ export interface Championship {
   registrationDeadline?: string;
   registrationsClosed?: boolean;
   finishedAt?: string;
+  season?: string;
+  edition?: number;
+  isOfficial?: boolean;
+  maxPlayers?: number;
+  maxTeams?: number;
+  matchVerse?: boolean;
+  liveMode?: boolean;
   // Campos para grupos + mata-mata
   groups?: Record<string, { id: string; name: string }[]>;
   groupStageComplete?: boolean;
@@ -74,6 +84,9 @@ export interface Player {
   status?: PlayerStatus;
   joinedAt?: string;
   leftAt?: string | null;
+  suspendedRound?: number;   // rodada em que o jogador está suspenso (não pode jogar)
+  yellowCards?: number;       // amarelos acumulados no ciclo atual
+  guestPlayer?: boolean;      // true = adicionado manualmente pelo capitão, sem userId
 }
 
 export type TeamInviteStatus = 'active' | 'used' | 'expired';
@@ -137,16 +150,18 @@ export interface MatchModel {
   awayPenaltyScore?: number | null;
 }
 
-export type MatchEventType = 'gol' | 'cartao_amarelo' | 'cartao_vermelho';
+export type MatchEventType = 'gol' | 'assistencia' | 'cartao_amarelo' | 'cartao_vermelho';
 
 export interface MatchEvent {
   id: string;
   matchId: string;
+  championshipId: string;
   type: MatchEventType;
   teamId: string;
   playerId: string;
   userId?: string;
   minute: number;
+  createdAt?: string;
 }
 
 export interface PlayerHistoryEntry {
@@ -158,12 +173,16 @@ export interface PlayerHistoryEntry {
   teamName: string;
   season: string;
   goals: number;
+  assists: number;
   yellowCards: number;
   redCards: number;
   matchesPlayed: number;
   overall: number;
   finishedAt: string;
   position: string;
+  isChampion: boolean;
+  isMvp: boolean;
+  roundMvpCount: number;
 }
 
 export interface TeamStats {
@@ -289,7 +308,8 @@ export type InAppNotificationType =
   | 'team_rejected'
   | 'join_request'
   | 'join_request_approved'
-  | 'join_request_rejected';
+  | 'join_request_rejected'
+  | 'waitlist_spot_available';
 
 export interface InAppNotification {
   id: string;
@@ -322,6 +342,51 @@ export interface Announcement {
   readBy: string[];
 }
 
+// ── Career Stats ──────────────────────────────────────────────────────────────
+
+export interface CareerStats {
+  id?: string;
+  userId: string;
+  name: string;
+  lastTeamName: string;
+  totalGoals: number;
+  totalAssists: number;
+  totalMatches: number;
+  totalTitles: number;
+  totalMvps: number;
+  totalChampionships: number;
+  bestOverall: number;
+  bestSeason: string;
+  bestSeasonGoals: number;
+  firstSeasonYear: string;
+  updatedAt: string;
+}
+
+// ── All-Time Rankings ─────────────────────────────────────────────────────────
+
+export interface AllTimeRankingPlayer {
+  userId: string;
+  name: string;
+  teamName: string;
+  goals?: number;
+  titles?: number;
+  matches?: number;
+  mvps?: number;
+  seasons: number;
+}
+
+export interface AllTimeRankingTeam {
+  teamId: string;
+  name: string;
+  titles: number;
+  participations: number;
+}
+
+export interface AllTimeRanking {
+  players?: AllTimeRankingPlayer[];
+  teams?: AllTimeRankingTeam[];
+}
+
 // ── Championship Results (Firestore) ───────────────────────────────────────────
 
 export interface ChampionshipResultData {
@@ -336,6 +401,7 @@ export interface ChampionshipResultData {
   totalGoals: number;
   winnerId: string;
   winnerName: string;
+  winnerTeamColor?: string;
   runnerUpId: string;
   runnerUpName: string;
   topScorerId: string;

@@ -9,6 +9,7 @@ import { AuthNavigator } from './AuthNavigator';
 import { MainTabNavigator } from './MainTabNavigator';
 import { registerForPushNotifications } from '../services/notificationService';
 import { colors } from '../theme/colors';
+import { TAB_NAMES } from './constants';
 
 // Garante que notificações aparecem mesmo com o app em foreground
 Notifications.setNotificationHandler({
@@ -67,12 +68,12 @@ export function AppNavigator() {
         if (!data?.matchId || !navigationRef.current) return;
 
         if (data.type === 'match_finished') {
-          navigationRef.current.navigate('Jogos', {
+          navigationRef.current.navigate(TAB_NAMES.CONFRONTOS, {
             screen: 'MatchSummary',
             params: { matchId: data.matchId },
           });
         } else if (data.type === 'match_started' || data.type === 'goal') {
-          navigationRef.current.navigate('Jogos', {
+          navigationRef.current.navigate(TAB_NAMES.CONFRONTOS, {
             screen: 'LiveMatch',
             params: { matchId: data.matchId },
           });

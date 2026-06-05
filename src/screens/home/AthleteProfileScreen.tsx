@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Alert,
@@ -32,11 +33,13 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useAthleteProfile } from '../../hooks/useAthleteProfile';
+import { useCareerStats } from '../../hooks/useCareerStats';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { auth } from '../../services/firebase';
 import { updateDocument } from '../../services/firestore';
+import { processWaitlistOnVacancy } from '../../services/inviteService';
 import { uploadUserPhoto } from '../../services/imageUpload';
 import { colors, gradients, shadows } from '../../theme/colors';
 import { POSITION_LABELS, POSITION_OPTIONS } from '../../utils/constants';
@@ -96,6 +99,26 @@ function AchievementBadge({
   );
 }
 
+function CareerStatCard({
+  icon,
+  label,
+  value,
+  valueColor,
+}: {
+  icon: string;
+  label: string;
+  value: number;
+  valueColor: string;
+}) {
+  return (
+    <View style={styles.careerStatCard}>
+      <Text style={styles.careerStatIcon}>{icon}</Text>
+      <Text style={[styles.careerStatValue, { color: valueColor }]}>{value}</Text>
+      <Text style={styles.careerStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
 export function AthleteProfileScreen({ route, navigation }: Props) {
   const authUser = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
@@ -123,6 +146,8 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
     championByChampionshipId,
     loading,
   } = useAthleteProfile(resolvedUserId, championshipId);
+
+  const { careerStats } = useCareerStats(resolvedUserId);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -157,6 +182,14 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
   }, [achievements]);
 
   const evolutionEntries = useMemo(() => history.slice(0, 5).reverse(), [history]);
+
+  const wasBestSeasonChampion = useMemo(
+    () =>
+      careerStats?.bestSeason
+        ? history.some((h) => h.season === careerStats.bestSeason && h.isChampion)
+        : false,
+    [history, careerStats],
+  );
 
   const openEditor = () => {
     setName(user?.name ?? player?.name ?? '');
@@ -330,6 +363,9 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
         // Update user
         await updateDocument('users', authUser.id, { teamId: null });
 
+        // Notificar fila de espera sobre a vaga aberta
+        processWaitlistOnVacancy(team.id).catch(() => {});
+
         // Update local state
         removePlayer(player.id);
         setUser({ ...authUser, teamId: undefined });
@@ -341,7 +377,7 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
           visibilityTime: 2500,
         });
 
-        navigation.navigate('JoinTeam', { championshipId: activeChampionshipId });
+        navigation.navigate('JoinTeam', { championshipId: activeChampionshipId ?? '' });
       } catch (error) {
         console.warn('[AthleteProfile] Leave team failed:', error);
         Toast.show({
@@ -556,38 +592,111 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
           </ScrollView>
         </View>
 
+        {/* ── CARREIRA ── */}
         <View style={styles.sectionWrap}>
-          <SectionHeader title="HISTÓRICO" />
+          <SectionHeader title="CARREIRA" />
+          <LinearGradient
+            colors={[colors.bg300, colors.bg100]}
+            style={styles.careerHero}
+          >
+            <Text style={styles.careerHeroTitle}>CARREIRA FJU</Text>
+
+            {/* Grid 2 colunas × 3 linhas */}
+            <View style={styles.careerGrid}>
+              <CareerStatCard icon="🏆" label="TÍTULOS"     value={careerStats?.totalTitles ?? 0}        valueColor={colors.accentLight} />
+              <CareerStatCard icon="⚽" label="GOLS"        value={careerStats?.totalGoals ?? 0}         valueColor={colors.accent} />
+              <CareerStatCard icon="🅰️" label="ASSIST."     value={careerStats?.totalAssists ?? 0}       valueColor={colors.neon} />
+              <CareerStatCard icon="🏟️" label="JOGOS"       value={careerStats?.totalMatches ?? 0}       valueColor={colors.textPrimary} />
+              <CareerStatCard icon="🌟" label="MVPs"        value={careerStats?.totalMvps ?? 0}          valueColor={colors.accentLight} />
+              <CareerStatCard icon="📅" label="TEMPORADAS"  value={careerStats?.totalChampionships ?? 0} valueColor={colors.textSecondary} />
+            </View>
+
+            {/* Melhor temporada */}
+            {careerStats?.bestSeason ? (
+              <AppCard variant="accent" style={styles.bestSeasonCard}>
+                <View style={styles.bestSeasonTopRow}>
+                  <Text style={styles.bestSeasonLabel}>🏅 MELHOR TEMPORADA</Text>
+                  <View style={styles.bestSeasonRight}>
+                    <Text style={styles.bestSeasonYear}>{careerStats.bestSeason}</Text>
+                    {wasBestSeasonChampion && (
+                      <View style={styles.championBadgeSmall}>
+                        <Text style={styles.championBadgeSmallText}>🏆 CAMPEÃO</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.bestSeasonStats}>
+                  ⚽ {careerStats.bestSeasonGoals} gols · 🏟️ {
+                    history.find((h) => h.season === careerStats.bestSeason)?.matchesPlayed ?? '—'
+                  } partidas · Overall {careerStats.bestOverall}
+                </Text>
+              </AppCard>
+            ) : null}
+          </LinearGradient>
+
+          {resolvedUserId ? (
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate('CareerCard', { userId: resolvedUserId })
+              }
+              style={styles.careerCardBtn}
+              activeOpacity={0.82}
+            >
+              <Text style={styles.careerCardBtnText}>🃏 Ver card de carreira</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* ── HISTÓRICO POR TEMPORADA ── */}
+        <View style={styles.sectionWrap}>
+          <SectionHeader title="HISTÓRICO POR TEMPORADA" />
           {history.length > 0 ? (
             <FlatList
               data={history}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <AppCard style={styles.historyCard}>
-                  <View style={styles.historyTopRow}>
-                    <View style={styles.historyTitleWrap}>
-                      <Ionicons name="trophy-outline" size={16} color={colors.accent} />
-                      <Text style={styles.historyTitle} numberOfLines={1}>
-                        {item.championshipName} {item.season ? `· ${item.season}` : ''}
-                      </Text>
-                    </View>
-                    <LinearGradient colors={getCardGradient(item.overall) as [string, string, string]} style={styles.historyOverallBadge}>
-                      <Text style={styles.historyOverallValue}>{item.overall}</Text>
-                    </LinearGradient>
-                  </View>
+              renderItem={({ item, index }) => {
+                const isChampion = item.isChampion ?? championByChampionshipId[item.championshipId] ?? false;
+                return (
+                  <Animated.View entering={FadeInDown.delay(index * 70).duration(350)}>
+                    <View style={[styles.historyItem, isChampion && styles.historyItemChampion]}>
+                      <View style={styles.historyTopRow}>
+                        <View style={styles.historyTitleWrap}>
+                          {item.season ? (
+                            <View style={styles.seasonBadge}>
+                              <Text style={styles.seasonBadgeText}>{item.season}</Text>
+                            </View>
+                          ) : null}
+                          <Text style={styles.historyTitle} numberOfLines={1}>
+                            {item.championshipName}
+                          </Text>
+                        </View>
+                        <LinearGradient
+                          colors={getCardGradient(item.overall) as [string, string, string]}
+                          style={styles.historyOverallBadge}
+                        >
+                          <Text style={styles.historyOverallValue}>{item.overall}</Text>
+                        </LinearGradient>
+                      </View>
 
-                  <Text style={styles.historyMeta} numberOfLines={1}>
-                    {item.teamName} | {item.goals} ⚽ | {item.matchesPlayed} partidas
-                  </Text>
-                  <Text style={styles.historyDate}>{formatHistoryDate(item.finishedAt)}</Text>
+                      <View style={styles.historyStatsRow}>
+                        <Text style={styles.historyStatChip}>⚽ {item.goals}</Text>
+                        <Text style={styles.historyStatChip}>🅰️ {item.assists ?? 0}</Text>
+                        <Text style={styles.historyStatChip}>🏟️ {item.matchesPlayed}</Text>
+                        {(item.roundMvpCount ?? 0) > 0 && (
+                          <Text style={styles.historyStatChip}>🌟 {item.roundMvpCount}</Text>
+                        )}
+                      </View>
 
-                  {championByChampionshipId[item.championshipId] && (
-                    <View style={styles.championBadge}>
-                      <Text style={styles.championBadgeText}>🏆 CAMPEÃO</Text>
+                      {isChampion && (
+                        <View style={styles.championBadge}>
+                          <Text style={styles.championBadgeText}>🏆 CAMPEÃO</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </AppCard>
-              )}
+                  </Animated.View>
+                );
+              }}
               scrollEnabled={false}
               ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
             />
@@ -878,7 +987,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 20,
-    marginTop: -18,
+    marginTop: 14,
   },
   quickStatCard: {
     flex: 1,
@@ -1014,8 +1123,129 @@ const styles = StyleSheet.create({
   achievementEmojiLocked: {
     opacity: 0.3,
   },
-  historyCard: {
+  // ── Career section ──
+  careerHero: {
+    marginTop: 12,
+    borderRadius: 16,
     padding: 16,
+    borderTopWidth: 3,
+    borderTopColor: colors.accentLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 16,
+  },
+  careerHeroTitle: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  careerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  careerStatCard: {
+    width: '30.5%',
+    flexGrow: 1,
+    backgroundColor: colors.bg200,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    gap: 4,
+  },
+  careerStatIcon: {
+    fontSize: 18,
+  },
+  careerStatValue: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 32,
+    lineHeight: 38,
+  },
+  careerStatLabel: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 9,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  bestSeasonCard: {
+    padding: 16,
+    gap: 8,
+  },
+  bestSeasonTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  bestSeasonLabel: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 11,
+    color: colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  bestSeasonRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bestSeasonYear: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 13,
+    color: colors.accent,
+  },
+  bestSeasonStats: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  championBadgeSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: colors.accentGlow,
+  },
+  championBadgeSmallText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 10,
+    color: colors.accent,
+  },
+
+  careerCardBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+  },
+  careerCardBtnText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 14,
+    color: colors.accent,
+  },
+
+  // ── History items ──
+  historyItem: {
+    backgroundColor: colors.bg200,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 10,
+  },
+  historyItemChampion: {
+    backgroundColor: colors.accentGlow,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
   },
   historyTopRow: {
     flexDirection: 'row',
@@ -1029,10 +1259,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  seasonBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  seasonBadgeText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 11,
+    color: colors.accent,
+  },
   historyTitle: {
     flex: 1,
     fontFamily: 'Barlow-Bold',
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textPrimary,
   },
   historyOverallBadge: {
@@ -1048,21 +1291,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
   },
-  historyMeta: {
-    marginTop: 10,
-    fontFamily: 'Barlow-Regular',
+  historyStatsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  historyStatChip: {
+    fontFamily: 'Barlow-SemiBold',
     fontSize: 13,
     color: colors.textSecondary,
   },
-  historyDate: {
-    marginTop: 6,
-    fontFamily: 'Barlow-Regular',
-    fontSize: 11,
-    color: colors.textMuted,
-  },
   championBadge: {
     alignSelf: 'flex-start',
-    marginTop: 12,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,

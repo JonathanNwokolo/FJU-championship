@@ -101,7 +101,7 @@ export function useAthleteProfile(userId?: string, championshipId?: string) {
 
         const teamDoc =
           (playerDoc ? teams.find((item) => item.id === playerDoc.teamId) : null) ??
-          (playerDoc ? await getDocument<Team>('teams', playerDoc.teamId) : null);
+          (playerDoc?.teamId ? await getDocument<Team>('teams', playerDoc.teamId) : null);
 
         const eventsByUser = await getCollection<MatchEvent>('match_events', [
           { field: 'userId', operator: '==', value: userId },

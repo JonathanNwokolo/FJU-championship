@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -28,6 +29,7 @@ import {
   generateBracketFixtures,
   generateGroupStageFixtures,
 } from '../../utils/roundRobin';
+import { setDocument, updateDocument } from '../../services/firestore';
 import { Team } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
@@ -179,23 +181,24 @@ export function DrawScreen() {
 
   const [shuffledTeams] = useState<Team[]>(() => fisherYates(approvedTeams));
   const [phase, setPhase] = useState<DrawPhase>('shuffling');
+  const [saving, setSaving] = useState(false);
 
   const format = championship?.format ?? 'pontos_corridos';
+
+  // Número de grupos: ~1 grupo por cada 4 times, mínimo 2
+  const numGroups = Math.max(2, Math.round(approvedTeams.length / 4));
 
   // Cálculo de rodadas baseado no formato
   const calculateTotalRounds = () => {
     if (format === 'mata_mata') {
-      // Mata-mata: log2(n) rodadas
       return Math.ceil(Math.log2(approvedTeams.length));
     } else if (format === 'grupos_e_mata_mata') {
-      // Grupos + mata-mata: rodadas dos grupos + rodadas do bracket
-      const teamsPerGroup = Math.ceil(approvedTeams.length / 2); // 2 grupos por padrão
+      const teamsPerGroup = Math.ceil(approvedTeams.length / numGroups);
       const groupRounds = teamsPerGroup - 1;
-      const classifiedTeams = 4; // 2 por grupo
+      const classifiedTeams = numGroups * 2; // 2 classificados por grupo
       const bracketRounds = Math.ceil(Math.log2(classifiedTeams));
       return groupRounds + bracketRounds;
     }
-    // Pontos corridos
     return approvedTeams.length % 2 === 0
       ? approvedTeams.length - 1
       : approvedTeams.length;
@@ -205,13 +208,13 @@ export function DrawScreen() {
 
   const calculateTotalMatches = () => {
     if (format === 'mata_mata') {
-      // Mata-mata: n-1 partidas para n times
       return approvedTeams.length - 1;
     } else if (format === 'grupos_e_mata_mata') {
-      const teamsPerGroup = Math.ceil(approvedTeams.length / 2);
+      const teamsPerGroup = Math.ceil(approvedTeams.length / numGroups);
       const matchesPerGroup = (teamsPerGroup * (teamsPerGroup - 1)) / 2;
-      const groupMatches = matchesPerGroup * 2;
-      const bracketMatches = 3; // semi + semi + final
+      const groupMatches = matchesPerGroup * numGroups;
+      const classifiedTeams = numGroups * 2;
+      const bracketMatches = classifiedTeams - 1;
       return groupMatches + bracketMatches;
     }
     return totalRounds * Math.floor(approvedTeams.length / 2);
@@ -229,34 +232,43 @@ export function DrawScreen() {
     };
   }, []);
 
-  const handleConfirm = () => {
-    let newMatches;
+  const handleConfirm = async () => {
+    setSaving(true);
+    try {
+      let newMatches;
+      const champUpdate: Record<string, unknown> = {
+        status: 'em_andamento',
+        currentRound: 1,
+        totalRounds,
+      };
 
-    if (format === 'mata_mata') {
-      newMatches = generateBracketFixtures(approvedTeams, championshipId);
-    } else if (format === 'grupos_e_mata_mata') {
-      const { groupMatches, groups } = generateGroupStageFixtures(
-        approvedTeams,
-        championshipId,
-        2, // número de grupos
-      );
-      newMatches = groupMatches;
-      // Salvar informação dos grupos no campeonato
-      updateChampionship(championshipId, {
-        groups: groups as any,
-      });
-    } else {
-      newMatches = generateRoundRobinFixtures(approvedTeams, championshipId);
+      if (format === 'mata_mata') {
+        newMatches = generateBracketFixtures(approvedTeams, championshipId);
+      } else if (format === 'grupos_e_mata_mata') {
+        const { groupMatches, groups } = generateGroupStageFixtures(
+          approvedTeams,
+          championshipId,
+          numGroups,
+        );
+        newMatches = groupMatches;
+        champUpdate.groups = groups;
+      } else {
+        newMatches = generateRoundRobinFixtures(approvedTeams, championshipId);
+      }
+
+      await Promise.all(newMatches.map((m) => setDocument('matches', m.id, m)));
+      await updateDocument('championships', championshipId, champUpdate);
+
+      addMatches(newMatches);
+      updateChampionship(championshipId, champUpdate as any);
+
+      (navigation.getParent() as any)?.navigate('Confrontos');
+    } catch (err) {
+      console.warn('[DrawScreen] handleConfirm failed:', err);
+      Alert.alert('Erro', 'Não foi possível gerar os confrontos. Verifique sua conexão e tente novamente.');
+    } finally {
+      setSaving(false);
     }
-
-    addMatches(newMatches);
-    updateChampionship(championshipId, {
-      status: 'em_andamento',
-      currentRound: 1,
-      totalRounds,
-    });
-    // Switch to Confrontos tab (parent of the home stack)
-    (navigation.getParent() as any)?.navigate('Confrontos');
   };
 
   const phaseLabel =
@@ -341,6 +353,7 @@ export function DrawScreen() {
             <AppButton
               title="Ver confrontos"
               onPress={handleConfirm}
+              loading={saving}
               fullWidth
             />
           </View>
