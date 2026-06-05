@@ -4,8 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useChampionshipStore } from '../stores/championshipStore';
 import { useTeamStore } from '../stores/teamStore';
 import { useMatchStore } from '../stores/matchStore';
-import { useVotingStore } from '../stores/votingStore';
-import { Championship, MatchEvent, MatchModel, Player, RoundAward, RoundVote, Team } from '../types';
+import { Championship, MatchEvent, MatchModel, Player, Team } from '../types';
 
 export function useFirestoreSync() {
   const user = useAuthStore((s) => s.user);
@@ -16,10 +15,8 @@ export function useFirestoreSync() {
   const setPlayers = useTeamStore((s) => s.setPlayers);
   const setMatches = useMatchStore((s) => s.setMatches);
   const setEvents = useMatchStore((s) => s.setEvents);
-  const setVotes = useVotingStore((s) => s.setVotes);
-  const setAwards = useVotingStore((s) => s.setAwards);
 
-  // Fase 1: Subscribe a championships sem filtro (coleção pequena — cresce devagar)
+  // Phase 1: subscribe to championships without filters.
   useEffect(() => {
     if (isLoading || !user) return;
 
@@ -32,8 +29,7 @@ export function useFirestoreSync() {
     return unsubChampionships;
   }, [user, isLoading, setChampionships]);
 
-  // Fase 2: Subscribe a teams e players filtrando pelos championship IDs conhecidos
-  // Resubscreve toda vez que a lista de championship IDs muda
+  // Phase 2: subscribe to teams and players for known championship IDs.
   const champIdsRef = useRef<string[]>([]);
   const champIds = championships.map((c) => c.id);
   const champIdsKey = champIds.sort().join(',');
@@ -61,12 +57,7 @@ export function useFirestoreSync() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading, champIdsKey, setTeams, setPlayers]);
 
-  // Fase 3: Subscribe a matches e events filtrando por championships ativos/em andamento
-  // Prioriza reduzir leituras nos dados de maior volume
-  const activeChampIds = championships
-    .filter((c) => c.status === 'em_andamento' || c.status === 'inscricoes_abertas')
-    .map((c) => c.id);
-  // Inclui campeonatos finalizados recentes (todos, para manter histórico disponível)
+  // Phase 3: subscribe to matches and match events for known championship IDs.
   const allIds = championships.map((c) => c.id);
   const matchSyncKey = allIds.sort().join(',');
 
@@ -90,26 +81,4 @@ export function useFirestoreSync() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading, matchSyncKey, setMatches, setEvents]);
-
-  // Fase 4: Subscribe a round_votes e round_awards para manter votações sincronizadas
-  useEffect(() => {
-    if (isLoading || !user || allIds.length === 0) return;
-
-    const unsubVotes = subscribeToCollection<RoundVote>(
-      'round_votes',
-      [{ field: 'championshipId', operator: 'in', value: allIds }],
-      setVotes,
-    );
-    const unsubAwards = subscribeToCollection<RoundAward>(
-      'round_awards',
-      [{ field: 'championshipId', operator: 'in', value: allIds }],
-      setAwards,
-    );
-
-    return () => {
-      unsubVotes();
-      unsubAwards();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isLoading, matchSyncKey, setVotes, setAwards]);
 }
