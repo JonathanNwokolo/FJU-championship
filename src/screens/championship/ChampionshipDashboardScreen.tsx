@@ -28,6 +28,7 @@ import BottomSheet, {
 import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { useChampionshipStore } from '../../stores/championshipStore';
+import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useVotingStore } from '../../stores/votingStore';
@@ -405,11 +406,13 @@ const disciplineStyles = StyleSheet.create({
 function TeamAdminCard({
   team,
   players,
+  canManage,
   onApprove,
   onReject,
 }: {
   team: Team;
   players: Player[];
+  canManage: boolean;
   onApprove: (t: Team) => void;
   onReject: (t: Team) => void;
 }) {
@@ -464,7 +467,7 @@ function TeamAdminCard({
       </TouchableOpacity>
 
       {/* Approve / reject buttons */}
-      {team.status === 'pendente' && (
+      {canManage && team.status === 'pendente' && (
         <View style={cardStyles.pendingRow}>
           <AppButton
             title="✓ APROVAR"
@@ -622,6 +625,8 @@ export function ChampionshipDashboardScreen() {
 
   const championships = useChampionshipStore((s) => s.championships);
   const championship = championships.find((c) => c.id === championshipId);
+  const authUser = useAuthStore((s) => s.user);
+  const isOrganizer = championship?.organizerId === authUser?.id;
   const { teams, players, updateTeam } = useTeamStore();
   const allMatches = useMatchStore((s) => s.matches);
   const matches = allMatches.filter((m) => m.championshipId === championshipId);
@@ -636,6 +641,7 @@ export function ChampionshipDashboardScreen() {
   ).filter((r) => isRoundComplete(matches, r));
 
   const handleCloseVoting = (round: number) => {
+    if (!isOrganizer) return;
     Alert.alert(
       `Encerrar votação da Rodada ${round}`,
       'Calcular o vencedor e encerrar a votação desta rodada?',
@@ -829,9 +835,12 @@ export function ChampionshipDashboardScreen() {
     : championship.format === 'grupos_e_mata_mata' ? 4
     : 2;
   const showGenerateButton =
-    championship.status === 'inscricoes_abertas' && approvedTeams.length >= minTeamsToStart;
+    isOrganizer &&
+    championship.status === 'inscricoes_abertas' &&
+    approvedTeams.length >= minTeamsToStart;
 
   const handleApprove = (team: Team) => {
+    if (!isOrganizer) return;
     updateTeam(team.id, { status: 'aprovado' });
     updateDocument('teams', team.id, { status: 'aprovado' }).catch(() => {});
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -843,6 +852,7 @@ export function ChampionshipDashboardScreen() {
   };
 
   const handleReject = (team: Team) => {
+    if (!isOrganizer) return;
     Alert.alert(
       'Rejeitar time',
       `Tem certeza que deseja rejeitar "${team.name}"?`,
@@ -867,19 +877,21 @@ export function ChampionshipDashboardScreen() {
   };
 
   const handleGenerateTable = () => {
+    if (!isOrganizer) return;
     navigation.navigate('DrawFullscreen', { championshipId });
   };
 
   // ─── Edit match result ───
   const openEditMatchSheet = useCallback((match: MatchModel) => {
+    if (!isOrganizer) return;
     setSelectedMatch(match);
     setEditHomeScore(match.homeScore?.toString() ?? '');
     setEditAwayScore(match.awayScore?.toString() ?? '');
     editMatchSheetRef.current?.snapToIndex(0);
-  }, []);
+  }, [isOrganizer]);
 
   const handleSaveMatchResult = useCallback(async () => {
-    if (!selectedMatch) return;
+    if (!isOrganizer || !selectedMatch) return;
 
     const homeScore = parseInt(editHomeScore, 10);
     const awayScore = parseInt(editAwayScore, 10);
@@ -921,7 +933,7 @@ export function ChampionshipDashboardScreen() {
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível salvar o resultado');
     }
-  }, [selectedMatch, editHomeScore, editAwayScore]);
+  }, [isOrganizer, selectedMatch, editHomeScore, editAwayScore]);
 
   // ─── Export PDF report ───
   const handleExportReport = useCallback(async () => {
@@ -1091,9 +1103,10 @@ export function ChampionshipDashboardScreen() {
   // ─── Close championship ───
   const allMatchesFinished = matches.length > 0 && matches.every((m) => m.status === 'finalizado');
   const canCloseChampionship =
-    championship.status === 'em_andamento' && allMatchesFinished && !finishingChampionship;
+    isOrganizer && championship.status === 'em_andamento' && allMatchesFinished && !finishingChampionship;
 
   const handleCloseChampionship = useCallback(() => {
+    if (!isOrganizer) return;
     // First confirmation
     Alert.alert(
       '⚠️ Encerrar campeonato',
@@ -1155,7 +1168,7 @@ export function ChampionshipDashboardScreen() {
         },
       ],
     );
-  }, [championship, championshipId, champPlayers, champEvents, finishedMatches]);
+  }, [isOrganizer, championship, championshipId, champPlayers, champEvents, finishedMatches]);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -1381,7 +1394,7 @@ export function ChampionshipDashboardScreen() {
         )}
 
         {/* ─── PARTIDAS (editar resultado) ─── */}
-        {finishedMatches.length > 0 && (
+        {isOrganizer && finishedMatches.length > 0 && (
           <View style={styles.section}>
             <SectionHeader 
               title="RESULTADOS" 
@@ -1481,6 +1494,7 @@ export function ChampionshipDashboardScreen() {
                   key={team.id}
                   team={team}
                   players={players.filter((p) => p.teamId === team.id)}
+                  canManage={isOrganizer}
                   onApprove={handleApprove}
                   onReject={handleReject}
                 />
@@ -1490,7 +1504,7 @@ export function ChampionshipDashboardScreen() {
         </View>
 
         {/* ─── ENCERRAR CAMPEONATO ─── */}
-        {(canCloseChampionship || finishingChampionship) && (
+        {isOrganizer && (canCloseChampionship || finishingChampionship) && (
           <View style={[styles.section, styles.closeChampSection]}>
             <View style={styles.closeChampCard}>
               <Ionicons name="trophy" size={28} color={colors.accent} />
@@ -1561,7 +1575,7 @@ export function ChampionshipDashboardScreen() {
                           </View>
                           <Ionicons name="chevron-forward" size={18} color={colors.accent} />
                         </TouchableOpacity>
-                      ) : (
+                      ) : isOrganizer ? (
                         <TouchableOpacity
                           style={styles.closeVotingBtn}
                           onPress={() => handleCloseVoting(round)}
@@ -1571,7 +1585,7 @@ export function ChampionshipDashboardScreen() {
                             Encerrar votação da Rodada {round}
                           </Text>
                         </TouchableOpacity>
-                      )}
+                      ) : null}
                     </View>
                   );
                 })

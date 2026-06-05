@@ -55,7 +55,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const ROLE_OPTIONS: { role: UserRole; icon: string; label: string; desc: string }[] = [
-  { role: 'organizador', icon: '📋', label: 'Organizador', desc: 'Gerencia campeonatos e aprova times' },
   { role: 'capitao', icon: '🛡️', label: 'Capitão', desc: 'Inscreve e gerencia o elenco do time' },
   { role: 'atleta', icon: '⚽', label: 'Atleta', desc: 'Acompanha jogos e estatísticas' },
 ];
