@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { captureRef } from 'react-native-view-shot';
 import { DeviceMotion } from 'expo-sensors';
 import Animated, {
@@ -108,7 +109,12 @@ export function PlayerCardScreen({ route, navigation }: Props) {
     setSharing(true);
     try {
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0 });
-      await Sharing.shareAsync(uri);
+      const dest = `${FileSystem.cacheDirectory}player-card-${player?.id}.png`;
+      await FileSystem.copyAsync({ from: uri, to: dest });
+      await Sharing.shareAsync(dest, {
+        mimeType: 'image/png',
+        dialogTitle: 'Compartilhar card do atleta',
+      });
     } catch (e) {
       console.warn('Share failed', e);
     } finally {
@@ -181,14 +187,20 @@ export function PlayerCardScreen({ route, navigation }: Props) {
           </Animated.View>
         </View>
 
-        {/* Share + Achievements buttons */}
+        {/* Share + Achievements + Stats buttons */}
         <View style={styles.shareArea}>
-          <AppButton
-            title="🏆 Ver Conquistas"
-            onPress={() => navigation.navigate('PlayerAchievements', { playerId, championshipId })}
-            fullWidth
-            style={styles.achievementsBtn}
-          />
+          <View style={styles.btnRow}>
+            <AppButton
+              title="🏆 Conquistas"
+              onPress={() => navigation.navigate('PlayerAchievements', { playerId, championshipId })}
+              style={[styles.achievementsBtn, styles.halfBtn]}
+            />
+            <AppButton
+              title="📊 Estatísticas"
+              onPress={() => navigation.navigate('PlayerStatsDetail', { playerId, championshipId })}
+              style={[styles.achievementsBtn, styles.halfBtn]}
+            />
+          </View>
           <AppButton
             title={sharing ? 'Gerando imagem...' : '✦ Compartilhar card'}
             onPress={handleShare}
@@ -234,6 +246,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 16,
     gap: 10,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  halfBtn: {
+    flex: 1,
   },
   achievementsBtn: {
     backgroundColor: 'rgba(255,255,255,0.12)',

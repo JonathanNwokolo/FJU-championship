@@ -6,22 +6,26 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { captureRef } from 'react-native-view-shot';
 import { PodiumCard } from '../../components/PodiumCard';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { useStats } from '../../hooks/useStats';
 import { useAuthStore } from '../../stores/authStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { colors, shadows } from '../../theme/colors';
 import { MatchModel, TeamStanding } from '../../types';
-
-const CHAMP_ID = 'champ-001';
 
 const W = {
   pos: 28,
@@ -172,20 +176,41 @@ function StandingRow({
 
 export function StandingsScreen() {
   const navigation = useNavigation();
-  const { standings, championshipName } = useStats(CHAMP_ID);
+  const allChampionships = useChampionshipStore((s) => s.championships);
+  const isLoading = useChampionshipStore((s) => s.loading);
+  const activeChampionship =
+    allChampionships.find((c) => c.status === 'em_andamento') ??
+    allChampionships.find((c) => c.status === 'inscricoes_abertas') ??
+    allChampionships[0];
+  const champId = activeChampionship?.id ?? '';
+  const { standings, championshipName } = useStats(champId);
   const matches = useMatchStore((s) => s.matches);
   const teams = useTeamStore((s) => s.teams);
   const players = useTeamStore((s) => s.players);
   const user = useAuthStore((s) => s.user);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const tableRef = useRef<View>(null);
+  const [sharing, setSharing] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 700);
-    return () => clearTimeout(t);
-  }, []);
+  const handleShare = useCallback(async () => {
+    if (!tableRef.current) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(tableRef, { format: 'png', quality: 1.0 });
+      const dest = `${FileSystem.cacheDirectory}standings-${champId}.png`;
+      await FileSystem.copyAsync({ from: uri, to: dest });
+      await Sharing.shareAsync(dest, {
+        mimeType: 'image/png',
+        dialogTitle: 'Compartilhar classificação',
+      });
+    } catch (e) {
+      console.warn('Share failed', e);
+    } finally {
+      setSharing(false);
+    }
+  }, [champId]);
 
   useEffect(() => {
     const parent = (navigation as any).getParent?.();
@@ -216,7 +241,7 @@ export function StandingsScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 700);
+    setTimeout(() => setRefreshing(false), 500);
   }, []);
 
   if (isLoading) {
@@ -238,7 +263,21 @@ export function StandingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Classificação</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Classificação</Text>
+          <TouchableOpacity
+            style={styles.shareBtn}
+            onPress={handleShare}
+            disabled={sharing || standings.length === 0}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {sharing ? (
+              <ActivityIndicator size="small" color={colors.accent} />
+            ) : (
+              <Ionicons name="share-outline" size={22} color={colors.textPrimary} />
+            )}
+          </TouchableOpacity>
+        </View>
         {!!championshipName && (
           <Text style={styles.subtitle} numberOfLines={1}>{championshipName}</Text>
         )}
@@ -306,6 +345,72 @@ export function StandingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
+
+      {/* Hidden shareable table for capture */}
+      <View
+        ref={tableRef}
+        collapsable={false}
+        style={styles.shareableTable}
+      >
+        <View style={styles.shareableHeader}>
+          <Text style={styles.shareableChampName}>🏆 {championshipName || 'Classificação'}</Text>
+          <Text style={styles.shareableSubtitle}>FJU Championship</Text>
+        </View>
+        <View style={styles.shareableTableHeader}>
+          <Text style={[styles.shareTh, { width: W.pos }]}>#</Text>
+          <Text style={[styles.shareTh, styles.shareThTeam]}>TIME</Text>
+          <Text style={[styles.shareTh, { width: W.pts }]}>P</Text>
+          <Text style={[styles.shareTh, { width: W.num }]}>J</Text>
+          <Text style={[styles.shareTh, { width: W.num }]}>V</Text>
+          <Text style={[styles.shareTh, { width: W.num }]}>E</Text>
+          <Text style={[styles.shareTh, { width: W.num }]}>D</Text>
+          <Text style={[styles.shareTh, { width: W.sg }]}>SG</Text>
+        </View>
+        {standings.map((item, index) => {
+          const position = index + 1;
+          const goalDiff = item.goalDifference;
+          const goalDiffText = goalDiff > 0 ? `+${goalDiff}` : `${goalDiff}`;
+          const rowBg = index % 2 === 0 ? colors.bg200 : colors.bg100;
+          return (
+            <View
+              key={item.teamId}
+              style={[styles.shareRow, { backgroundColor: rowBg }]}
+            >
+              <View style={[styles.sharePosCell, { width: W.pos }]}>
+                {position <= 3 ? (
+                  <View style={[
+                    styles.sharePosBadge,
+                    position === 1 && styles.sharePosFirst,
+                    position === 2 && styles.sharePosSecond,
+                    position === 3 && styles.sharePosThird,
+                  ]}>
+                    <Text style={[
+                      styles.sharePosBadgeText,
+                      position === 1 && { color: colors.bg100 },
+                    ]}>{position}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.sharePosText}>{position}</Text>
+                )}
+              </View>
+              <View style={styles.shareTeamCell}>
+                <View style={[styles.shareColorDot, { backgroundColor: item.primaryColor }]} />
+                <Text style={styles.shareTeamName} numberOfLines={1}>{item.teamName}</Text>
+              </View>
+              <Text style={[styles.sharePointsCell, { width: W.pts }]}>{item.points}</Text>
+              <Text style={[styles.shareNumCell, { width: W.num }]}>{item.played}</Text>
+              <Text style={[styles.shareNumCell, { width: W.num }]}>{item.won}</Text>
+              <Text style={[styles.shareNumCell, { width: W.num }]}>{item.drawn}</Text>
+              <Text style={[styles.shareNumCell, { width: W.num }]}>{item.lost}</Text>
+              <Text style={[
+                styles.shareSgCell,
+                { width: W.sg, color: getGoalDiffColor(goalDiff) },
+              ]}>{goalDiffText}</Text>
+            </View>
+          );
+        })}
+        <Text style={styles.shareableWatermark}>FJU Championship App</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -322,6 +427,19 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  shareBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg300,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontFamily: 'Barlow-Bold',
@@ -508,5 +626,133 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     gap: 8,
+  },
+  // Shareable Table Styles
+  shareableTable: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+    width: 400,
+    backgroundColor: colors.bg100,
+    borderRadius: 16,
+    overflow: 'hidden',
+    paddingBottom: 16,
+  },
+  shareableHeader: {
+    backgroundColor: colors.bg200,
+    padding: 16,
+    alignItems: 'center',
+  },
+  shareableChampName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 18,
+    color: colors.textPrimary,
+  },
+  shareableSubtitle: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.accent,
+    marginTop: 4,
+  },
+  shareableTableHeader: {
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg300,
+    paddingHorizontal: 8,
+  },
+  shareTh: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 10,
+    letterSpacing: 1.5,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  shareThTeam: {
+    flex: 1,
+    textAlign: 'left',
+    paddingLeft: 8,
+  },
+  shareRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sharePosCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sharePosBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg300,
+  },
+  sharePosFirst: {
+    backgroundColor: colors.accent,
+  },
+  sharePosSecond: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  sharePosThird: {
+    backgroundColor: colors.bg300,
+  },
+  sharePosBadgeText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.textPrimary,
+  },
+  sharePosText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  shareTeamCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
+  },
+  shareColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  shareTeamName: {
+    flex: 1,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  sharePointsCell: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 14,
+    color: colors.accent,
+    textAlign: 'center',
+  },
+  shareNumCell: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  shareSgCell: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  shareableWatermark: {
+    marginTop: 12,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

@@ -9,11 +9,20 @@ import { AvailableChampionshipsScreen } from '../screens/team/AvailableChampions
 import { CreateTeamScreen } from '../screens/team/CreateTeamScreen';
 import { ManageRosterScreen } from '../screens/team/ManageRosterScreen';
 import { JoinTeamScreen } from '../screens/team/JoinTeamScreen';
+import { InviteShareScreen } from '../screens/team/InviteShareScreen';
 import { DrawScreen } from '../screens/match/DrawScreen';
 import { DrawFullscreenScreen } from '../screens/match/DrawFullscreenScreen';
 import { PlayerCardScreen } from '../screens/player/PlayerCardScreen';
 import { PlayerAchievementsScreen } from '../screens/player/PlayerAchievementsScreen';
 import { RoundAwardScreen } from '../screens/match/RoundAwardScreen';
+import { AthleteProfileScreen } from '../screens/home/AthleteProfileScreen';
+import { EditProfileScreen } from '../screens/home/EditProfileScreen';
+import { ChampionshipHistoryScreen } from '../screens/championship/ChampionshipHistoryScreen';
+import { ChampionshipResultScreen } from '../screens/championship/ChampionshipResultScreen';
+import { NotificationCenterScreen } from '../screens/home/NotificationCenterScreen';
+import { GlobalSearchScreen } from '../screens/home/GlobalSearchScreen';
+import { PlayerStatsDetailScreen } from '../screens/player/PlayerStatsDetailScreen';
+import { AnnouncementsScreen } from '../screens/championship/AnnouncementsScreen';
 import { colors } from '../theme/colors';
 
 export type HomeStackParamList = {
@@ -23,12 +32,21 @@ export type HomeStackParamList = {
   AvailableChampionships: undefined;
   CreateTeam: { championshipId: string };
   ManageRoster: { teamId: string };
+  InviteShare: { teamId: string };
   JoinTeam: undefined;
   DrawScreen: { championshipId: string };
   DrawFullscreen: { championshipId: string };
   PlayerCard: { playerId: string; championshipId: string };
   PlayerAchievements: { playerId: string; championshipId: string };
+  PlayerStatsDetail: { playerId: string; championshipId: string };
   RoundAward: { championshipId: string; round: number };
+  AthleteProfile: { userId?: string; championshipId?: string } | undefined;
+  EditProfile: undefined;
+  ChampionshipHistory: undefined;
+  ChampionshipResult: { championshipId: string; readOnly?: boolean };
+  NotificationCenter: undefined;
+  GlobalSearch: undefined;
+  Announcements: { championshipId: string };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -82,6 +100,11 @@ export function HomeStackNavigator() {
         options={{ title: 'Meu Time' }}
       />
       <Stack.Screen
+        name="InviteShare"
+        component={InviteShareScreen}
+        options={{ title: 'Convidar para o time' }}
+      />
+      <Stack.Screen
         name="JoinTeam"
         component={JoinTeamScreen}
         options={{ title: 'Entrar no Time' }}
@@ -102,6 +125,46 @@ export function HomeStackNavigator() {
         name="RoundAward"
         component={RoundAwardScreen}
         options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="AthleteProfile"
+        component={AthleteProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ChampionshipHistory"
+        component={ChampionshipHistoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ChampionshipResult"
+        component={ChampionshipResultScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="NotificationCenter"
+        component={NotificationCenterScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GlobalSearch"
+        component={GlobalSearchScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PlayerStatsDetail"
+        component={PlayerStatsDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Announcements"
+        component={AnnouncementsScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

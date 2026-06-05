@@ -27,9 +27,10 @@ export function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const setUser = useAuthStore((s) => s.setUser);
+  const [loading, setLoading] = useState(false);
+  const signUp = useAuthStore((s) => s.signUp);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setError('Preencha todos os campos');
       return;
@@ -39,8 +40,16 @@ export function RegisterScreen({ navigation }: Props) {
       return;
     }
 
-    setUser(name.trim());
-    navigation.navigate('RoleSelection');
+    setLoading(true);
+    setError('');
+    try {
+      await signUp(email.trim(), password, name.trim());
+      navigation.navigate('RoleSelection');
+    } catch (e: any) {
+      setError(mapFirebaseError(e.code));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -112,12 +121,25 @@ export function RegisterScreen({ navigation }: Props) {
           </Animated.View>
 
           <Animated.View entering={FadeIn.delay(450).duration(450)} style={styles.footer}>
-            <AppButton title="CRIAR CONTA" onPress={handleRegister} fullWidth />
+            <AppButton title="CRIAR CONTA" onPress={handleRegister} fullWidth loading={loading} />
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </AuthBackground>
   );
+}
+
+function mapFirebaseError(code: string): string {
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'Este email já está cadastrado';
+    case 'auth/invalid-email':
+      return 'Email inválido';
+    case 'auth/weak-password':
+      return 'A senha deve ter pelo menos 6 caracteres';
+    default:
+      return 'Erro ao criar conta. Tente novamente';
+  }
 }
 
 const styles = StyleSheet.create({

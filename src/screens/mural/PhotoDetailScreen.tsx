@@ -23,6 +23,7 @@ import { colors } from '../../theme/colors';
 import { MuralPost } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { usePostLikes } from '../../hooks/usePostLikes';
 import { toggleLike, deletePost } from '../../services/muralService';
 import { MuralStackParamList } from '../../navigation/MuralStackNavigator';
@@ -30,7 +31,6 @@ import { MuralStackParamList } from '../../navigation/MuralStackNavigator';
 type RouteType = RouteProp<MuralStackParamList, 'PhotoDetail'>;
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const CHAMP_ID = 'champ-001';
 
 function formatDate(iso: string): string {
   try {
@@ -47,6 +47,7 @@ export function PhotoDetailScreen() {
   const { post } = route.params;
 
   const user = useAuthStore((s) => s.user);
+  const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
   const { teams } = useTeamStore();
   const { count: likesCount, hasLiked } = usePostLikes(post.id);
 
@@ -134,7 +135,7 @@ export function PhotoDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deletePost(post.id, CHAMP_ID);
+              await deletePost(post.id, champId);
               navigation.goBack();
             } catch (e) {
               console.warn('[PhotoDetail] deletePost error:', e);

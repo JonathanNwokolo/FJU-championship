@@ -16,21 +16,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation, useIsFocused } from '@react-navigation/native';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { MatchCard } from '../../components/MatchCard';
+import { ScheduleMatchBottomSheet, ScheduleMatchBottomSheetRef } from '../../components/ScheduleMatchBottomSheet';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
-import { MatchModel } from '../../types';
+import { MatchModel, BracketRound } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import {
-  registerForPushNotifications,
-  saveTokenToFirestore,
-} from '../../services/notificationService';
+import { registerForPushNotifications } from '../../services/notificationService';
 import { isRoundComplete } from '../../services/votingService';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
+import { getBracketRoundLabel } from '../../utils/roundRobin';
 
 export function FixturesScreen() {
   const navigation = useNavigation<NavigationProp<FixturesStackParamList>>();
@@ -41,22 +40,43 @@ export function FixturesScreen() {
   const teams = useTeamStore((s) => s.teams);
   const players = useTeamStore((s) => s.players);
   const user = useAuthStore((s) => s.user);
+  const scheduleSheetRef = useRef<ScheduleMatchBottomSheetRef>(null);
 
   const isOrganizer = user?.role === 'organizador';
-  const activeChampionship = championships.find((c) => c.status === 'em_andamento');
+  const activeChampionship =
+    championships.find((c) => c.status === 'em_andamento') ??
+    championships.find((c) => c.status === 'inscricoes_abertas') ??
+    championships[0];
   const champMatches = matches.filter((m) => m.championshipId === activeChampionship?.id);
   const totalRounds = activeChampionship?.totalRounds ?? 0;
-  const rounds = Array.from({ length: totalRounds }, (_, i) => i + 1);
+  const format = activeChampionship?.format ?? 'pontos_corridos';
+  const isKnockout = format === 'mata_mata';
+  const isGroupsAndKnockout = format === 'grupos_e_mata_mata';
 
+  // Para mata-mata, obter as fases únicas do bracket
+  const getBracketPhases = (): { round: number; label: string; bracketRound?: BracketRound }[] => {
+    if (isKnockout || isGroupsAndKnockout) {
+      const uniqueRounds = [...new Set(champMatches.map((m) => m.round))].sort((a, b) => a - b);
+      return uniqueRounds.map((round) => {
+        const matchOfRound = champMatches.find((m) => m.round === round);
+        const bracketRound = matchOfRound?.bracketRound;
+        const label = bracketRound ? getBracketRoundLabel(bracketRound) : `Rodada ${round}`;
+        return { round, label, bracketRound };
+      });
+    }
+    return Array.from({ length: totalRounds }, (_, i) => ({
+      round: i + 1,
+      label: `Rodada ${i + 1}`,
+    }));
+  };
+
+  const roundPhases = getBracketPhases();
+  const rounds = roundPhases.map((p) => p.round);
+
+  const isLoading = useChampionshipStore((s) => s.loading);
   const [selectedRound, setSelectedRound] = useState(activeChampionship?.currentRound ?? 1);
   const [refreshing, setRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 700);
-    return () => clearTimeout(t);
-  }, []);
   const roundScrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
 
@@ -129,10 +149,7 @@ export function FixturesScreen() {
             text: 'Sim, quero!',
             onPress: async () => {
               await AsyncStorage.setItem('notifications_permission_asked', 'granted');
-              const token = await registerForPushNotifications();
-              if (token) {
-                await saveTokenToFirestore(user.id, token, activeChampionship.id);
-              }
+              await registerForPushNotifications(user.id);
             },
           },
         ],
@@ -144,18 +161,40 @@ export function FixturesScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 700);
+    setTimeout(() => setRefreshing(false), 500);
   }, []);
 
   const handleMatchPress = (match: MatchModel) => {
     if (isOrganizer && match.status === 'agendado') {
-      navigation.navigate('MatchRegistration', { matchId: match.id });
+      const home = getTeam(match.homeTeamId);
+      const away = getTeam(match.awayTeamId);
+      scheduleSheetRef.current?.open(match, home, away);
     } else if (match.status === 'finalizado') {
       navigation.navigate('MatchSummary', { matchId: match.id });
     } else if (match.status === 'ao_vivo') {
-      navigation.navigate('LiveMatch', { matchId: match.id });
+      // Organizer goes to LiveMatch, others go to PreMatch
+      if (isOrganizer) {
+        navigation.navigate('LiveMatch', { matchId: match.id });
+      } else {
+        navigation.navigate('PreMatch', { matchId: match.id });
+      }
+    } else if (match.status === 'agendado') {
+      // Non-organizers can view pre-match info
+      navigation.navigate('PreMatch', { matchId: match.id });
     }
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.emptyContainer} edges={['top']}>
+        <View style={styles.skeletonWrap}>
+          {[0, 1, 2].map((i) => (
+            <SkeletonLoader key={i} width="100%" height={90} borderRadius={16} />
+          ))}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!activeChampionship) {
     return (
@@ -172,19 +211,21 @@ export function FixturesScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.header} edges={['top']}>
-        <Text style={styles.title}>Confrontos</Text>
+        <Text style={styles.title}>
+          {isKnockout ? 'Chaveamento' : isGroupsAndKnockout ? 'Fase de Grupos' : 'Confrontos'}
+        </Text>
         <ScrollView
           ref={roundScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.roundsContent}
         >
-          {rounds.map((round) => {
-            const active = round === selectedRound;
+          {roundPhases.map((phase) => {
+            const active = phase.round === selectedRound;
             return (
               <Pressable
-                key={round}
-                onPress={() => setSelectedRound(round)}
+                key={phase.round}
+                onPress={() => setSelectedRound(phase.round)}
                 style={[
                   styles.roundChip,
                   active && styles.roundChipActive,
@@ -192,7 +233,7 @@ export function FixturesScreen() {
                 ]}
               >
                 <Text style={[styles.roundChipText, active && styles.roundChipTextActive]}>
-                  Rodada {round}
+                  {phase.label}
                 </Text>
                 {active && <View style={styles.roundUnderline} />}
               </Pressable>
@@ -233,19 +274,11 @@ export function FixturesScreen() {
         </Pressable>
       )}
 
-      {isLoading ? (
-        <View style={styles.skeletonWrap}>
-          {[0, 1, 2].map((i) => (
-            <SkeletonLoader key={i} width="100%" height={90} borderRadius={16} />
-          ))}
-        </View>
-      ) : null}
-
       <Animated.View
         key={selectedRound}
         entering={FadeIn.duration(180)}
         exiting={FadeOut.duration(120)}
-        style={[styles.listWrap, isLoading && { opacity: 0, pointerEvents: 'none' }]}
+        style={styles.listWrap}
       >
         <FlatList
           ref={flatListRef}
@@ -277,10 +310,8 @@ export function FixturesScreen() {
             </View>
           }
           renderItem={({ item: match, index }) => {
-            const isPressable =
-              (isOrganizer && match.status === 'agendado') ||
-              match.status === 'finalizado' ||
-              match.status === 'ao_vivo';
+            // All matches are now pressable - scheduled matches go to PreMatch for non-organizers
+            const isPressable = true;
 
             return (
               <Animated.View entering={FadeInDown.delay(index * 50).duration(280)}>
@@ -298,6 +329,10 @@ export function FixturesScreen() {
           }}
         />
       </Animated.View>
+
+      {isOrganizer && user && (
+        <ScheduleMatchBottomSheet ref={scheduleSheetRef} userId={user.id} />
+      )}
     </View>
   );
 }

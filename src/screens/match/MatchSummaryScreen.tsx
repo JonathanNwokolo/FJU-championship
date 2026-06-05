@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { captureRef } from 'react-native-view-shot';
 import { AppCard } from '../../components/AppCard';
 import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
@@ -122,6 +125,8 @@ export function MatchSummaryScreen() {
   const route = useRoute<RouteT>();
   const { matchId } = route.params;
   const [activeTab, setActiveTab] = useState<SummaryTab>('eventos');
+  const [sharing, setSharing] = useState(false);
+  const shareRef = useRef<View>(null);
 
   const { matches, events } = useMatchStore();
   const { teams, players } = useTeamStore();
@@ -164,6 +169,24 @@ export function MatchSummaryScreen() {
     };
   }, [awayGoals.length, homeGoals.length]);
 
+  const handleShare = async () => {
+    if (!shareRef.current) return;
+    setSharing(true);
+    try {
+      const uri = await captureRef(shareRef, { format: 'png', quality: 1.0 });
+      const dest = `${FileSystem.cacheDirectory}match-result-${matchId}.png`;
+      await FileSystem.copyAsync({ from: uri, to: dest });
+      await Sharing.shareAsync(dest, {
+        mimeType: 'image/png',
+        dialogTitle: 'Compartilhar resultado',
+      });
+    } catch (e) {
+      console.warn('Share failed', e);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   if (!match) {
     return null;
   }
@@ -179,7 +202,64 @@ export function MatchSummaryScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.textOnDark} />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.shareBtn}
+          onPress={handleShare}
+          disabled={sharing}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : (
+            <Ionicons name="share-outline" size={24} color={colors.textOnDark} />
+          )}
+        </TouchableOpacity>
+
         <Text style={styles.heroRound}>RODADA {match.round}</Text>
+
+        {/* Shareable View - hidden but used for capture */}
+        <View
+          ref={shareRef}
+          collapsable={false}
+          style={styles.shareableResult}
+        >
+          <LinearGradient
+            colors={[colors.bg200, colors.bg100]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={styles.shareableChampName}>FJU Championship</Text>
+          <Text style={styles.shareableRound}>Rodada {match.round}</Text>
+          <View style={styles.shareableScoreRow}>
+            <View style={styles.shareableTeam}>
+              <View style={[styles.shareableColorDot, { backgroundColor: homeTeam?.primaryColor }]} />
+              <Text style={styles.shareableTeamName} numberOfLines={2}>{homeTeam?.name ?? 'Casa'}</Text>
+            </View>
+            <Text style={styles.shareableScore}>
+              {match.homeScore ?? 0} - {match.awayScore ?? 0}
+              {match.homePenaltyScore != null && (
+                `\n(${match.homePenaltyScore}-${match.awayPenaltyScore} pen.)`
+              )}
+            </Text>
+            <View style={[styles.shareableTeam, { alignItems: 'flex-end' }]}>
+              <View style={[styles.shareableColorDot, { backgroundColor: awayTeam?.primaryColor }]} />
+              <Text style={[styles.shareableTeamName, { textAlign: 'right' }]} numberOfLines={2}>{awayTeam?.name ?? 'Fora'}</Text>
+            </View>
+          </View>
+          {(homeGoals.length > 0 || awayGoals.length > 0) && (
+            <View style={styles.shareableScorers}>
+              <Text style={styles.shareableScorersLabel}>⚽ Goleadores</Text>
+              {[...homeGoals, ...awayGoals].slice(0, 6).map((goal, idx) => {
+                const scorer = players.find((p) => p.id === goal.playerId);
+                return (
+                  <Text key={idx} style={styles.shareableScorerName}>
+                    {scorer?.name ?? 'Jogador'} ({goal.minute}')
+                  </Text>
+                );
+              })}
+            </View>
+          )}
+          <Text style={styles.shareableWatermark}>FJU Championship App</Text>
+        </View>
 
         <View style={styles.heroScoreShell}>
           <LinearGradient
@@ -203,11 +283,18 @@ export function MatchSummaryScreen() {
               </Text>
             </View>
 
-            <Text style={styles.heroScore}>
-              {match.homeScore ?? 0}
-              <Text style={styles.heroScoreX}> - </Text>
-              {match.awayScore ?? 0}
-            </Text>
+            <View style={styles.heroScoreContainer}>
+              <Text style={styles.heroScore}>
+                {match.homeScore ?? 0}
+                <Text style={styles.heroScoreX}> - </Text>
+                {match.awayScore ?? 0}
+              </Text>
+              {match.homePenaltyScore != null && (
+                <Text style={styles.heroPenaltyText}>
+                  ({match.homePenaltyScore}-{match.awayPenaltyScore} pen.)
+                </Text>
+              )}
+            </View>
 
             <View style={[styles.heroTeamBlock, styles.heroTeamBlockRight]}>
               <Text style={[styles.heroTeamName, styles.heroTeamNameRight]} numberOfLines={2}>
@@ -401,6 +488,17 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
   },
+  shareBtn: {
+    position: 'absolute',
+    right: 16,
+    top: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.bg300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroRound: {
     fontFamily: 'Barlow-Bold',
     fontSize: 11,
@@ -460,6 +558,10 @@ const styles = StyleSheet.create({
   heroTeamNameRight: {
     textAlign: 'right',
   },
+  heroScoreContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroScore: {
     fontFamily: 'Barlow-Black',
     fontSize: 56,
@@ -471,6 +573,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Bold',
     fontSize: 38,
     color: colors.textMuted,
+  },
+  heroPenaltyText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: -4,
   },
   tabRow: {
     flexDirection: 'row',
@@ -545,5 +653,82 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 40,
+  },
+  // Shareable Result Styles
+  shareableResult: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+    width: 400,
+    padding: 24,
+    backgroundColor: colors.bg200,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  shareableChampName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.accent,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  shareableRound: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  shareableScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  shareableTeam: {
+    flex: 1,
+    gap: 6,
+  },
+  shareableColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  shareableTeamName: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  shareableScore: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 48,
+    color: colors.textOnDark,
+    letterSpacing: 2,
+  },
+  shareableScorers: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  shareableScorersLabel: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.accent,
+    marginBottom: 6,
+  },
+  shareableScorerName: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  shareableWatermark: {
+    marginTop: 16,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

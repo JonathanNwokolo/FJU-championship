@@ -1,466 +1,624 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  TextInput,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomSheet, {
-  BottomSheetView,
   BottomSheetBackdrop,
   BottomSheetTextInput,
+  BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import Toast from 'react-native-toast-message';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '../../components/AppButton';
 import { EmptyState } from '../../components/EmptyState';
-import { useTeamStore } from '../../stores/teamStore';
-import { Player, PlayerPosition } from '../../types';
-import { colors } from '../../theme/colors';
-import { POSITION_COLORS, POSITION_LABELS } from '../../utils/constants';
+import { SearchBar } from '../../components/SearchBar';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import { useChampionshipStore } from '../../stores/championshipStore';
+import { useTeamStore } from '../../stores/teamStore';
+import { addDocument } from '../../services/firestore';
+import { respondToRequest } from '../../services/inviteService';
+import { usePendingJoinRequests } from '../../hooks/usePendingJoinRequests';
+import { colors } from '../../theme/colors';
+import { Player, PlayerPosition } from '../../types';
+import { POSITION_LABELS } from '../../utils/constants';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ManageRoster'>;
+type TabKey = 'roster' | 'requests';
 
-const POSITIONS: PlayerPosition[] = ['goleiro', 'zagueiro', 'lateral', 'meia', 'atacante'];
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(' ');
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '?';
-  return ((parts[0][0] ?? '') + (parts[parts.length - 1][0] ?? '')).toUpperCase();
-}
-
-function PlayerRow({
-  player,
-  onPress,
-  onDelete,
-}: {
-  player: Player;
-  onPress: () => void;
-  onDelete: () => void;
-}) {
-  const posColor = POSITION_COLORS[player.position] ?? colors.textSecondary;
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.75} style={rowStyles.container}>
-      <View style={[rowStyles.avatar, { backgroundColor: `${posColor}22` }]}>
-        <Text style={[rowStyles.initials, { color: posColor }]}>{getInitials(player.name)}</Text>
-      </View>
-      <View style={rowStyles.info}>
-        <Text style={rowStyles.name} numberOfLines={1}>{player.name}</Text>
-        <View style={rowStyles.meta}>
-          <View style={[rowStyles.posBadge, { backgroundColor: `${posColor}20` }]}>
-            <Text style={[rowStyles.posText, { color: posColor }]}>
-              {POSITION_LABELS[player.position]}
-            </Text>
-          </View>
-          <Text style={rowStyles.number}>#{player.number}</Text>
-        </View>
-      </View>
-      <TouchableOpacity
-        onPress={onDelete}
-        style={rowStyles.deleteBtn}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Text style={rowStyles.deleteIcon}>🗑</Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-}
+const POSITIONS: PlayerPosition[] = ['goleiro', 'zagueiro', 'lateral', 'volante', 'meia', 'atacante'];
 
 export function ManageRosterScreen({ route, navigation }: Props) {
   const { teamId } = route.params;
-  const { teams, players, addPlayer, removePlayer } = useTeamStore();
+  const teams = useTeamStore((s) => s.teams);
+  const players = useTeamStore((s) => s.players);
+  const addPlayerLocal = useTeamStore((s) => s.addPlayer);
+  const removePlayerLocal = useTeamStore((s) => s.removePlayer);
+  const championships = useChampionshipStore((s) => s.championships);
+  const { requests, count: pendingCount } = usePendingJoinRequests(teamId);
 
-  const team = teams.find((t) => t.id === teamId);
-  const roster = players.filter((p) => p.teamId === teamId);
+  const team = teams.find((item) => item.id === teamId);
+  const championship = championships.find((item) => item.id === team?.championshipId);
+  const roster = useMemo(() => players.filter((item) => item.teamId === teamId), [players, teamId]);
 
-  // ── BottomSheet ────────────────────────────────────────────────────────────
-  const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['55%', '75%'], []);
+  const [activeTab, setActiveTab] = useState<TabKey>('roster');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [respondingId, setRespondingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newPosition, setNewPosition] = useState<PlayerPosition>('meia');
   const [newNumber, setNewNumber] = useState('');
-  const [nameError, setNameError] = useState('');
-  const [numberError, setNumberError] = useState('');
 
-  const openSheet = useCallback(() => {
-    setNewName('');
-    setNewPosition('meia');
-    setNewNumber('');
-    setNameError('');
-    setNumberError('');
-    sheetRef.current?.expand();
-  }, []);
+  const addSheetRef = useRef<BottomSheet>(null);
 
-  const closeSheet = useCallback(() => {
-    sheetRef.current?.close();
-  }, []);
-
-  const handleAddPlayer = () => {
-    let valid = true;
-    if (!newName.trim()) { setNameError('Digite o nome do atleta'); valid = false; }
-    const num = parseInt(newNumber);
-    if (!newNumber || isNaN(num) || num < 1 || num > 99) {
-      setNumberError('Número entre 1 e 99');
-      valid = false;
-    } else if (roster.some((p) => p.number === num)) {
-      setNumberError('Número já em uso');
-      valid = false;
-    }
-    if (!valid) return;
-
-    addPlayer({
-      id: `player-${Date.now()}`,
-      teamId,
-      name: newName.trim(),
-      position: newPosition,
-      number: num,
-    });
-    closeSheet();
-  };
-
-  const handleDelete = (player: Player) => {
-    Alert.alert(
-      'Remover atleta',
-      `Remover ${player.name} do time?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Remover', style: 'destructive', onPress: () => removePlayer(player.id) },
-      ]
-    );
-  };
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-    ),
-    []
+  const filteredRoster = roster.filter((player) =>
+    player.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  if (!team) return null;
+  if (!team) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <EmptyState
+          icon="⚠️"
+          title="Time não encontrado"
+          description="Não conseguimos abrir o elenco desse time."
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const handleAddPlayer = async () => {
+    const trimmedName = newName.trim();
+    const parsedNumber = Number(newNumber);
+    if (!trimmedName) {
+      Toast.show({ type: 'error', text1: 'Informe o nome do atleta', visibilityTime: 2200 });
+      return;
+    }
+    if (Number.isNaN(parsedNumber) || parsedNumber < 1 || parsedNumber > 99) {
+      Toast.show({ type: 'error', text1: 'Número inválido', visibilityTime: 2200 });
+      return;
+    }
+    if (roster.some((item) => item.number === parsedNumber)) {
+      Toast.show({ type: 'error', text1: 'Número já em uso', visibilityTime: 2200 });
+      return;
+    }
+
+    const playerId = `player-${Date.now()}`;
+    const player: Player = {
+      id: playerId,
+      teamId,
+      championshipId: team.championshipId,
+      name: trimmedName,
+      position: newPosition,
+      number: parsedNumber,
+    };
+
+    try {
+      await addDocument('players', player);
+      addPlayerLocal(player);
+      setNewName('');
+      setNewPosition('meia');
+      setNewNumber('');
+      addSheetRef.current?.close();
+      Toast.show({ type: 'success', text1: 'Atleta adicionado', visibilityTime: 1800 });
+    } catch (error) {
+      console.warn('[ManageRoster] add player failed:', error);
+      Toast.show({ type: 'error', text1: 'Não foi possível adicionar', visibilityTime: 2200 });
+    }
+  };
+
+  const handleRemovePlayer = (player: Player) => {
+    Alert.alert('Remover atleta', `Deseja remover ${player.name} do time?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: () => {
+          removePlayerLocal(player.id);
+        },
+      },
+    ]);
+  };
+
+  const handleRespond = async (requestId: string, approved: boolean, requesterId: string) => {
+    setRespondingId(requestId);
+    try {
+      await respondToRequest(requestId, approved, teamId, requesterId);
+      Toast.show({
+        type: 'success',
+        text1: approved ? 'Solicitação aprovada' : 'Solicitação recusada',
+        visibilityTime: 1800,
+      });
+    } catch (error) {
+      console.warn('[ManageRoster] respondToRequest failed:', error);
+      Toast.show({ type: 'error', text1: 'Não foi possível responder agora', visibilityTime: 2200 });
+    } finally {
+      setRespondingId(null);
+    }
+  };
 
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        {/* Team header */}
-        <View style={styles.teamHeader}>
-          <View style={[styles.colorDot, { backgroundColor: team.primaryColor }]} />
-          <View style={[styles.colorDot, { backgroundColor: team.secondaryColor }]} />
-          <Text style={styles.teamName}>{team.name}</Text>
-          <View style={[styles.statusBadge, team.status === 'aprovado' ? styles.badgeAprovado : styles.badgePendente]}>
-            <Text style={[styles.statusText, team.status === 'aprovado' ? styles.textAprovado : styles.textPendente]}>
-              {team.status === 'aprovado' ? 'Aprovado' : 'Pendente'}
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
+            <Text style={styles.teamName}>{team.name}</Text>
+            <Text style={styles.headerMeta}>
+              {championship?.name ?? 'Campeonato'} · {roster.length}/{team.maxPlayers ?? 15} atletas
             </Text>
           </View>
+          <TouchableOpacity
+            style={styles.inviteButton}
+            onPress={() => navigation.navigate('InviteShare', { teamId })}
+          >
+            <Text style={styles.inviteButtonText}>Convidar +</Text>
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.countLabel}>{roster.length} atleta{roster.length !== 1 ? 's' : ''}</Text>
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'roster' && styles.tabActive]}
+            onPress={() => setActiveTab('roster')}
+          >
+            <Text style={[styles.tabText, activeTab === 'roster' && styles.tabTextActive]}>Elenco</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'requests' && styles.tabActive]}
+            onPress={() => setActiveTab('requests')}
+          >
+            <View style={styles.requestsTabInner}>
+              <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>
+                Solicitações
+              </Text>
+              {pendingCount > 0 && (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingBadgeText}>{pendingCount}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
 
-        {roster.length === 0 ? (
-          <EmptyState
-            icon="⚽"
-            title="Sem atletas ainda"
-            description="Adicione os jogadores do seu time usando o botão abaixo."
-          />
+        {activeTab === 'roster' ? (
+          <>
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Buscar atleta..."
+              onClear={() => setSearchQuery('')}
+            />
+            <FlatList
+              data={filteredRoster}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+              renderItem={({ item }) => (
+                <View style={styles.rosterItem}>
+                  <TouchableOpacity
+                    style={styles.rosterInfo}
+                    activeOpacity={0.82}
+                    onPress={() => {
+                      if (item.userId) {
+                        navigation.navigate('AthleteProfile', {
+                          userId: item.userId,
+                          championshipId: team.championshipId,
+                        });
+                      }
+                    }}
+                  >
+                    <View style={styles.playerAvatar}>
+                      <Text style={styles.playerAvatarText}>{item.name.slice(0, 1).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.playerCopy}>
+                      <Text style={styles.playerName}>{item.name}</Text>
+                      <Text style={styles.playerMeta}>
+                        {POSITION_LABELS[item.position]} · #{item.number}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleRemovePlayer(item)} style={styles.deleteButton}>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              ListEmptyComponent={
+                <EmptyState
+                  icon="⚽"
+                  title="Nenhum atleta encontrado"
+                  description="Adicione jogadores ao elenco ou ajuste a busca."
+                />
+              }
+            />
+          </>
         ) : (
           <FlatList
-            data={roster}
+            data={requests}
             keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
             renderItem={({ item }) => (
-              <PlayerRow
-                player={item}
-                onPress={() =>
-                  navigation.navigate('PlayerCard', {
-                    playerId: item.id,
-                    championshipId: team.championshipId,
-                  })
-                }
-                onDelete={() => handleDelete(item)}
-              />
+              <View style={styles.requestItem}>
+                <View style={styles.requestInfo}>
+                  <View style={styles.requestAvatar}>
+                    <Text style={styles.requestAvatarText}>
+                      {item.requesterName.slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.requestCopy}>
+                    <Text style={styles.requestName}>{item.requesterName}</Text>
+                    <Text style={styles.requestMeta}>quer entrar no time</Text>
+                    <Text style={styles.requestDate}>
+                      {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.requestActions}>
+                  <TouchableOpacity
+                    onPress={() => handleRespond(item.id, true, item.requesterId)}
+                    style={[styles.actionChip, styles.approveChip]}
+                    disabled={respondingId === item.id}
+                  >
+                    <Text style={styles.actionChipText}>✓ Aprovar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleRespond(item.id, false, item.requesterId)}
+                    style={[styles.actionChip, styles.rejectChip]}
+                    disabled={respondingId === item.id}
+                  >
+                    <Text style={styles.actionChipText}>✗ Recusar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <EmptyState
+                icon="📨"
+                title="Nenhuma solicitação pendente"
+                description="Quando atletas pedirem entrada, elas aparecerão aqui."
+              />
+            }
           />
         )}
 
-        {/* Fixed add button */}
-        <View style={styles.addButtonContainer}>
-          <AppButton title="+ Adicionar atleta" onPress={openSheet} fullWidth />
-        </View>
+        {activeTab === 'roster' && (
+          <View style={styles.footer}>
+            <AppButton
+              title="+ Adicionar atleta"
+              onPress={() => addSheetRef.current?.expand()}
+              fullWidth
+            />
+          </View>
+        )}
       </SafeAreaView>
 
-      {/* Bottom Sheet */}
       <BottomSheet
-        ref={sheetRef}
+        ref={addSheetRef}
         index={-1}
-        snapPoints={snapPoints}
+        snapPoints={['60%']}
         enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        keyboardBehavior="extend"
-        android_keyboardInputMode="adjustResize"
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.4} />
+        )}
       >
-        <BottomSheetView style={sheet.container}>
-          <Text style={sheet.title}>Novo atleta</Text>
-
-          <View style={sheet.field}>
-            <Text style={sheet.label}>Nome completo</Text>
-            <BottomSheetTextInput
-              style={[sheet.input, !!nameError && sheet.inputError]}
-              placeholder="Ex: Gabriel Santos"
-              placeholderTextColor="#B0B0B0"
-              value={newName}
-              onChangeText={(t) => { setNewName(t); setNameError(''); }}
-            />
-            {!!nameError && <Text style={sheet.error}>{nameError}</Text>}
-          </View>
-
-          <View style={sheet.field}>
-            <Text style={sheet.label}>Posição</Text>
-            <View style={sheet.chips}>
-              {POSITIONS.map((pos) => {
-                const selected = pos === newPosition;
-                return (
-                  <TouchableOpacity
-                    key={pos}
-                    onPress={() => setNewPosition(pos)}
-                    style={[
-                      sheet.chip,
-                      selected ? sheet.chipSelected : sheet.chipUnselected,
-                    ]}
-                  >
-                    <Text style={[sheet.chipText, selected && sheet.chipTextSelected]}>
-                      {POSITION_LABELS[pos]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={sheet.field}>
-            <Text style={sheet.label}>Número da camisa</Text>
-            <BottomSheetTextInput
-              style={[sheet.input, sheet.inputSmall, !!numberError && sheet.inputError]}
-              placeholder="10"
-              placeholderTextColor="#B0B0B0"
-              value={newNumber}
-              onChangeText={(t) => { setNewNumber(t); setNumberError(''); }}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-            {!!numberError && <Text style={sheet.error}>{numberError}</Text>}
-          </View>
-
-          <AppButton
-            title="Adicionar"
-            onPress={handleAddPlayer}
-            fullWidth
-            style={sheet.submitBtn}
+        <BottomSheetView style={styles.sheetContent}>
+          <Text style={styles.sheetTitle}>Novo atleta</Text>
+          <BottomSheetTextInput
+            style={styles.sheetInput}
+            value={newName}
+            onChangeText={setNewName}
+            placeholder="Nome completo"
+            placeholderTextColor={colors.textMuted}
           />
+          <View style={styles.positionWrap}>
+            {POSITIONS.map((position) => {
+              const selected = newPosition === position;
+              return (
+                <TouchableOpacity
+                  key={position}
+                  onPress={() => setNewPosition(position)}
+                  style={[styles.positionChip, selected && styles.positionChipActive]}
+                >
+                  <Text style={[styles.positionChipText, selected && styles.positionChipTextActive]}>
+                    {POSITION_LABELS[position]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <BottomSheetTextInput
+            style={styles.sheetInput}
+            value={newNumber}
+            onChangeText={setNewNumber}
+            placeholder="Número da camisa"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="number-pad"
+          />
+          <AppButton title="Adicionar" onPress={handleAddPlayer} fullWidth />
         </BottomSheetView>
       </BottomSheet>
     </View>
   );
 }
 
-const rowStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.background,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.borderLight,
-    gap: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  info: {
-    flex: 1,
-    gap: 4,
-  },
-  name: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  posBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  posText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  number: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  deleteBtn: {
-    padding: 4,
-  },
-  deleteIcon: {
-    fontSize: 18,
-  },
-});
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg100,
   },
   container: {
     flex: 1,
   },
-  teamHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.borderLight,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  colorDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  headerCopy: {
+    flex: 1,
+  },
+  teamName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+  },
+  headerMeta: {
+    marginTop: 4,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  inviteButton: {
+    minHeight: 38,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  inviteButtonText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.accent,
+  },
+  tabs: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  tab: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg200,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  teamName: {
+  tabActive: {
+    backgroundColor: colors.accentGlow,
+    borderColor: colors.accent,
+  },
+  tabText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  tabTextActive: {
+    color: colors.accent,
+    fontFamily: 'Barlow-SemiBold',
+  },
+  requestsTabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pendingBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  pendingBadgeText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 10,
+    color: '#FFFFFF',
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 110,
+    flexGrow: 1,
+  },
+  rosterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  rosterInfo: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  playerAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.bg300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playerAvatarText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.accent,
+  },
+  playerCopy: {
+    flex: 1,
+  },
+  playerName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 15,
     color: colors.textPrimary,
   },
-  statusBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeAprovado: { backgroundColor: `${colors.success}22` },
-  badgePendente: { backgroundColor: `${colors.warning}22` },
-  statusText: { fontSize: 11, fontWeight: '600' },
-  textAprovado: { color: colors.success },
-  textPendente: { color: colors.warning },
-  countLabel: {
+  playerMeta: {
+    marginTop: 3,
+    fontFamily: 'Barlow-Regular',
     fontSize: 12,
-    fontWeight: '600',
     color: colors.textSecondary,
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
   },
-  list: {
-    paddingBottom: 100,
+  deleteButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  addButtonContainer: {
+  requestItem: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 14,
+  },
+  requestInfo: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  requestAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.bg300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestAvatarText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.accent,
+  },
+  requestCopy: {
+    flex: 1,
+  },
+  requestName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  requestMeta: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  requestDate: {
+    marginTop: 4,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionChip: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  approveChip: {
+    backgroundColor: 'rgba(0,200,83,0.18)',
+  },
+  rejectChip: {
+    backgroundColor: 'rgba(255,59,71,0.18)',
+  },
+  actionChipText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  footer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: colors.background,
-    borderTopWidth: 0.5,
-    borderTopColor: colors.borderLight,
+    bottom: 0,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg100,
   },
-});
-
-const sheet = StyleSheet.create({
-  container: {
-    flex: 1,
+  sheetContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 32,
-    gap: 20,
+    gap: 14,
   },
-  title: {
+  sheetTitle: {
+    fontFamily: 'Barlow-Bold',
     fontSize: 18,
-    fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 4,
   },
-  field: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  input: {
-    backgroundColor: colors.surface,
+  sheetInput: {
+    height: 52,
     borderRadius: 12,
-    height: 50,
     paddingHorizontal: 14,
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+    fontFamily: 'Barlow-Medium',
     fontSize: 15,
     color: colors.textPrimary,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
   },
-  inputSmall: {
-    width: 80,
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  error: {
-    fontSize: 12,
-    color: colors.danger,
-  },
-  chips: {
+  positionWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+  positionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  chipSelected: {
-    backgroundColor: colors.accent,
+  positionChipActive: {
+    backgroundColor: colors.accentGlow,
+    borderColor: colors.accent,
   },
-  chipUnselected: {
-    backgroundColor: colors.surface,
+  positionChipText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textPrimary,
   },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  chipTextSelected: {
-    color: colors.textOnAccent,
-  },
-  submitBtn: {
-    marginTop: 4,
+  positionChipTextActive: {
+    fontFamily: 'Barlow-SemiBold',
+    color: colors.accent,
   },
 });

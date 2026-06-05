@@ -8,10 +8,12 @@ import { MatchSummaryScreen } from '../screens/match/MatchSummaryScreen';
 import { LiveMatchScreen } from '../screens/match/LiveMatchScreen';
 import { VotingScreen } from '../screens/match/VotingScreen';
 import { RoundAwardScreen } from '../screens/match/RoundAwardScreen';
+import { PreMatchScreen } from '../screens/match/PreMatchScreen';
 import { colors } from '../theme/colors';
 
 export type FixturesStackParamList = {
   FixturesMain: undefined;
+  PreMatch: { matchId: string };
   MatchRegistration: { matchId: string };
   MatchSummary: { matchId: string };
   LiveMatch: { matchId: string };
@@ -47,6 +49,11 @@ export function FixturesStackNavigator() {
         name="FixturesMain"
         component={FixturesScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PreMatch"
+        component={PreMatchScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="MatchRegistration"

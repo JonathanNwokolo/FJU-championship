@@ -32,8 +32,7 @@ import { isFirebaseConfigured } from '../../services/firebase';
 import { markMuralVisited } from '../../hooks/useMuralBadge';
 import { MuralStackParamList } from '../../navigation/MuralStackNavigator';
 import { AppButton } from '../../components/AppButton';
-
-const CHAMP_ID = 'champ-001';
+import { useChampionshipStore } from '../../stores/championshipStore';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TILE_SIZE = SCREEN_WIDTH / 2;
 
@@ -210,6 +209,7 @@ function PostCreateContent({ rounds, onPublish, onClose, isPublishing }: CreateS
 export function MuralScreen() {
   const navigation = useNavigation<NavProp>();
   const user = useAuthStore((s) => s.user);
+  const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
   const { matches } = useMatchStore();
   const { teams, players } = useTeamStore();
 
@@ -219,16 +219,16 @@ export function MuralScreen() {
   const sheetRef = useRef<BottomSheet>(null);
   const sheetSnapPoints = useMemo(() => ['88%'], []);
 
-  const { posts, loading } = useMuralPosts(CHAMP_ID, selectedRound);
+  const { posts, loading } = useMuralPosts(champId, selectedRound);
 
   useFocusEffect(
     useCallback(() => {
-      markMuralVisited(CHAMP_ID);
-    }, []),
+      markMuralVisited(champId);
+    }, [champId]),
   );
 
   const rounds = useMemo(() => {
-    const champMatches = matches.filter((m) => m.championshipId === CHAMP_ID);
+    const champMatches = matches.filter((m) => m.championshipId === champId);
     return [...new Set(champMatches.map((m) => m.round))].sort((a, b) => a - b);
   }, [matches]);
 
@@ -257,7 +257,7 @@ export function MuralScreen() {
     if (!user) return;
     setIsPublishing(true);
     try {
-      await createPost(CHAMP_ID, round, user.id, user.name, myTeamId, imageUri, caption);
+      await createPost(champId, round, user.id, user.name, myTeamId, imageUri, caption);
       closeSheet();
     } catch (e) {
       console.warn('[MuralScreen] createPost error:', e);

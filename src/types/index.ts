@@ -3,7 +3,9 @@ export type UserRole = 'organizador' | 'capitao' | 'atleta';
 export interface AppUser {
   id: string;
   name: string;
+  email?: string;
   role: UserRole;
+  photoUrl?: string;
 }
 
 export type ChampionshipFormat = 'pontos_corridos' | 'mata_mata' | 'grupos_e_mata_mata';
@@ -30,6 +32,13 @@ export interface Championship {
   inviteCode: string;
   rules: ChampionshipRules;
   createdAt: string;
+  registrationDeadline?: string;
+  registrationsClosed?: boolean;
+  finishedAt?: string;
+  // Campos para grupos + mata-mata
+  groups?: Record<string, { id: string; name: string }[]>;
+  groupStageComplete?: boolean;
+  knockoutStartRound?: number;
 }
 
 export type TeamStatus = 'pendente' | 'aprovado' | 'rejeitado';
@@ -43,22 +52,66 @@ export interface Team {
   captainId: string;
   status: TeamStatus;
   inviteCode: string;
+  inviteLink?: string;
+  maxPlayers?: number;
+  registrationOpen?: boolean;
+  pendingRequests?: string[];
   createdAt: string;
 }
 
-export type PlayerPosition = 'goleiro' | 'zagueiro' | 'lateral' | 'meia' | 'atacante';
+export type PlayerPosition = 'goleiro' | 'zagueiro' | 'lateral' | 'volante' | 'meia' | 'atacante';
+export type PlayerStatus = 'ativo' | 'suspenso' | 'lesionado' | 'sem_time';
 
 export interface Player {
   id: string;
-  teamId: string;
+  teamId: string | null;
+  championshipId?: string;
   userId?: string;
   name: string;
   position: PlayerPosition;
   number: number;
   photoUrl?: string;
+  status?: PlayerStatus;
+  joinedAt?: string;
+  leftAt?: string | null;
+}
+
+export type TeamInviteStatus = 'active' | 'used' | 'expired';
+
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  teamName: string;
+  championshipId: string;
+  inviteCode: string;
+  createdBy: string;
+  usedBy: string | null;
+  usedAt: string | null;
+  expiresAt: string | null;
+  status: TeamInviteStatus;
+}
+
+export type JoinRequestStatus = 'pending' | 'approved' | 'rejected';
+export type JoinRequestType = 'request' | 'waitlist';
+
+export interface JoinRequest {
+  id: string;
+  teamId: string;
+  teamName: string;
+  championshipId: string;
+  requesterId: string;
+  requesterName: string;
+  requesterPhotoUrl: string;
+  status: JoinRequestStatus;
+  type?: JoinRequestType;
+  createdAt: string;
+  respondedAt: string | null;
 }
 
 export type MatchStatus = 'agendado' | 'ao_vivo' | 'finalizado';
+
+// Labels para fases do mata-mata
+export type BracketRound = 'final' | 'semi' | 'quartas' | 'oitavas' | 'fase_16' | 'fase_32' | 'grupo';
 
 export interface MatchModel {
   id: string;
@@ -69,8 +122,19 @@ export interface MatchModel {
   homeScore: number | null;
   awayScore: number | null;
   status: MatchStatus;
-  scheduledAt?: string;
+  scheduledAt?: string | null;
+  location?: string | null;
+  scheduledBy?: string;
   finishedAt?: string;
+  // Campos para mata-mata
+  winnerId?: string | null;
+  nextMatchId?: string | null;
+  bracketRound?: BracketRound;
+  bracketPosition?: number; // posição no bracket (0, 1, 2, 3 para quartas, etc.)
+  // Campos para grupos
+  groupId?: string;
+  homePenaltyScore?: number | null;
+  awayPenaltyScore?: number | null;
 }
 
 export type MatchEventType = 'gol' | 'cartao_amarelo' | 'cartao_vermelho';
@@ -81,7 +145,25 @@ export interface MatchEvent {
   type: MatchEventType;
   teamId: string;
   playerId: string;
+  userId?: string;
   minute: number;
+}
+
+export interface PlayerHistoryEntry {
+  id: string;
+  userId: string;
+  championshipId: string;
+  championshipName: string;
+  teamId: string;
+  teamName: string;
+  season: string;
+  goals: number;
+  yellowCards: number;
+  redCards: number;
+  matchesPlayed: number;
+  overall: number;
+  finishedAt: string;
+  position: string;
 }
 
 export interface TeamStats {
@@ -194,4 +276,80 @@ export interface MuralPost {
   caption?: string;
   likesCount: number;
   createdAt: string; // ISO string
+}
+
+// ── In-App Notifications ───────────────────────────────────────────────────────
+
+export type InAppNotificationType =
+  | 'goal'
+  | 'match_started'
+  | 'match_finished'
+  | 'match_scheduled'
+  | 'team_approved'
+  | 'team_rejected'
+  | 'join_request'
+  | 'join_request_approved'
+  | 'join_request_rejected';
+
+export interface InAppNotification {
+  id: string;
+  userId: string;
+  type: InAppNotificationType;
+  title: string;
+  body: string;
+  data?: Record<string, string | number>;
+  read: boolean;
+  createdAt: string;
+}
+
+// ── Announcements ─────────────────────────────────────────────────────────────
+
+export type AnnouncementAudience = 'todos' | 'capitaes' | 'atletas' | 'time_especifico';
+export type AnnouncementPriority = 'normal' | 'urgente';
+
+export interface Announcement {
+  id: string;
+  championshipId: string;
+  authorId: string;
+  authorName: string;
+  authorRole: UserRole;
+  title: string;
+  body: string;
+  targetAudience: AnnouncementAudience;
+  targetTeamId?: string;
+  priority: AnnouncementPriority;
+  createdAt: string;
+  readBy: string[];
+}
+
+// ── Championship Results (Firestore) ───────────────────────────────────────────
+
+export interface ChampionshipResultData {
+  id: string;
+  championshipId: string;
+  championshipName: string;
+  season: string;
+  format: string;
+  totalTeams: number;
+  totalPlayers: number;
+  totalMatches: number;
+  totalGoals: number;
+  winnerId: string;
+  winnerName: string;
+  runnerUpId: string;
+  runnerUpName: string;
+  topScorerId: string;
+  topScorerName: string;
+  topScorerGoals: number;
+  bestDefenseId: string;
+  bestDefenseName: string;
+  bestDefenseGoals: number;
+  mvpPlayerId?: string;
+  mvpPlayerName?: string;
+  mvpVotes?: number;
+  fairPlayTeamId?: string;
+  fairPlayTeamName?: string;
+  fairPlayCards?: number;
+  finishedAt: string;
+  organizerId: string;
 }

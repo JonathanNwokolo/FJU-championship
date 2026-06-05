@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
   ViewStyle,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,7 +28,13 @@ import { Badge } from '../../components/Badge';
 import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
+import { ChampionshipHistoryCard } from '../../components/ChampionshipHistoryCard';
+import { SearchBar } from '../../components/SearchBar';
+import { EmptyState } from '../../components/EmptyState';
+import { useChampionshipHistory } from '../../hooks/useChampionshipHistory';
 import { useMuralBadge } from '../../hooks/useMuralBadge';
+import { useNotificationBadge } from '../../hooks/useNotificationBadge';
+import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
@@ -39,8 +46,6 @@ import { colors, gradients, shadows } from '../../theme/colors';
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'HomeMain'>;
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
-
-const CHAMP_ID = 'champ-001';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   organizador: 'Organizador',
@@ -84,22 +89,49 @@ function getTeam(teams: Team[], teamId: string) {
   return teams.find((team) => team.id === teamId);
 }
 
-function formatDateTime(value?: string) {
+function formatScheduledAt(value?: string | null): string {
   if (!value) return 'Data a definir';
   try {
-    return new Date(value).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const d = new Date(value);
+    const weekday = d.toLocaleDateString('pt-BR', { weekday: 'short' });
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = d.toLocaleDateString('pt-BR', { month: 'short' });
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
+    return `${cap}, ${day} ${month} · ${h}h${m}`;
   } catch {
     return value;
   }
 }
 
+function isToday(value?: string | null): boolean {
+  if (!value) return false;
+  const d = new Date(value);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+}
+
+function isTomorrow(value?: string | null): boolean {
+  if (!value) return false;
+  const d = new Date(value);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return d.getFullYear() === tomorrow.getFullYear() &&
+    d.getMonth() === tomorrow.getMonth() &&
+    d.getDate() === tomorrow.getDate();
+}
+
 function navigateToTab(navigation: NavProp, tabName: string) {
-  navigation.getParent()?.navigate(tabName as never);
+  const tabAliases: Record<string, string> = {
+    'Início': 'Inicio',
+    'InÃ­cio': 'Inicio',
+    'Classificação': 'Classificacao',
+    'ClassificaÃ§Ã£o': 'Classificacao',
+  };
+  navigation.getParent()?.navigate((tabAliases[tabName] ?? tabName) as never);
 }
 
 function LinearProgress({ value, style }: { value: number; style?: ViewStyle }) {
@@ -113,13 +145,23 @@ function LinearProgress({ value, style }: { value: number; style?: ViewStyle }) 
 
 function StickyHeader({
   userName,
+  userPhotoUrl,
   hasNotification,
+  unreadCount,
   onOpenRoleSwitcher,
+  onAvatarPress,
+  onBellPress,
+  onSearchPress,
   shadowProgress,
 }: {
   userName?: string;
+  userPhotoUrl?: string;
   hasNotification: boolean;
+  unreadCount: number;
   onOpenRoleSwitcher: () => void;
+  onAvatarPress: () => void;
+  onBellPress: () => void;
+  onSearchPress: () => void;
   shadowProgress: SharedValue<number>;
 }) {
   const animatedStyle = useAnimatedStyle(() => ({
@@ -129,15 +171,35 @@ function StickyHeader({
 
   return (
     <Animated.View style={[styles.stickyHeader, animatedStyle]}>
-      <Pressable style={styles.userCluster} onPress={onOpenRoleSwitcher}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(userName)}</Text>
-        </View>
-        <Text style={styles.hello} numberOfLines={1}>Olá, {userName}</Text>
-      </Pressable>
-      <View style={styles.bellWrap}>
-        <Ionicons name="notifications-outline" size={23} color={colors.textPrimary} />
-        {hasNotification && <View style={styles.notificationBadge} />}
+      <View style={styles.userCluster}>
+        <Pressable onPress={onAvatarPress}>
+          {userPhotoUrl ? (
+            <Image source={{ uri: userPhotoUrl }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials(userName)}</Text>
+            </View>
+          )}
+        </Pressable>
+        <Pressable onPress={onOpenRoleSwitcher}>
+          <Text style={styles.hello} numberOfLines={1}>Olá, {userName}</Text>
+        </Pressable>
+      </View>
+      <View style={styles.headerActions}>
+        <Pressable onPress={onSearchPress} style={styles.bellWrap}>
+          <Ionicons name="search-outline" size={22} color={colors.textPrimary} />
+        </Pressable>
+        <Pressable onPress={onBellPress} style={styles.bellWrap}>
+          <Ionicons name="notifications-outline" size={23} color={colors.textPrimary} />
+          {(hasNotification || unreadCount > 0) && <View style={styles.notificationBadge} />}
+          {unreadCount > 0 && (
+            <View style={styles.unreadBubble}>
+              <Text style={styles.unreadBubbleText}>
+                {unreadCount > 9 ? '9+' : String(unreadCount)}
+              </Text>
+            </View>
+          )}
+        </Pressable>
       </View>
     </Animated.View>
   );
@@ -239,12 +301,16 @@ function MatchCard({ match, teams }: { match: MatchModel; teams: Team[] }) {
   const home = getTeam(teams, match.homeTeamId);
   const away = getTeam(teams, match.awayTeamId);
   const isFinished = match.status === 'finalizado';
+  const today = !isFinished && isToday(match.scheduledAt);
+  const tomorrow = !isFinished && !today && isTomorrow(match.scheduledAt);
 
   return (
     <AppCard style={styles.matchCard}>
       <View style={styles.matchTopRow}>
         <Text style={styles.micro}>Rodada {match.round}</Text>
         {match.status === 'ao_vivo' && <Badge label="AO VIVO" variant="live" />}
+        {today && <Badge label="HOJE" variant="gold" />}
+        {tomorrow && <Badge label="AMANHÃ" variant="pending" />}
       </View>
       <View style={styles.matchTeams}>
         <View style={styles.matchTeamLeft}>
@@ -259,7 +325,9 @@ function MatchCard({ match, teams }: { match: MatchModel; teams: Team[] }) {
           <TeamColorDot color={away?.primaryColor ?? colors.textMuted} />
         </View>
       </View>
-      <Text style={styles.matchDate}>{formatDateTime(match.scheduledAt)}</Text>
+      <Text style={[styles.matchDate, !match.scheduledAt && styles.matchDateMuted]}>
+        {formatScheduledAt(match.scheduledAt)}
+      </Text>
     </AppCard>
   );
 }
@@ -345,6 +413,60 @@ function TeamSection({
     );
   }
 
+  if (myTeam.status === 'pendente') {
+    return (
+      <View style={styles.section}>
+        <SectionHeader title="MEU TIME" />
+        <AppCard variant="elevated" style={styles.teamCard}>
+          <View style={styles.teamRow}>
+            <TeamColorDot color={myTeam.primaryColor} size={12} />
+            <Text style={styles.teamTitle} numberOfLines={1}>{myTeam.name}</Text>
+          </View>
+          <Text style={styles.teamChampName} numberOfLines={1}>
+            {myChamp?.name ?? 'Campeonato'}
+          </Text>
+          <View style={styles.statusBanner}>
+            <Text style={styles.statusBannerIcon}>⏳</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.statusBannerTitle}>Aguardando aprovação</Text>
+              <Text style={styles.statusBannerDesc}>
+                O organizador ainda não aprovou seu time. Aguarde o contato.
+              </Text>
+            </View>
+          </View>
+        </AppCard>
+      </View>
+    );
+  }
+
+  if (myTeam.status === 'rejeitado') {
+    return (
+      <View style={styles.section}>
+        <SectionHeader title="MEU TIME" />
+        <AppCard variant="elevated" style={styles.teamCard}>
+          <View style={styles.teamRow}>
+            <TeamColorDot color={myTeam.primaryColor} size={12} />
+            <Text style={styles.teamTitle} numberOfLines={1}>{myTeam.name}</Text>
+          </View>
+          <Text style={styles.teamChampName} numberOfLines={1}>
+            {myChamp?.name ?? 'Campeonato'}
+          </Text>
+          <View style={[styles.statusBanner, styles.statusBannerDanger]}>
+            <Text style={styles.statusBannerIcon}>❌</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.statusBannerTitle, styles.statusBannerTitleDanger]}>
+                Time rejeitado
+              </Text>
+              <Text style={styles.statusBannerDesc}>
+                Entre em contato com o organizador do campeonato.
+              </Text>
+            </View>
+          </View>
+        </AppCard>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
       <SectionHeader title="MEU TIME" />
@@ -352,10 +474,7 @@ function TeamSection({
         <View style={styles.teamRow}>
           <TeamColorDot color={myTeam.primaryColor} size={12} />
           <Text style={styles.teamTitle} numberOfLines={1}>{myTeam.name}</Text>
-          <Badge
-            label={myTeam.status === 'aprovado' ? 'APROVADO' : 'PENDENTE'}
-            variant={myTeam.status === 'aprovado' ? 'approved' : 'pending'}
-          />
+          <Badge label="APROVADO" variant="approved" />
         </View>
         <Text style={styles.teamChampName} numberOfLines={1}>
           {myChamp?.name ?? 'Campeonato'}
@@ -400,44 +519,101 @@ function OrganizerChampionshipsSection({
   const user = useAuthStore((s) => s.user);
   const myChamps = championships.filter((championship) => championship.organizerId === user?.id);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('todos');
+
+  const STATUS_FILTERS = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'em_andamento', label: 'Em andamento' },
+    { key: 'inscricoes_abertas', label: 'Inscrições abertas' },
+    { key: 'finalizado', label: 'Finalizados' },
+  ];
+
+  const filteredChamps = useMemo(() => {
+    return myChamps.filter((c) => {
+      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'todos' || c.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [myChamps, searchQuery, statusFilter]);
+
   return (
     <View style={styles.section}>
       <SectionHeader
         title="MEUS CAMPEONATOS"
         action={{ text: 'Novo +', onPress: () => navigation.navigate('CreateChampionship') }}
       />
-      <View style={styles.organizerList}>
-        {myChamps.map((championship) => {
-          const teamsCount = teams.filter((team) => team.championshipId === championship.id).length;
-          const matchesCount = matches.filter((match) => match.championshipId === championship.id).length;
-          const progress =
-            championship.totalRounds > 0
-              ? championship.currentRound / championship.totalRounds
-              : 0;
 
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Buscar campeonato..."
+        onClear={() => setSearchQuery('')}
+      />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterChips}
+      >
+        {STATUS_FILTERS.map((filter) => {
+          const isActive = statusFilter === filter.key;
           return (
-            <Pressable
-              key={championship.id}
-              onPress={() =>
-                navigation.navigate('ChampionshipDashboard', { championshipId: championship.id })
-              }
+            <TouchableOpacity
+              key={filter.key}
+              onPress={() => setStatusFilter(filter.key)}
+              style={[styles.filterChip, isActive && styles.filterChipActive]}
             >
-              <AppCard variant="elevated" style={styles.championshipCard}>
-                <View style={styles.championshipTop}>
-                  <Text style={styles.championshipTitle} numberOfLines={1}>
-                    {championship.name}
-                  </Text>
-                  {getStatusBadge(championship)}
-                </View>
-                <Text style={styles.championshipMeta}>
-                  {teamsCount} times · {matchesCount} partidas
-                </Text>
-                <LinearProgress value={progress} style={styles.championshipProgress} />
-              </AppCard>
-            </Pressable>
+              <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
+
+      {filteredChamps.length === 0 ? (
+        <View style={styles.emptySearchWrap}>
+          <EmptyState
+            icon="🔍"
+            title="Nenhum campeonato encontrado"
+            description={searchQuery ? `Sem resultados para "${searchQuery}"` : 'Nenhum campeonato neste filtro'}
+          />
+        </View>
+      ) : (
+        <View style={styles.organizerList}>
+          {filteredChamps.map((championship) => {
+            const teamsCount = teams.filter((team) => team.championshipId === championship.id).length;
+            const matchesCount = matches.filter((match) => match.championshipId === championship.id).length;
+            const progress =
+              championship.totalRounds > 0
+                ? championship.currentRound / championship.totalRounds
+                : 0;
+
+            return (
+              <Pressable
+                key={championship.id}
+                onPress={() =>
+                  navigation.navigate('ChampionshipDashboard', { championshipId: championship.id })
+                }
+              >
+                <AppCard variant="elevated" style={styles.championshipCard}>
+                  <View style={styles.championshipTop}>
+                    <Text style={styles.championshipTitle} numberOfLines={1}>
+                      {championship.name}
+                    </Text>
+                    {getStatusBadge(championship)}
+                  </View>
+                  <Text style={styles.championshipMeta}>
+                    {teamsCount} times · {matchesCount} partidas
+                  </Text>
+                  <LinearProgress value={progress} style={styles.championshipProgress} />
+                </AppCard>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -451,8 +627,8 @@ function RoleSwitcherModal({
   currentRole: UserRole;
   onClose: () => void;
 }) {
-  const switchRole = useAuthStore((s) => s.switchRole);
-  const logout = useAuthStore((s) => s.logout);
+  const setRole = useAuthStore((s) => s.setRole);
+  const signOut = useAuthStore((s) => s.signOut);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -470,7 +646,7 @@ function RoleSwitcherModal({
                   style={[styles.roleOption, active && styles.roleOptionActive]}
                   activeOpacity={0.8}
                   onPress={() => {
-                    switchRole(role);
+                    setRole(role);
                     onClose();
                   }}
                 >
@@ -495,7 +671,7 @@ function RoleSwitcherModal({
             activeOpacity={0.7}
             onPress={() => {
               onClose();
-              logout();
+              signOut();
             }}
           >
             <Text style={styles.logoutText}>Sair</Text>
@@ -532,29 +708,93 @@ function OrganizerFab() {
   );
 }
 
+function ChampionshipSelectorModal({
+  visible,
+  championships,
+  selectedId,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  championships: Championship[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalSheet} onPress={() => {}}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Selecionar campeonato</Text>
+          <Text style={styles.modalSubtitle}>Escolha qual campeonato exibir</Text>
+          <View style={styles.roleList}>
+            {championships.map((champ) => {
+              const active = champ.id === selectedId;
+              return (
+                <TouchableOpacity
+                  key={champ.id}
+                  style={[styles.roleOption, active && styles.roleOptionActive]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    onSelect(champ.id);
+                    onClose();
+                  }}
+                >
+                  <Ionicons name="trophy-outline" size={22} color={active ? colors.accent : colors.textSecondary} />
+                  <View style={styles.roleOptionInfo}>
+                    <Text style={[styles.roleOptionLabel, active && styles.roleOptionLabelActive]} numberOfLines={1}>
+                      {champ.name}
+                    </Text>
+                    <Text style={styles.roleOptionDesc}>
+                      {champ.status === 'em_andamento' ? 'Em andamento' : champ.status === 'inscricoes_abertas' ? 'Inscrições abertas' : 'Finalizado'}
+                    </Text>
+                  </View>
+                  {active && (
+                    <View style={styles.roleOptionCheck}>
+                      <Ionicons name="checkmark" size={14} color={colors.textOnAccent} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const user = useAuthStore((s) => s.user);
   const role = user?.role ?? 'atleta';
   const championships = useChampionshipStore((s) => s.championships);
+  const isLoading = useChampionshipStore((s) => s.loading);
+  const selectedChampionshipId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
+  const setSelectedChampionshipId = useChampionshipStore((s) => s.setSelectedChampionshipId);
   const teams = useTeamStore((s) => s.teams);
+  const players = useTeamStore((s) => s.players);
   const matches = useMatchStore((s) => s.matches);
-  const hasNotification = useMuralBadge(CHAMP_ID);
+  const myPlayer = useMemo(
+    () => players.find((p) => p.userId === user?.id),
+    [players, user?.id],
+  );
+  const hasNotification = useMuralBadge(selectedChampionshipId);
+  const { unreadCount: inAppUnread } = useNotificationBadge();
+  const { unreadCount: announcementsUnread } = useAnnouncementsBadge(selectedChampionshipId);
+  const unreadCount = inAppUnread + announcementsUnread;
   const [modalVisible, setModalVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [champSelectorVisible, setChampSelectorVisible] = useState(false);
   const scrollY = useSharedValue(0);
-
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(t);
-  }, []);
 
   const activeChampionship = useMemo(
     () =>
-      championships.find((championship) => championship.status === 'em_andamento') ??
-      championships.find((championship) => championship.status === 'inscricoes_abertas') ??
+      championships.find((c) => c.id === selectedChampionshipId) ??
+      championships.find((c) => c.status === 'em_andamento') ??
+      championships.find((c) => c.status === 'inscricoes_abertas') ??
       championships[0],
-    [championships],
+    [championships, selectedChampionshipId],
   );
 
   const championshipTeams = useMemo(
@@ -573,14 +813,33 @@ export function HomeScreen() {
     [activeChampionship, matches],
   );
 
-  const upcomingMatches = championshipMatches
-    .filter((match) => match.status !== 'finalizado')
-    .slice(0, 6);
+  const upcomingMatches = useMemo(
+    () =>
+      championshipMatches
+        .filter((match) => match.status !== 'finalizado')
+        .sort((a, b) => {
+          if (a.scheduledAt && !b.scheduledAt) return -1;
+          if (!a.scheduledAt && b.scheduledAt) return 1;
+          if (a.scheduledAt && b.scheduledAt) {
+            return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+          }
+          return 0;
+        })
+        .slice(0, 6),
+    [championshipMatches],
+  );
   const latestResults = championshipMatches
     .filter((match) => match.status === 'finalizado')
     .slice()
     .sort((a, b) => b.round - a.round)
     .slice(0, 5);
+
+  // Finished championships (history)
+  const finishedChampionships = useMemo(
+    () => championships.filter((c) => c.status === 'finalizado').slice(0, 6),
+    [championships],
+  );
+  const { results: historyResults } = useChampionshipHistory(finishedChampionships.map((c) => c.id));
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -595,6 +854,15 @@ export function HomeScreen() {
         currentRole={role}
         onClose={() => setModalVisible(false)}
       />
+      {championships.length > 1 && (
+        <ChampionshipSelectorModal
+          visible={champSelectorVisible}
+          championships={championships}
+          selectedId={selectedChampionshipId || null}
+          onSelect={setSelectedChampionshipId}
+          onClose={() => setChampSelectorVisible(false)}
+        />
+      )}
 
       <Animated.ScrollView
         style={styles.scrollView}
@@ -606,10 +874,29 @@ export function HomeScreen() {
       >
         <StickyHeader
           userName={user?.name}
+          userPhotoUrl={myPlayer?.photoUrl}
           hasNotification={hasNotification}
+          unreadCount={unreadCount}
           onOpenRoleSwitcher={() => setModalVisible(true)}
+          onAvatarPress={() => navigation.navigate('AthleteProfile')}
+          onBellPress={() => navigation.navigate('NotificationCenter')}
+          onSearchPress={() => navigation.navigate('GlobalSearch')}
           shadowProgress={scrollY}
         />
+
+        {!isLoading && championships.length > 1 && (
+          <TouchableOpacity
+            style={styles.champSelector}
+            onPress={() => setChampSelectorVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trophy-outline" size={15} color={colors.accent} />
+            <Text style={styles.champSelectorText} numberOfLines={1}>
+              {activeChampionship?.name ?? 'Selecionar campeonato'}
+            </Text>
+            <Ionicons name="chevron-down" size={15} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
 
         {isLoading ? (
           <View style={styles.skeletonWrap}>
@@ -688,6 +975,37 @@ export function HomeScreen() {
             </View>
           </View>
         )}
+
+        {finishedChampionships.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader
+              title="HISTÓRICO"
+              action={{
+                text: 'Ver todos ›',
+                onPress: () => navigation.navigate('ChampionshipHistory'),
+              }}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+            >
+              {finishedChampionships.map((championship) => (
+                <ChampionshipHistoryCard
+                  key={championship.id}
+                  championship={championship}
+                  result={historyResults.find((r) => r.championshipId === championship.id)}
+                  onPress={() =>
+                    navigation.navigate('ChampionshipResult', {
+                      championshipId: championship.id,
+                      readOnly: true,
+                    })
+                  }
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </Animated.ScrollView>
 
       {role === 'organizador' && <OrganizerFab />}
@@ -737,6 +1055,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.accent,
+  },
   avatarText: {
     fontFamily: 'Barlow-Bold',
     fontSize: 13,
@@ -747,6 +1072,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Regular',
     fontSize: 15,
     color: colors.textPrimary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   bellWrap: {
     width: 36,
@@ -762,6 +1092,23 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.danger,
+  },
+  unreadBubble: {
+    position: 'absolute',
+    top: 4,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  unreadBubbleText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 9,
+    color: '#FFFFFF',
   },
   heroCard: {
     minHeight: 160,
@@ -874,6 +1221,40 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 16,
   },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 14,
+    backgroundColor: '#FFF8EC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F5A623',
+    padding: 12,
+  },
+  statusBannerDanger: {
+    backgroundColor: '#FFF0F0',
+    borderColor: '#E74C3C',
+  },
+  statusBannerIcon: {
+    fontSize: 20,
+    marginTop: 1,
+  },
+  statusBannerTitle: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 14,
+    color: '#B87A00',
+  },
+  statusBannerTitleDanger: {
+    color: '#C0392B',
+  },
+  statusBannerDesc: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
   emptyTitle: {
     fontFamily: 'Barlow-SemiBold',
     fontSize: 16,
@@ -984,6 +1365,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
   },
+  matchDateMuted: {
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
   resultsList: {
     gap: 10,
     marginTop: 12,
@@ -1029,6 +1414,34 @@ const styles = StyleSheet.create({
   },
   organizerList: {
     gap: 12,
+    marginTop: 12,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.bg300,
+  },
+  filterChipActive: {
+    backgroundColor: colors.accent,
+  },
+  filterChipText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: colors.bg100,
+  },
+  emptySearchWrap: {
+    minHeight: 180,
+    justifyContent: 'center',
     marginTop: 12,
   },
   championshipCard: {
@@ -1168,5 +1581,25 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  champSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignSelf: 'flex-start',
+  },
+  champSelectorText: {
+    flex: 1,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.textPrimary,
   },
 });

@@ -1,14 +1,18 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppCard } from '../../components/AppCard';
 import { SectionHeader } from '../../components/SectionHeader';
-import { TeamColorDot } from '../../components/TeamColorDot';
+import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useStats } from '../../hooks/useStats';
+import { useChampionshipStore } from '../../stores/championshipStore';
+import { useTeamStore } from '../../stores/teamStore';
 import { colors } from '../../theme/colors';
 import { SuspendedPlayer } from '../../types';
 
-const CHAMP_ID = 'champ-001';
+type NavProp = NativeStackNavigationProp<HomeStackParamList>;
 
 function HighlightCard({
   icon,
@@ -32,11 +36,17 @@ function HighlightCard({
   );
 }
 
-function SuspendedRow({ item }: { item: SuspendedPlayer }) {
+function SuspendedRow({
+  item,
+  onPress,
+}: {
+  item: SuspendedPlayer;
+  onPress: () => void;
+}) {
   const isRed = item.reason === 'cartao_vermelho';
 
   return (
-    <View style={styles.suspendedRow}>
+    <TouchableOpacity style={styles.suspendedRow} activeOpacity={0.82} onPress={onPress}>
       <View style={styles.suspendedAvatar}>
         <Text style={styles.suspendedAvatarText}>
           {item.playerName.slice(0, 1).toUpperCase()}
@@ -47,13 +57,16 @@ function SuspendedRow({ item }: { item: SuspendedPlayer }) {
         <Text style={styles.suspendedTeam}>{item.teamName}</Text>
       </View>
       <Text style={[styles.suspendedReason, isRed ? styles.reasonDanger : styles.reasonWarning]}>
-        {isRed ? 'Cartão vermelho' : '3 amarelos'}
+        {isRed ? 'Cartao vermelho' : '3 amarelos'}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export function StatsOverviewScreen() {
+  const navigation = useNavigation<NavProp>();
+  const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
+  const players = useTeamStore((s) => s.players);
   const {
     standings,
     bestAttack,
@@ -63,22 +76,31 @@ export function StatsOverviewScreen() {
     totalGoals,
     finishedCount,
     currentRound,
-  } = useStats(CHAMP_ID);
+  } = useStats(champId);
 
   const leader = standings[0];
   const avgGoals = finishedCount > 0 ? (totalGoals / finishedCount).toFixed(1) : '0.0';
   const totalYellowCards = standings.reduce((sum, standing) => sum + standing.yellowCards, 0);
 
+  const openAthlete = (playerId: string) => {
+    const player = players.find((item) => item.id === playerId);
+    if (!player?.userId) return;
+    navigation.navigate('AthleteProfile', {
+      userId: player.userId,
+      championshipId: champId,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.grid}>
-          <HighlightCard icon="🏆" label="Líder" value={leader?.teamName ?? '—'} accent={false} />
+          <HighlightCard icon="🏆" label="Lider" value={leader?.teamName ?? '—'} accent={false} />
           <HighlightCard icon="⚽" label="Gols totais" value={String(totalGoals)} />
-          <HighlightCard icon="📊" label="Média/jogo" value={avgGoals} />
+          <HighlightCard icon="📊" label="Media/jogo" value={avgGoals} />
           <HighlightCard icon="🛡️" label="Melhor defesa" value={bestDefense?.teamName ?? '—'} accent={false} />
           <HighlightCard icon="⚡" label="Melhor ataque" value={bestAttack?.teamName ?? '—'} accent={false} />
-          <HighlightCard icon="🟨" label="Cartões" value={String(totalYellowCards)} />
+          <HighlightCard icon="🟨" label="Cartoes" value={String(totalYellowCards)} />
         </View>
 
         <AppCard variant="accent" style={styles.roundLeaderCard}>
@@ -95,11 +117,15 @@ export function StatsOverviewScreen() {
         {suspendedPlayers.length > 0 && (
           <View style={styles.suspendedSection}>
             <View style={styles.suspendedHeaderWrap}>
-              <SectionHeader title="⚠️ SUSPENSOS NA PRÓXIMA RODADA" />
+              <SectionHeader title="SUSPENSOS NA PROXIMA RODADA" />
             </View>
             <View style={styles.suspendedList}>
               {suspendedPlayers.map((player) => (
-                <SuspendedRow key={player.playerId} item={player} />
+                <SuspendedRow
+                  key={player.playerId}
+                  item={player}
+                  onPress={() => openAthlete(player.playerId)}
+                />
               ))}
             </View>
           </View>

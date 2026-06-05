@@ -1,58 +1,62 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppUser, UserRole } from '../types';
-
-// Mock IDs so the demo data links correctly
-const MOCK_IDS: Record<UserRole, string> = {
-  organizador: 'user-org-01',  // matches championship.organizerId in mock data
-  capitao:     'captain-1',    // matches team-01.captainId in mock data
-  atleta:      'atleta-demo',  // matches player-001.userId in mock data
-};
+import {
+  signIn as authSignIn,
+  signUp as authSignUp,
+  signOut as authSignOut,
+  saveRole,
+  listenToAuthChanges,
+} from '../services/auth';
 
 interface AuthState {
   user: AppUser | null;
+  isLoading: boolean;
   isOnboarded: boolean;
-  setUser: (name: string) => void;
-  setRole: (role: UserRole) => void;
-  switchRole: (role: UserRole) => void;
-  logout: () => void;
+
+  initialize: () => () => void;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  setRole: (role: UserRole) => Promise<void>;
+  setUser: (user: AppUser) => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isOnboarded: false,
-      setUser: (name: string) => {
-        set({
-          user: {
-            id: `user-${Date.now()}`,
-            name,
-            role: 'atleta',
-          },
-        });
-      },
-      setRole: (role: UserRole) => {
-        const current = get().user;
-        if (current) {
-          set({
-            user: { ...current, id: MOCK_IDS[role], role },
-            isOnboarded: true,
-          });
-        }
-      },
-      switchRole: (role: UserRole) => {
-        const current = get().user;
-        if (current) {
-          set({ user: { ...current, id: MOCK_IDS[role], role } });
-        }
-      },
-      logout: () => set({ user: null, isOnboarded: false }),
-    }),
-    {
-      name: 'fju-auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  isLoading: true,
+  isOnboarded: false,
+
+  initialize: () => {
+    return listenToAuthChanges((result) => {
+      if (result) {
+        set({ user: result.user, isOnboarded: result.isOnboarded, isLoading: false });
+      } else {
+        set({ user: null, isOnboarded: false, isLoading: false });
+      }
+    });
+  },
+
+  signIn: async (email, password) => {
+    const { user, isOnboarded } = await authSignIn(email, password);
+    set({ user, isOnboarded });
+  },
+
+  signUp: async (email, password, name) => {
+    const user = await authSignUp(email, password, name);
+    set({ user, isOnboarded: false });
+  },
+
+  signOut: async () => {
+    await authSignOut();
+    set({ user: null, isOnboarded: false });
+  },
+
+  setRole: async (role) => {
+    const { user } = get();
+    if (!user) return;
+    set({ user: { ...user, role }, isOnboarded: true });
+    await saveRole(user.id, role);
+  },
+
+  setUser: (user) => set({ user }),
+}));

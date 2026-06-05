@@ -130,6 +130,24 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     rarity: 'comum',
     rarityColor: '#CD7F32',
   },
+
+  // Títulos
+  {
+    id: 'campeao',
+    name: 'Campeão',
+    description: 'Conquistou o título do campeonato',
+    icon: '🏆',
+    rarity: 'lendario',
+    rarityColor: '#FFD700',
+  },
+  {
+    id: 'vice_campeao',
+    name: 'Vice-campeão',
+    description: 'Alcançou a segunda colocação no campeonato',
+    icon: '🥈',
+    rarity: 'epico',
+    rarityColor: '#F5A623',
+  },
 ];
 
 export const RARITY_ORDER: Record<string, number> = {

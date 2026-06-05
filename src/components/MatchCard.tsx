@@ -6,6 +6,7 @@ import { TeamColorDot } from './TeamColorDot';
 import { MatchEvent, MatchModel, Team } from '../types';
 import { colors } from '../theme/colors';
 
+
 interface Props {
   match: MatchModel;
   homeTeam?: Team;
@@ -16,18 +17,29 @@ interface Props {
   onPress?: () => void;
 }
 
-function formatDateTime(value?: string) {
-  if (!value) return 'A definir';
+function formatScheduledAt(value?: string | null): string | null {
+  if (!value) return null;
   try {
-    return new Date(value).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const d = new Date(value);
+    const weekday = d.toLocaleDateString('pt-BR', { weekday: 'short' });
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = d.toLocaleDateString('pt-BR', { month: 'short' });
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
+    return `${cap}, ${day} ${month} · ${h}h${m}`;
   } catch {
     return value;
   }
+}
+
+function isToday(value?: string | null): boolean {
+  if (!value) return false;
+  const d = new Date(value);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
 }
 
 function getResultColor(match: MatchModel, userTeamId?: string) {
@@ -62,16 +74,22 @@ export function MatchCard({
 }: Props) {
   const isFinished = match.status === 'finalizado';
   const isLive = match.status === 'ao_vivo';
+  const isScheduled = match.status === 'agendado';
   const homeScore = match.homeScore ?? 0;
   const awayScore = match.awayScore ?? 0;
   const homeWon = isFinished && homeScore > awayScore;
   const awayWon = isFinished && awayScore > homeScore;
+  const hasPenalties = match.homePenaltyScore != null && match.awayPenaltyScore != null;
+  const homePenalty = match.homePenaltyScore ?? 0;
+  const awayPenalty = match.awayPenaltyScore ?? 0;
   const resultColor = getResultColor(match, userTeamId);
   const homeGoals = getGoalRows(events, match.homeTeamId);
   const awayGoals = getGoalRows(events, match.awayTeamId);
   const goalRows = [...homeGoals, ...awayGoals];
+  const today = isScheduled && isToday(match.scheduledAt);
+  const formattedDate = formatScheduledAt(match.scheduledAt);
 
-  const statusColor = isLive ? colors.neon : isFinished ? colors.bg300 : colors.border;
+  const statusColor = isLive ? colors.neon : isFinished ? colors.bg300 : today ? colors.accent : colors.border;
 
   return (
     <Pressable
@@ -98,11 +116,18 @@ export function MatchCard({
 
         <View style={styles.center}>
           {isFinished && (
-            <View style={styles.scoreRow}>
-              <Text style={[styles.score, homeWon && styles.scoreWinner]}>{homeScore}</Text>
-              <Text style={styles.scoreDash}>—</Text>
-              <Text style={[styles.score, awayWon && styles.scoreWinner]}>{awayScore}</Text>
-            </View>
+            <>
+              <View style={styles.scoreRow}>
+                <Text style={[styles.score, homeWon && styles.scoreWinner]}>{homeScore}</Text>
+                <Text style={styles.scoreDash}>—</Text>
+                <Text style={[styles.score, awayWon && styles.scoreWinner]}>{awayScore}</Text>
+              </View>
+              {hasPenalties && (
+                <Text style={styles.penaltyText}>
+                  ({homePenalty} - {awayPenalty} pen.)
+                </Text>
+              )}
+            </>
           )}
           {isLive && (
             <>
@@ -112,8 +137,8 @@ export function MatchCard({
           )}
           {!isFinished && !isLive && (
             <>
+              {today && <Badge label="HOJE" variant="gold" />}
               <Text style={styles.vs}>vs</Text>
-              <Text style={styles.date}>{formatDateTime(match.scheduledAt)}</Text>
             </>
           )}
         </View>
@@ -125,6 +150,22 @@ export function MatchCard({
           </Text>
         </View>
       </View>
+
+      {isScheduled && (
+        <View style={styles.scheduleFooter}>
+          <Ionicons name="calendar-outline" size={12} color={formattedDate ? colors.accent : colors.textMuted} />
+          <Text style={[styles.scheduleDate, !formattedDate && styles.scheduleDateMuted]}>
+            {formattedDate ?? 'Data a definir'}
+          </Text>
+          {match.location ? (
+            <>
+              <Text style={styles.scheduleSep}>·</Text>
+              <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+              <Text style={styles.scheduleLocation} numberOfLines={1}>{match.location}</Text>
+            </>
+          ) : null}
+        </View>
+      )}
 
       {isFinished && goalRows.length > 0 && (
         <View style={styles.footer}>
@@ -228,6 +269,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textMuted,
   },
+  penaltyText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: -2,
+  },
   liveScore: {
     fontFamily: 'Barlow-Black',
     fontSize: 20,
@@ -238,11 +285,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
   },
-  date: {
+  scheduleFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    flexWrap: 'nowrap',
+  },
+  scheduleDate: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 11,
+    color: colors.accent,
+  },
+  scheduleDateMuted: {
+    fontFamily: 'Barlow-Regular',
+    color: colors.textMuted,
+  },
+  scheduleSep: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  scheduleLocation: {
+    flex: 1,
     fontFamily: 'Barlow-Regular',
     fontSize: 11,
     color: colors.textSecondary,
-    textAlign: 'center',
   },
   footer: {
     flexDirection: 'row',

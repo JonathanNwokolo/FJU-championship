@@ -27,7 +27,9 @@ import { TeamColorDot } from '../../components/TeamColorDot';
 import { colors } from '../../theme/colors';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { MatchEvent, MatchEventType } from '../../types';
+import { addDocument, updateDocument, deleteDocument } from '../../services/firestore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import {
   notifyGoal,
@@ -39,6 +41,7 @@ import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
 import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
 import { useVotingStore } from '../../stores/votingStore';
+import { processKnockoutResult, generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
 
 type RouteT = RouteProp<FixturesStackParamList, 'MatchRegistration'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
@@ -54,13 +57,6 @@ const TYPE_DEFS: Array<{ value: MatchEventType; label: string; color: string }> 
   { value: 'cartao_amarelo', label: '🟨 Amarelo', color: colors.warning },
   { value: 'cartao_vermelho', label: '🟥 Vermelho', color: colors.danger },
 ];
-
-function makeId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.floor(Math.random() * 16);
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
 
 function EventTypePill({ type }: { type: MatchEventType }) {
   const background =
@@ -84,8 +80,10 @@ export function MatchRegistrationScreen() {
 
   const { matches, events, addEvent, removeEvent, updateMatch, startMatch } = useMatchStore();
   const { teams, players } = useTeamStore();
+  const { championships, updateChampionship } = useChampionshipStore();
   const { awards } = useVotingStore();
   const [toastQueue, setToastQueue] = useState<AchievementDefinition[]>([]);
+  const [showPenaltySheet, setShowPenaltySheet] = useState(false);
 
   const match = matches.find((m) => m.id === matchId);
   const matchEvents = events
@@ -121,7 +119,10 @@ export function MatchRegistrationScreen() {
   const [bsPlayerId, setBsPlayerId] = useState('');
   const [bsMinute, setBsMinute] = useState('');
 
-  const bsPlayers = bsTeamId ? players.filter((p) => p.teamId === bsTeamId) : [];
+  // Filter players to only show active players (not suspended, injured, or without team)
+  const bsPlayers = bsTeamId 
+    ? players.filter((p) => p.teamId === bsTeamId && (!p.status || p.status === 'ativo')) 
+    : [];
 
   const handleTeamSelect = (teamId: string) => {
     setBsTeamId(teamId);
@@ -136,47 +137,55 @@ export function MatchRegistrationScreen() {
     bottomSheetRef.current?.expand();
   };
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     const minute = parseInt(bsMinute, 10);
-    if (!bsTeamId || !bsPlayerId || !minute) return;
-
-    const event: MatchEvent = {
-      id: makeId(),
-      matchId,
-      type: bsType,
-      teamId: bsTeamId,
-      playerId: bsPlayerId,
-      minute,
-    };
-    addEvent(event);
-
-    if (bsType === 'gol') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-
-    if (isLive && bsType === 'gol' && match) {
-      const newHome = liveHomeScore + (bsTeamId === match.homeTeamId ? 1 : 0);
-      const newAway = liveAwayScore + (bsTeamId === match.awayTeamId ? 1 : 0);
-      updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
-
-      const scorer = players.find((p) => p.id === bsPlayerId);
-      const scorerTeam = teams.find((t) => t.id === bsTeamId);
-      if (scorer && scorerTeam && homeTeam && awayTeam) {
-        notifyGoal(
-          match.championshipId,
-          scorer.name,
-          scorerTeam.name,
-          homeTeam.name,
-          awayTeam.name,
-          newHome,
-          newAway,
-        ).catch(() => {});
-      }
-    }
+    if (!bsTeamId || !bsPlayerId || !minute || !match) return;
 
     bottomSheetRef.current?.close();
+
+    try {
+      const eventData = {
+        matchId,
+        championshipId: match.championshipId,
+        type: bsType,
+        teamId: bsTeamId,
+        playerId: bsPlayerId,
+        minute,
+      };
+      const firestoreId = await addDocument('match_events', eventData);
+      const event: MatchEvent = { id: firestoreId, matchId, type: bsType, teamId: bsTeamId, playerId: bsPlayerId, minute };
+      addEvent(event);
+
+      if (bsType === 'gol') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      if (isLive && bsType === 'gol') {
+        const newHome = liveHomeScore + (bsTeamId === match.homeTeamId ? 1 : 0);
+        const newAway = liveAwayScore + (bsTeamId === match.awayTeamId ? 1 : 0);
+        updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
+        updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway }).catch(console.warn);
+
+        const scorer = players.find((p) => p.id === bsPlayerId);
+        const scorerTeam = teams.find((t) => t.id === bsTeamId);
+        if (scorer && scorerTeam && homeTeam && awayTeam) {
+          notifyGoal(
+            match.championshipId,
+            scorer.name,
+            scorerTeam.name,
+            homeTeam.name,
+            awayTeam.name,
+            newHome,
+            newAway,
+          ).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.warn('[MatchRegistration] addEvent error:', err);
+      Toast.show({ type: 'error', text1: 'Erro ao registrar evento', visibilityTime: 2500 });
+    }
   };
 
   const handleRemoveEvent = (eventId: string) => {
@@ -188,13 +197,12 @@ export function MatchRegistrationScreen() {
         onPress: () => {
           const removing = matchEvents.find((e) => e.id === eventId);
           removeEvent(eventId);
+          deleteDocument('match_events', eventId).catch(console.warn);
           if (isLive && removing?.type === 'gol' && match) {
-            const newHome = liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0);
-            const newAway = liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0);
-            updateMatch(matchId, {
-              homeScore: Math.max(0, newHome),
-              awayScore: Math.max(0, newAway),
-            });
+            const newHome = Math.max(0, liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0));
+            const newAway = Math.max(0, liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0));
+            updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
+            updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway }).catch(console.warn);
           }
         },
       },
@@ -228,6 +236,7 @@ export function MatchRegistrationScreen() {
         text: 'Iniciar',
         onPress: () => {
           startMatch(matchId);
+          updateDocument('matches', matchId, { status: 'ao_vivo', homeScore: 0, awayScore: 0 }).catch(console.warn);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           if (match && homeTeam && awayTeam) {
             notifyMatchStarted(
@@ -279,53 +288,240 @@ export function MatchRegistrationScreen() {
 
   const handleFinalize = () => {
     if (!canFinalize) return;
+
+    const championship = championships.find((c) => c.id === match?.championshipId);
+    const isKnockout = championship?.format === 'mata_mata' || match?.bracketRound;
+    const finalHome = isLive ? liveHomeScore : homeScoreNum!;
+    const finalAway = isLive ? liveAwayScore : awayScoreNum!;
+    const isTie = finalHome === finalAway;
+
+    // No mata-mata, empate requer pênaltis
+    if (isKnockout && isTie) {
+      Alert.alert(
+        'Empate no Mata-Mata',
+        'No formato eliminatório, é necessário definir um vencedor. Deseja registrar pênaltis?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Registrar Pênaltis',
+            onPress: () => {
+              Alert.prompt(
+                'Pênaltis',
+                `Placar: ${finalHome} × ${finalAway}\n\nDigite o resultado dos pênaltis (formato: 4-3):`,
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Confirmar',
+                    onPress: (penaltyText) => {
+                      if (!penaltyText) return;
+                      const [hp, ap] = penaltyText.split('-').map((s) => parseInt(s.trim(), 10));
+                      if (isNaN(hp) || isNaN(ap) || hp === ap) {
+                        Toast.show({ type: 'error', text1: 'Formato inválido', text2: 'Use o formato: 4-3', visibilityTime: 2500 });
+                        return;
+                      }
+                      const winnerId = hp > ap ? match!.homeTeamId : match!.awayTeamId;
+                      finalizeMatch(finalHome, finalAway, winnerId, hp, ap);
+                    },
+                  },
+                ],
+                'plain-text',
+              );
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    // Determinar vencedor (se houver)
+    let winnerId: string | null = null;
+    if (isKnockout) {
+      winnerId = finalHome > finalAway ? match!.homeTeamId : match!.awayTeamId;
+    }
+
     Alert.alert('Finalizar partida', 'Confirmar resultado e encerrar a partida?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Finalizar',
-        onPress: () => {
-          const finalHome = isLive ? liveHomeScore : homeScoreNum!;
-          const finalAway = isLive ? liveAwayScore : awayScoreNum!;
-          const updatedMatch = {
-            ...match!,
-            homeScore: finalHome,
-            awayScore: finalAway,
-            status: 'finalizado' as const,
-            finishedAt: new Date().toISOString(),
-          };
-          updateMatch(matchId, {
-            homeScore: finalHome,
-            awayScore: finalAway,
-            status: 'finalizado',
-            finishedAt: updatedMatch.finishedAt,
-          });
-
-          const updatedMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
-
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-          if (match && homeTeam && awayTeam) {
-            notifyMatchFinished(
-              match.championshipId,
-              homeTeam.name,
-              awayTeam.name,
-              finalHome,
-              finalAway,
-              matchId,
-            ).catch(() => {});
-          }
-
-          runAchievementChecks(finalHome, finalAway, events, updatedMatches);
-
-          if (isLive) {
-            navigation.replace('MatchSummary', { matchId });
-          } else {
-            Toast.show({ type: 'success', text1: 'Partida finalizada!', text2: `${finalHome} × ${finalAway}`, visibilityTime: 2500 });
-            navigation.goBack();
-          }
-        },
+        onPress: () => finalizeMatch(finalHome, finalAway, winnerId, null, null),
       },
     ]);
+  };
+
+  const finalizeMatch = (
+    finalHome: number,
+    finalAway: number,
+    winnerId: string | null,
+    homePenalty: number | null,
+    awayPenalty: number | null,
+  ) => {
+    const finishedAt = new Date().toISOString();
+    const championship = championships.find((c) => c.id === match?.championshipId);
+    const isKnockout = championship?.format === 'mata_mata' || match?.bracketRound;
+
+    const updatedMatchData: any = {
+      homeScore: finalHome,
+      awayScore: finalAway,
+      status: 'finalizado',
+      finishedAt,
+    };
+
+    if (winnerId) {
+      updatedMatchData.winnerId = winnerId;
+    }
+    if (homePenalty !== null) {
+      updatedMatchData.homePenaltyScore = homePenalty;
+      updatedMatchData.awayPenaltyScore = awayPenalty;
+    }
+
+    const updatedMatch = {
+      ...match!,
+      ...updatedMatchData,
+      status: 'finalizado' as const,
+    };
+
+    updateMatch(matchId, updatedMatchData);
+    updateDocument('matches', matchId, updatedMatchData).catch(console.warn);
+
+    // Processar avanço no mata-mata
+    if (isKnockout && winnerId && match?.nextMatchId) {
+      const { updatedNextMatch, isFinal } = processKnockoutResult(
+        matches,
+        updatedMatch,
+        winnerId,
+      );
+
+      if (updatedNextMatch) {
+        // Atualizar a próxima partida com o vencedor
+        const nextMatchUpdate = {
+          homeTeamId: updatedNextMatch.homeTeamId,
+          awayTeamId: updatedNextMatch.awayTeamId,
+        };
+        updateMatch(updatedNextMatch.id, nextMatchUpdate);
+        updateDocument('matches', updatedNextMatch.id, nextMatchUpdate).catch(console.warn);
+      }
+
+      if (isFinal) {
+        // Campeonato finalizado!
+        updateChampionship(match.championshipId, { status: 'finalizado' });
+        updateDocument('championships', match.championshipId, { status: 'finalizado' }).catch(console.warn);
+        Toast.show({
+          type: 'success',
+          text1: '🏆 Campeonato Finalizado!',
+          text2: `${teams.find((t) => t.id === winnerId)?.name} é o campeão!`,
+          visibilityTime: 4000,
+        });
+      }
+    } else if (isKnockout && winnerId && !match?.nextMatchId) {
+      // Era a final (não tem nextMatchId)
+      updateChampionship(match!.championshipId, { status: 'finalizado' });
+      updateDocument('championships', match!.championshipId, { status: 'finalizado' }).catch(console.warn);
+      Toast.show({
+        type: 'success',
+        text1: '🏆 Campeonato Finalizado!',
+        text2: `${teams.find((t) => t.id === winnerId)?.name} é o campeão!`,
+        visibilityTime: 4000,
+      });
+    }
+
+    // Verificar se é grupos + mata-mata e se a fase de grupos acabou
+    if (
+      championship?.format === 'grupos_e_mata_mata' &&
+      !championship.groupStageComplete &&
+      match?.groupId
+    ) {
+      const champMatches = matches.filter((m) => m.championshipId === championship.id);
+      const updatedChampMatches = champMatches.map((m) =>
+        m.id === matchId ? updatedMatch : m,
+      );
+      const groupMatches = updatedChampMatches.filter((m) => m.groupId);
+      const allGroupMatchesFinished = groupMatches.every((m) => m.status === 'finalizado');
+
+      if (allGroupMatchesFinished && championship.groups) {
+        // Calcular classificados e gerar bracket
+        const groups = championship.groups as Record<string, { id: string; name: string }[]>;
+        const classifiedTeams = getGroupClassified(
+          updatedChampMatches,
+          Object.fromEntries(
+            Object.entries(groups).map(([groupId, teamList]) => [
+              groupId,
+              teamList.map((t) => teams.find((team) => team.id === t.id)!).filter(Boolean),
+            ]),
+          ),
+          2, // 2 classificados por grupo
+        );
+
+        // Gerar bracket com os classificados
+        const knockoutMatches = generateBracketFixtures(
+          classifiedTeams as any,
+          championship.id,
+        );
+
+        // Ajustar round numbers para continuarem após a fase de grupos
+        const maxGroupRound = Math.max(...groupMatches.map((m) => m.round), 0);
+        knockoutMatches.forEach((m) => {
+          m.round = m.round + maxGroupRound;
+        });
+
+        // Adicionar partidas do mata-mata
+        const { addMatches } = useMatchStore.getState();
+        addMatches(knockoutMatches);
+
+        // Salvar no Firestore
+        for (const km of knockoutMatches) {
+          addDocument('matches', km).catch(console.warn);
+        }
+
+        // Atualizar campeonato
+        updateChampionship(championship.id, {
+          groupStageComplete: true,
+          knockoutStartRound: maxGroupRound + 1,
+          totalRounds: maxGroupRound + Math.ceil(Math.log2(classifiedTeams.length)),
+        });
+        updateDocument('championships', championship.id, {
+          groupStageComplete: true,
+          knockoutStartRound: maxGroupRound + 1,
+          totalRounds: maxGroupRound + Math.ceil(Math.log2(classifiedTeams.length)),
+        }).catch(console.warn);
+
+        Toast.show({
+          type: 'success',
+          text1: '⚽ Fase de Grupos Encerrada!',
+          text2: 'As eliminatórias foram geradas.',
+          visibilityTime: 3500,
+        });
+      }
+    }
+
+    const updatedMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (match && homeTeam && awayTeam) {
+      notifyMatchFinished(
+        match.championshipId,
+        homeTeam.name,
+        awayTeam.name,
+        finalHome,
+        finalAway,
+        matchId,
+      ).catch(() => {});
+    }
+
+    runAchievementChecks(finalHome, finalAway, events, updatedMatches);
+
+    if (isLive) {
+      navigation.replace('MatchSummary', { matchId });
+    } else {
+      const penaltyText = homePenalty !== null ? ` (${homePenalty}-${awayPenalty} pen.)` : '';
+      Toast.show({
+        type: 'success',
+        text1: 'Partida finalizada!',
+        text2: `${finalHome} × ${finalAway}${penaltyText}`,
+        visibilityTime: 2500,
+      });
+      navigation.goBack();
+    }
   };
 
   const renderBackdrop = useCallback(

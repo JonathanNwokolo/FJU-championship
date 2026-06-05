@@ -28,9 +28,11 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const setUser = useAuthStore((s) => s.setUser);
+  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const signIn = useAuthStore((s) => s.signIn);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     let valid = true;
     if (!email.trim()) {
       setEmailError('Digite seu email');
@@ -42,8 +44,19 @@ export function LoginScreen({ navigation }: Props) {
     }
     if (!valid) return;
 
-    setUser(email.trim().split('@')[0] || email.trim());
-    navigation.navigate('RoleSelection');
+    setLoading(true);
+    setAuthError('');
+    try {
+      await signIn(email.trim(), password);
+      // AppNavigator switches automatically based on isOnboarded.
+      // If user has no role yet, navigate to RoleSelection manually.
+      const isOnboarded = useAuthStore.getState().isOnboarded;
+      if (!isOnboarded) navigation.navigate('RoleSelection');
+    } catch (e: any) {
+      setAuthError(mapFirebaseError(e.code));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,7 +117,8 @@ export function LoginScreen({ navigation }: Props) {
           </Animated.View>
 
           <Animated.View entering={FadeIn.delay(450).duration(450)} style={styles.footer}>
-            <AppButton title="ENTRAR" onPress={handleLogin} fullWidth />
+            {!!authError && <Text style={styles.authError}>{authError}</Text>}
+            <AppButton title="ENTRAR" onPress={handleLogin} fullWidth loading={loading} />
             <View style={styles.separator}>
               <View style={styles.line} />
               <Text style={styles.or}>ou</Text>
@@ -208,4 +222,25 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
+  authError: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 13,
+    color: colors.danger,
+    textAlign: 'center',
+  },
 });
+
+function mapFirebaseError(code: string): string {
+  switch (code) {
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Email ou senha incorretos';
+    case 'auth/invalid-email':
+      return 'Email inválido';
+    case 'auth/too-many-requests':
+      return 'Muitas tentativas. Tente novamente mais tarde';
+    default:
+      return 'Erro ao entrar. Tente novamente';
+  }
+}

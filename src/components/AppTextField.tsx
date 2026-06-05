@@ -21,7 +21,7 @@ import { colors } from '../theme/colors';
 type IconName = keyof typeof Ionicons.glyphMap;
 
 interface Props {
-  label: string;
+  label?: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
@@ -31,6 +31,8 @@ interface Props {
   style?: StyleProp<ViewStyle>;
   dark?: boolean;
   leftIcon?: IconName;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  maxLength?: number;
 }
 
 export function AppTextField({
@@ -43,6 +45,8 @@ export function AppTextField({
   secureTextEntry = false,
   style,
   leftIcon,
+  autoCapitalize = 'sentences',
+  maxLength,
 }: Props) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(secureTextEntry);
@@ -69,7 +73,7 @@ export function AppTextField({
 
   return (
     <View style={style}>
-      <Animated.Text style={[styles.label, labelStyle]}>{label}</Animated.Text>
+      {!!label && <Animated.Text style={[styles.label, labelStyle]}>{label}</Animated.Text>}
       <View
         style={[
           styles.inputWrap,
@@ -91,6 +95,8 @@ export function AppTextField({
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
           secureTextEntry={hidden}
           onFocus={handleFocus}
           onBlur={handleBlur}

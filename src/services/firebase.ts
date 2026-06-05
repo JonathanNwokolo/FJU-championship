@@ -1,20 +1,30 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { initializeAuth, getAuth,  } from 'firebase/auth';
+import { getReactNativePersistence } from 'firebase/auth/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ⚠️  Preencha com seus dados do Firebase Console > Configurações do projeto
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: "AIzaSyBJOcFPXVsaV6xOQWfdd2oX3hRopgszFZI",
+  authDomain: "fju-championship.firebaseapp.com",
+  projectId: "fju-championship",
+  storageBucket: "fju-championship.firebasestorage.app",
+  messagingSenderId: "867224860750",
+  appId: "1:867224860750:web:878eae6df32d4a89e72b1f",
+  measurementId: "G-GVL1YB75KK"
 };
 
 export const isFirebaseConfigured = firebaseConfig.apiKey !== 'YOUR_API_KEY';
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+  initializeAuth(app, { persistence: (AsyncStorage) });
+} else {
+  app = getApp();
+}
 
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const auth = getAuth(app);

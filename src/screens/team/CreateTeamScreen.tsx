@@ -1,30 +1,32 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Share,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
+import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppTextField } from '../../components/AppTextField';
 import { AppButton } from '../../components/AppButton';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { Team } from '../../types';
 import { colors } from '../../theme/colors';
-import { generateInviteCode } from '../../utils/generateInviteCode';
 import { TEAM_COLORS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import { createInviteLink, createTeamInvite, generateInviteCode } from '../../services/inviteService';
+import { setDocument } from '../../services/firestore';
+import { Team } from '../../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CreateTeam'>;
-
 type SuccessState = { teamId: string; teamName: string; inviteCode: string };
+
+const DEFAULT_MAX_PLAYERS = 15;
 
 export function CreateTeamScreen({ route, navigation }: Props) {
   const { championshipId } = route.params;
@@ -38,40 +40,50 @@ export function CreateTeamScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<SuccessState | null>(null);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!name.trim()) {
       setNameError('Digite o nome do time');
       return;
     }
-    setLoading(true);
-    const code = generateInviteCode();
-    const team: Team = {
-      id: `team-${Date.now()}`,
-      championshipId,
-      name: name.trim(),
-      primaryColor,
-      secondaryColor,
-      captainId: user?.id ?? '',
-      status: 'pendente',
-      inviteCode: code,
-      createdAt: new Date().toISOString(),
-    };
-    addTeam(team);
-    setLoading(false);
-    setSuccess({ teamId: team.id, teamName: team.name, inviteCode: code });
-  };
 
-  const handleShare = async (code: string, teamName: string) => {
+    setLoading(true);
     try {
-      await Share.share({
-        message: `Entre no meu time "${teamName}" no FJU Championship!\nUse o código: ${code}`,
+      const inviteCode = await generateInviteCode();
+      const inviteLink = createInviteLink(inviteCode);
+      const teamId = `team-${Date.now()}`;
+      const team: Team = {
+        id: teamId,
+        championshipId,
+        name: name.trim(),
+        primaryColor,
+        secondaryColor,
+        captainId: user?.id ?? '',
+        status: 'pendente',
+        inviteCode,
+        inviteLink,
+        maxPlayers: DEFAULT_MAX_PLAYERS,
+        registrationOpen: true,
+        pendingRequests: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      await setDocument('teams', teamId, team);
+      await createTeamInvite(team);
+      addTeam(team);
+      setSuccess({ teamId, teamName: team.name, inviteCode });
+    } catch (error) {
+      console.warn('[CreateTeamScreen] create team failed:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Nao foi possivel criar o time',
+        text2: 'Tente novamente em instantes.',
+        visibilityTime: 2600,
       });
-    } catch {
-      // user cancelled
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ── Success state ──────────────────────────────────────────────────────────
   if (success) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -79,107 +91,92 @@ export function CreateTeamScreen({ route, navigation }: Props) {
           <Text style={styles.successEmoji}>🎉</Text>
           <Text style={styles.successTitle}>Time criado!</Text>
           <Text style={styles.successSubtitle}>
-            <Text style={{ fontWeight: '700' }}>{success.teamName}</Text> foi inscrito.{'\n'}
-            Compartilhe o código com seus atletas:
+            <Text style={styles.successStrong}>{success.teamName}</Text> foi inscrito.
           </Text>
 
           <View style={styles.codeBox}>
-            <Text style={styles.codeLabel}>CÓDIGO DE CONVITE</Text>
+            <Text style={styles.codeLabel}>CODIGO DE CONVITE</Text>
             <Text style={styles.codeText}>{success.inviteCode}</Text>
           </View>
 
-          <View style={styles.codeActions}>
-            <AppButton
-              title="Copiar"
-              variant="outline"
-              onPress={() => Alert.alert('Código copiado!', success.inviteCode)}
-              style={styles.codeActionBtn}
-            />
-            <AppButton
-              title="Compartilhar"
-              variant="primary"
-              onPress={() => handleShare(success.inviteCode, success.teamName)}
-              style={styles.codeActionBtn}
-            />
-          </View>
+          <AppButton
+            title="Copiar codigo"
+            variant="outline"
+            onPress={async () => {
+              await Clipboard.setStringAsync(success.inviteCode);
+              Toast.show({
+                type: 'success',
+                text1: 'Copiado!',
+                text2: 'Codigo do time copiado para a area de transferencia.',
+                visibilityTime: 2000,
+              });
+            }}
+            fullWidth
+          />
 
           <AppButton
             title="Ir para meu time"
             variant="ghost"
             onPress={() => navigation.replace('ManageRoster', { teamId: success.teamId })}
             fullWidth
-            style={styles.goTeamBtn}
           />
         </View>
       </SafeAreaView>
     );
   }
 
-  // ── Form state ─────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.sectionLabel}>NOME DO TIME</Text>
-        <AppTextField
-          label=""
-          value={name}
-          onChangeText={(t) => { setName(t); setNameError(''); }}
-          placeholder="Ex: Leões de Judá"
-          error={nameError}
-        />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.sectionLabel}>NOME DO TIME</Text>
+          <AppTextField
+            value={name}
+            onChangeText={(value) => {
+              setName(value);
+              setNameError('');
+            }}
+            placeholder="Ex: Leoes de Juda"
+            error={nameError}
+          />
 
-        <Text style={styles.sectionLabel}>COR PRINCIPAL</Text>
-        <ColorPicker
-          selected={primaryColor}
-          onSelect={setPrimaryColor}
-          exclude={secondaryColor}
-        />
+          <Text style={styles.sectionLabel}>COR PRINCIPAL</Text>
+          <ColorPicker selected={primaryColor} onSelect={setPrimaryColor} exclude={secondaryColor} />
 
-        <Text style={styles.sectionLabel}>COR SECUNDÁRIA</Text>
-        <ColorPicker
-          selected={secondaryColor}
-          onSelect={setSecondaryColor}
-          exclude={primaryColor}
-        />
+          <Text style={styles.sectionLabel}>COR SECUNDARIA</Text>
+          <ColorPicker selected={secondaryColor} onSelect={setSecondaryColor} exclude={primaryColor} />
 
-        {/* Preview */}
-        <Text style={styles.sectionLabel}>PRÉVIA</Text>
-        <View style={[styles.preview, { backgroundColor: primaryColor }]}>
-          <Text style={[styles.previewText, { color: secondaryColor }]}>
-            {name.trim() || 'Nome do time'}
-          </Text>
-          <View style={[styles.previewDot, { backgroundColor: secondaryColor }]} />
-        </View>
+          <Text style={styles.sectionLabel}>PREVIA</Text>
+          <View style={[styles.preview, { backgroundColor: primaryColor }]}>
+            <Text style={[styles.previewText, { color: secondaryColor }]}>
+              {name.trim() || 'Nome do time'}
+            </Text>
+            <View style={[styles.previewDot, { backgroundColor: secondaryColor }]} />
+          </View>
 
-        <AppButton
-          title="Criar time"
-          onPress={handleCreate}
-          loading={loading}
-          fullWidth
-          style={styles.submitBtn}
-        />
-      </ScrollView>
+          <AppButton
+            title="Criar time"
+            onPress={handleCreate}
+            loading={loading}
+            fullWidth
+            style={styles.submitBtn}
+          />
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-// ── Color Picker ─────────────────────────────────────────────────────────────
 function ColorPicker({
   selected,
   onSelect,
   exclude,
 }: {
   selected: string;
-  onSelect: (c: string) => void;
+  onSelect: (color: string) => void;
   exclude?: string;
 }) {
   return (
@@ -221,11 +218,6 @@ const pickerStyles = StyleSheet.create({
   },
   dotSelected: {
     borderColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
   },
   dotExcluded: {
     opacity: 0.25,
@@ -243,8 +235,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   sectionLabel: {
+    fontFamily: 'Barlow-SemiBold',
     fontSize: 12,
-    fontWeight: '600',
     letterSpacing: 0.8,
     color: colors.textSecondary,
     marginTop: 24,
@@ -259,8 +251,8 @@ const styles = StyleSheet.create({
     minHeight: 64,
   },
   previewText: {
+    fontFamily: 'Barlow-Bold',
     fontSize: 17,
-    fontWeight: '700',
     flex: 1,
   },
   previewDot: {
@@ -271,8 +263,6 @@ const styles = StyleSheet.create({
   submitBtn: {
     marginTop: 32,
   },
-
-  // Success
   successContent: {
     flex: 1,
     alignItems: 'center',
@@ -284,47 +274,41 @@ const styles = StyleSheet.create({
     fontSize: 64,
   },
   successTitle: {
+    fontFamily: 'Barlow-Bold',
     fontSize: 28,
-    fontWeight: '700',
     color: colors.textPrimary,
   },
   successSubtitle: {
+    fontFamily: 'Barlow-Regular',
     fontSize: 15,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
+  },
+  successStrong: {
+    fontFamily: 'Barlow-Bold',
+    color: colors.textPrimary,
   },
   codeBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    alignItems: 'center',
     width: '100%',
-    marginTop: 8,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 18,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    alignItems: 'center',
   },
   codeLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    color: colors.textSecondary,
-    marginBottom: 8,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    color: colors.accent,
+    letterSpacing: 1.6,
   },
   codeText: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: 6,
-  },
-  codeActions: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  codeActionBtn: {
-    flex: 1,
-  },
-  goTeamBtn: {
     marginTop: 8,
+    fontFamily: 'Barlow-Black',
+    fontSize: 36,
+    color: colors.accent,
+    letterSpacing: 6,
   },
 });

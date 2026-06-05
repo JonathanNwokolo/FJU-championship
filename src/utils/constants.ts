@@ -13,6 +13,7 @@ export const POSITION_COLORS: Record<string, string> = {
   goleiro:  '#3498DB',
   zagueiro: '#E74C3C',
   lateral:  '#2ECC71',
+  volante:  '#9B59B6',
   meia:     '#F5A623',
   atacante: '#E67E22',
 };
@@ -21,6 +22,16 @@ export const POSITION_LABELS: Record<string, string> = {
   goleiro:  'Goleiro',
   zagueiro: 'Zagueiro',
   lateral:  'Lateral',
+  volante:  'Volante',
   meia:     'Meia',
   atacante: 'Atacante',
 };
+
+export const POSITION_OPTIONS: { value: string; label: string }[] = [
+  { value: 'goleiro', label: 'Goleiro' },
+  { value: 'zagueiro', label: 'Zagueiro' },
+  { value: 'lateral', label: 'Lateral' },
+  { value: 'volante', label: 'Volante' },
+  { value: 'meia', label: 'Meia' },
+  { value: 'atacante', label: 'Atacante' },
+];

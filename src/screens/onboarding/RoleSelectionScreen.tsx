@@ -50,6 +50,8 @@ export function RoleSelectionScreen() {
 
   const handleSelect = (role: UserRole) => {
     setSelectedRole(role);
+    // Optimistically sets isOnboarded = true, then saves to Firestore.
+    // AppNavigator will switch to MainTabNavigator automatically.
     setRole(role);
   };
 

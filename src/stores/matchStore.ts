@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { MatchModel, MatchEvent } from '../types';
-import { generateMockData } from '../data/mockData';
 
 interface MatchState {
   matches: MatchModel[];
   events: MatchEvent[];
+  loading: boolean;
+  setMatches: (matches: MatchModel[]) => void;
+  setEvents: (events: MatchEvent[]) => void;
   addMatches: (matches: MatchModel[]) => void;
   updateMatch: (id: string, updates: Partial<MatchModel>) => void;
   addEvent: (event: MatchEvent) => void;
@@ -12,11 +14,12 @@ interface MatchState {
   startMatch: (id: string) => void;
 }
 
-const { matches: mockMatches, matchEvents: mockEvents } = generateMockData();
-
 export const useMatchStore = create<MatchState>((set) => ({
-  matches: mockMatches,
-  events: mockEvents,
+  matches: [],
+  events: [],
+  loading: true,
+  setMatches: (matches) => set({ matches, loading: false }),
+  setEvents: (events) => set({ events }),
   addMatches: (matches) =>
     set((state) => ({ matches: [...state.matches, ...matches] })),
   updateMatch: (id, updates) =>

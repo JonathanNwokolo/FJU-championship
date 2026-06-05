@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
@@ -94,6 +95,8 @@ export function CreateChampionshipScreen() {
   const [matchVerse, setMatchVerse] = useState(false);
   const [playerOfRound, setPlayerOfRound] = useState(true);
   const [liveMode, setLiveMode] = useState(false);
+  const [registrationDeadline, setRegistrationDeadline] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleCreate = () => {
     if (!name.trim()) {
@@ -120,8 +123,10 @@ export function CreateChampionshipScreen() {
         tiebreakers: tiebreakers.map((t) => t.key),
         fairPlay: fairPlayPrize,
         craqueDaRodada: playerOfRound,
+        yellowCardLimit: yellowSuspend ? parseInt(yellowsToSuspend) || 3 : undefined,
       },
       createdAt: new Date().toISOString(),
+      registrationDeadline: registrationDeadline?.toISOString(),
     };
 
     addChampionship(championship);
@@ -352,6 +357,60 @@ export function CreateChampionshipScreen() {
             onValueChange={setManualApproval}
             description="Cada time precisa de aprovação antes de entrar"
           />
+          
+          {/* Registration Deadline */}
+          <View style={styles.deadlineSection}>
+            <View style={styles.deadlineLabelRow}>
+              <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.deadlineLabel}>Prazo de inscrições</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.deadlineButton}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.deadlineButtonText,
+                !registrationDeadline && styles.deadlineButtonTextPlaceholder
+              ]}>
+                {registrationDeadline 
+                  ? registrationDeadline.toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'Selecionar data limite'}
+              </Text>
+              {registrationDeadline && (
+                <TouchableOpacity 
+                  onPress={() => setRegistrationDeadline(null)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.deadlineHint}>
+              Após essa data, inscrições serão fechadas automaticamente
+            </Text>
+          </View>
+          
+          {showDatePicker && (
+            <DateTimePicker
+              value={registrationDeadline ?? new Date()}
+              mode="datetime"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              minimumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(Platform.OS === 'ios');
+                if (selectedDate) {
+                  setRegistrationDeadline(selectedDate);
+                }
+              }}
+            />
+          )}
         </View>
 
         {/* ── 7. Extras da FJU ── */}
@@ -677,5 +736,48 @@ const styles = StyleSheet.create({
 
   submitButton: {
     marginTop: 32,
+  },
+
+  // ─── Deadline ───
+  deadlineSection: {
+    paddingVertical: 14,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.border,
+    gap: 10,
+  },
+  deadlineLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deadlineLabel: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  deadlineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.bg300,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  deadlineButtonText: {
+    flex: 1,
+    fontFamily: 'Barlow-Medium',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  deadlineButtonTextPlaceholder: {
+    color: colors.textMuted,
+  },
+  deadlineHint: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 });

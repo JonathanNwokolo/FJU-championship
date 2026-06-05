@@ -1,14 +1,14 @@
 import React, { useEffect, useRef } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../stores/authStore';
-import { useChampionshipStore } from '../stores/championshipStore';
+import { useThemeStore } from '../stores/themeStore';
+import { useFirestoreSync } from '../hooks/useFirestoreSync';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabNavigator } from './MainTabNavigator';
-import {
-  registerForPushNotifications,
-  saveTokenToFirestore,
-} from '../services/notificationService';
+import { registerForPushNotifications } from '../services/notificationService';
+import { colors } from '../theme/colors';
 
 // Garante que notificações aparecem mesmo com o app em foreground
 Notifications.setNotificationHandler({
@@ -23,8 +23,21 @@ Notifications.setNotificationHandler({
 
 export function AppNavigator() {
   const isOnboarded = useAuthStore((s) => s.isOnboarded);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
-  const championships = useChampionshipStore((s) => s.championships);
+  const initialize = useAuthStore((s) => s.initialize);
+  const initTheme = useThemeStore((s) => s.initialize);
+
+  useFirestoreSync();
+
+  useEffect(() => {
+    initTheme();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = initialize();
+    return unsubscribe;
+  }, []);
 
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
@@ -33,16 +46,7 @@ export function AppNavigator() {
   // Registra token quando o usuário conclui o onboarding
   useEffect(() => {
     if (!isOnboarded || !user) return;
-
-    (async () => {
-      const token = await registerForPushNotifications();
-      if (!token) return;
-
-      const activeChampionship = championships.find((c) => c.status === 'em_andamento');
-      if (activeChampionship) {
-        await saveTokenToFirestore(user.id, token, activeChampionship.id);
-      }
-    })();
+    registerForPushNotifications(user.id);
   }, [isOnboarded, user?.id]);
 
   // Listeners de notificação
@@ -81,6 +85,14 @@ export function AppNavigator() {
       responseListener.current?.remove();
     };
   }, []);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>

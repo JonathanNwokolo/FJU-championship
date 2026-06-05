@@ -13,18 +13,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { useMuralBadge } from '../hooks/useMuralBadge';
 import { useLiveMatch } from '../hooks/useLiveMatch';
-
-const CHAMP_ID = 'champ-001';
+import { usePendingJoinRequests } from '../hooks/usePendingJoinRequests';
+import { useChampionshipStore } from '../stores/championshipStore';
+import { useAuthStore } from '../stores/authStore';
+import { useTeamStore } from '../stores/teamStore';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TAB_CONFIG: Record<string, { active: IoniconName; inactive: IoniconName }> = {
-  'Início': { active: 'home', inactive: 'home-outline' },
-  'Confrontos': { active: 'calendar', inactive: 'calendar-outline' },
-  'Mural': { active: 'camera', inactive: 'camera-outline' },
-  'Classificação': { active: 'trophy', inactive: 'trophy-outline' },
-  'Artilheiros': { active: 'football', inactive: 'football-outline' },
-  'Mais': { active: 'stats-chart', inactive: 'stats-chart-outline' },
+  Inicio: { active: 'home', inactive: 'home-outline' },
+  Confrontos: { active: 'calendar', inactive: 'calendar-outline' },
+  Mural: { active: 'camera', inactive: 'camera-outline' },
+  Classificacao: { active: 'trophy', inactive: 'trophy-outline' },
+  Artilheiros: { active: 'football', inactive: 'football-outline' },
+  Time: { active: 'shield', inactive: 'shield-outline' },
+  Mais: { active: 'stats-chart', inactive: 'stats-chart-outline' },
+  Perfil: { active: 'person', inactive: 'person-outline' },
 };
 
 function TabItem({
@@ -96,16 +100,29 @@ function TabItem({
 
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const muralHasNew = useMuralBadge(CHAMP_ID);
-  const hasLiveMatch = useLiveMatch(CHAMP_ID);
+  const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
+  const muralHasNew = useMuralBadge(champId);
+  const hasLiveMatch = useLiveMatch(champId);
+  const userRole = useAuthStore((s) => s.user?.role);
+  const userId = useAuthStore((s) => s.user?.id);
+  const allTeams = useTeamStore((s) => s.teams);
+  const captainTeam = allTeams.find((team) => team.captainId === userId);
+  const { count: pendingJoinRequestsCount } = usePendingJoinRequests(captainTeam?.id);
+
+  const hasPendingTeams =
+    userRole === 'organizador' &&
+    allTeams.some((t) => t.status === 'pendente');
 
   const showBadge = useCallback(
     (name: string) => {
+      if (name === 'Inicio') {
+        return hasPendingTeams || (userRole === 'capitao' && pendingJoinRequestsCount > 0);
+      }
       if (name === 'Mural') return muralHasNew;
       if (name === 'Confrontos') return hasLiveMatch;
       return false;
     },
-    [muralHasNew, hasLiveMatch],
+    [hasPendingTeams, hasLiveMatch, muralHasNew, pendingJoinRequestsCount, userRole],
   );
 
   const safeBottom = insets.bottom;

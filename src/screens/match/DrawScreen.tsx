@@ -23,7 +23,11 @@ import { colors } from '../../theme/colors';
 import { useTeamStore } from '../../stores/teamStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
-import { generateRoundRobinFixtures } from '../../utils/roundRobin';
+import {
+  generateRoundRobinFixtures,
+  generateBracketFixtures,
+  generateGroupStageFixtures,
+} from '../../utils/roundRobin';
 import { Team } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
@@ -176,11 +180,44 @@ export function DrawScreen() {
   const [shuffledTeams] = useState<Team[]>(() => fisherYates(approvedTeams));
   const [phase, setPhase] = useState<DrawPhase>('shuffling');
 
-  const totalRounds =
-    approvedTeams.length % 2 === 0
+  const format = championship?.format ?? 'pontos_corridos';
+
+  // Cálculo de rodadas baseado no formato
+  const calculateTotalRounds = () => {
+    if (format === 'mata_mata') {
+      // Mata-mata: log2(n) rodadas
+      return Math.ceil(Math.log2(approvedTeams.length));
+    } else if (format === 'grupos_e_mata_mata') {
+      // Grupos + mata-mata: rodadas dos grupos + rodadas do bracket
+      const teamsPerGroup = Math.ceil(approvedTeams.length / 2); // 2 grupos por padrão
+      const groupRounds = teamsPerGroup - 1;
+      const classifiedTeams = 4; // 2 por grupo
+      const bracketRounds = Math.ceil(Math.log2(classifiedTeams));
+      return groupRounds + bracketRounds;
+    }
+    // Pontos corridos
+    return approvedTeams.length % 2 === 0
       ? approvedTeams.length - 1
       : approvedTeams.length;
-  const totalMatches = totalRounds * Math.floor(approvedTeams.length / 2);
+  };
+
+  const totalRounds = calculateTotalRounds();
+
+  const calculateTotalMatches = () => {
+    if (format === 'mata_mata') {
+      // Mata-mata: n-1 partidas para n times
+      return approvedTeams.length - 1;
+    } else if (format === 'grupos_e_mata_mata') {
+      const teamsPerGroup = Math.ceil(approvedTeams.length / 2);
+      const matchesPerGroup = (teamsPerGroup * (teamsPerGroup - 1)) / 2;
+      const groupMatches = matchesPerGroup * 2;
+      const bracketMatches = 3; // semi + semi + final
+      return groupMatches + bracketMatches;
+    }
+    return totalRounds * Math.floor(approvedTeams.length / 2);
+  };
+
+  const totalMatches = calculateTotalMatches();
 
   useEffect(() => {
     const revealEnd = 2500 + shuffledTeams.length * 200 + 700;
@@ -193,7 +230,25 @@ export function DrawScreen() {
   }, []);
 
   const handleConfirm = () => {
-    const newMatches = generateRoundRobinFixtures(approvedTeams, championshipId);
+    let newMatches;
+
+    if (format === 'mata_mata') {
+      newMatches = generateBracketFixtures(approvedTeams, championshipId);
+    } else if (format === 'grupos_e_mata_mata') {
+      const { groupMatches, groups } = generateGroupStageFixtures(
+        approvedTeams,
+        championshipId,
+        2, // número de grupos
+      );
+      newMatches = groupMatches;
+      // Salvar informação dos grupos no campeonato
+      updateChampionship(championshipId, {
+        groups: groups as any,
+      });
+    } else {
+      newMatches = generateRoundRobinFixtures(approvedTeams, championshipId);
+    }
+
     addMatches(newMatches);
     updateChampionship(championshipId, {
       status: 'em_andamento',

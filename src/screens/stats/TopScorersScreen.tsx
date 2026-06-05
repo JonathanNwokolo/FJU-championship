@@ -1,16 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
+import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useStats } from '../../hooks/useStats';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { colors } from '../../theme/colors';
 import { PlayerScorer } from '../../types';
 
-const CHAMP_ID = 'champ-001';
+type NavProp = NativeStackNavigationProp<HomeStackParamList>;
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -38,9 +42,11 @@ function PositionBadge({ rank }: { rank: number }) {
 function ScorerGroupRow({
   group,
   getPhoto,
+  onOpenAthlete,
 }: {
   group: RankedGroup;
   getPhoto: (playerId: string) => string | undefined;
+  onOpenAthlete: (playerId: string) => void;
 }) {
   return (
     <View style={styles.groupRow}>
@@ -49,7 +55,12 @@ function ScorerGroupRow({
         {group.players.map((player) => {
           const photoUrl = getPhoto(player.playerId);
           return (
-            <View key={player.playerId} style={styles.playerRow}>
+            <TouchableOpacity
+              key={player.playerId}
+              style={styles.playerRow}
+              activeOpacity={0.82}
+              onPress={() => onOpenAthlete(player.playerId)}
+            >
               <View style={[styles.avatar, { borderColor: `${player.teamColor}66` }]}>
                 <Text style={styles.avatarText}>
                   {photoUrl ? '' : getInitials(player.playerName)}
@@ -59,7 +70,7 @@ function ScorerGroupRow({
                 <Text style={styles.playerName} numberOfLines={1}>{player.playerName}</Text>
                 <Text style={styles.teamName} numberOfLines={1}>{player.teamName}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -72,14 +83,16 @@ function ScorerGroupRow({
 }
 
 export function TopScorersScreen() {
-  const { topScorers, totalGoals } = useStats(CHAMP_ID);
+  const navigation = useNavigation<NavProp>();
+  const allChampionships = useChampionshipStore((s) => s.championships);
+  const isLoading = useChampionshipStore((s) => s.loading);
+  const activeChampionship =
+    allChampionships.find((c) => c.status === 'em_andamento') ??
+    allChampionships.find((c) => c.status === 'inscricoes_abertas') ??
+    allChampionships[0];
+  const champId = activeChampionship?.id ?? '';
+  const { topScorers, totalGoals } = useStats(champId);
   const players = useTeamStore((s) => s.players);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 700);
-    return () => clearTimeout(t);
-  }, []);
 
   const grouped = useMemo<RankedGroup[]>(() => {
     const groups: RankedGroup[] = [];
@@ -107,6 +120,15 @@ export function TopScorersScreen() {
 
   const getPhoto = (playerId: string) =>
     players.find((player) => player.id === playerId)?.photoUrl;
+
+  const openAthlete = (playerId: string) => {
+    const player = players.find((item) => item.id === playerId);
+    if (!player?.userId) return;
+    navigation.navigate('AthleteProfile', {
+      userId: player.userId,
+      championshipId: champId,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -148,7 +170,9 @@ export function TopScorersScreen() {
             </View>
             <View style={styles.heroCopy}>
               <Text style={styles.heroEyebrow}>#1 ARTILHEIRO</Text>
-              <Text style={styles.heroName} numberOfLines={2}>{leader.playerName}</Text>
+              <TouchableOpacity activeOpacity={0.82} onPress={() => openAthlete(leader.playerId)}>
+                <Text style={styles.heroName} numberOfLines={2}>{leader.playerName}</Text>
+              </TouchableOpacity>
               <View style={styles.heroTeamRow}>
                 <TeamColorDot color={leader.teamColor} size={10} />
                 <Text style={styles.heroTeam}>{leader.teamName}</Text>
@@ -165,7 +189,9 @@ export function TopScorersScreen() {
       <FlatList
         data={grouped.slice(1)}
         keyExtractor={(item) => `${item.rank}-${item.goals}`}
-        renderItem={({ item }) => <ScorerGroupRow group={item} getPhoto={getPhoto} />}
+        renderItem={({ item }) => (
+          <ScorerGroupRow group={item} getPhoto={getPhoto} onOpenAthlete={openAthlete} />
+        )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           !leader ? (

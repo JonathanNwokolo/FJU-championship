@@ -10,4 +10,5 @@ export { PodiumCard } from './PodiumCard';
 export { EmptyState } from './EmptyState';
 export { TeamColorDot } from './TeamColorDot';
 export { SectionHeader } from './SectionHeader';
+export { SearchBar } from './SearchBar';
 export { SkeletonLoader } from './SkeletonLoader';
