@@ -67,6 +67,7 @@ const FORMAT_OPTIONS: Array<{
     title: 'Grupos + mata-mata',
     desc: 'Grupos e depois eliminatória',
     icon: 'layers-outline',
+    disabled: true,
   },
 ];
 
@@ -592,7 +593,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentGlow,
   },
   formatCardDisabled: {
-    opacity: 0.45,
+    opacity: 0.5,
   },
   formatIconBox: {
     width: 30,

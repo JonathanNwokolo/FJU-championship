@@ -293,13 +293,13 @@ export function DrawFullscreenScreen() {
   const updateChampionship = useChampionshipStore((s) => s.updateChampionship);
 
   const championship = championships.find((c) => c.id === championshipId);
+  const groupsFormatUnavailable = championship?.format === 'grupos_e_mata_mata';
   const approvedTeams = storeTeams.filter(
     (t) => t.championshipId === championshipId && t.status === 'aprovado',
   );
   const teamsById = Object.fromEntries(storeTeams.map((t) => [t.id, t]));
 
-  const isBracket =
-    championship?.format === 'mata_mata' || championship?.format === 'grupos_e_mata_mata';
+  const isBracket = championship?.format === 'mata_mata';
 
   const [phase, setPhase] = useState<Phase>('presenting');
   const [shuffledTeams, setShuffledTeams] = useState<Team[]>(approvedTeams);
@@ -317,6 +317,7 @@ export function DrawFullscreenScreen() {
   const confettiCenter = useRef<any>(null);
   const confettiRight = useRef<any>(null);
   const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const groupsAlertShown = useRef(false);
 
   // Oculta status bar enquanto a tela estiver aberta
   useEffect(() => {
@@ -326,6 +327,13 @@ export function DrawFullscreenScreen() {
       pendingTimers.current.forEach(clearTimeout);
     };
   }, []);
+
+  useEffect(() => {
+    if (!groupsFormatUnavailable || groupsAlertShown.current) return;
+    groupsAlertShown.current = true;
+    Alert.alert('Em breve', 'O formato de grupos será implementado em breve.');
+    navigation.goBack();
+  }, [groupsFormatUnavailable, navigation]);
 
   // Partículas douradas
   const spawnParticles = useCallback(() => {
@@ -461,6 +469,10 @@ export function DrawFullscreenScreen() {
     visibleMatchCount >= currentRoundMatches.length && currentRoundMatches.length > 0;
 
   // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (groupsFormatUnavailable) {
+    return null;
+  }
 
   return (
     <LinearGradient colors={[colors.primaryDark, '#0A1520']} style={styles.root}>
