@@ -396,3 +396,4 @@ Web  ERROR  [2026-06-05T17:48:39.710Z]  @firebase/firestore: Firestore (12.14.0)
 Web  LOG  [notifications] Permission denied
 Web  ERROR  [2026-06-05T17:48:49.722Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
 Web  ERROR  [2026-06-05T17:48:49.734Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. That index is currently building and cannot be used yet. See its status here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=CmFwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvQ0lDQWdPaTNrSkFKEAEaEgoOY2hhbXBpb25zaGlwSWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
+Web Bundled 77ms index.ts (1 module)

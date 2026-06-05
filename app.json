@@ -14,9 +14,8 @@
       "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#080E17",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -32,8 +31,10 @@
         "color": "#F5A623"
       }],
       ["expo-splash-screen", {
+        "image": "./assets/splash-icon.png",
         "backgroundColor": "#080E17",
-        "resizeMode": "contain"
+        "resizeMode": "contain",
+        "imageWidth": 220
       }],
       "expo-image-picker",
       "@react-native-community/datetimepicker"

@@ -3,7 +3,13 @@
     "allow": [
       "Bash(node -e \"try { const m = require\\('firebase/auth/react-native'\\); console.log\\(Object.keys\\(m\\)\\) } catch\\(e\\) { console.log\\('ERROR:', e.message\\) }\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Home\\\\Desktop\\\\WORKS\\\\FJU-championship\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(node -e \"try{require.resolve\\('sharp'\\);console.log\\('sharp: installed'\\)}catch\\(e\\){console.log\\('sharp: NOT installed'\\)}\")",
+      "Bash(node scripts/replaceIcons.js)",
+      "Bash(node -e \"const c=require\\('./app.json'\\); console.log\\('app.json: valid JSON'\\); console.log\\('version:', c.expo.version\\); console.log\\('versionCode:', c.expo.android.versionCode\\); console.log\\('icon:', c.expo.icon\\); console.log\\('projectId:', c.expo.extra.eas.projectId\\); console.log\\('googleServicesFile:', c.expo.android.googleServicesFile\\); const sp=c.expo.plugins.find\\(p=>Array.isArray\\(p\\)&&p[0]==='expo-splash-screen'\\); console.log\\('splash image:', sp[1].image\\);\")",
+      "Bash(tail -30 expo-web.log)",
+      "Bash(ls eas.json)",
+      "Bash(cat eas.json)"
     ]
   },
   "enabledPlugins": {
