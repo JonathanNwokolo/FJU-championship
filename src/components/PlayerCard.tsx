@@ -6,17 +6,50 @@ import { getCardGradient } from '../utils/playerOverall';
 import { POSITION_LABELS } from '../utils/constants';
 
 interface PlayerCardProps {
-  player: Player;
-  team: Team;
-  goals: number;
-  yellowCards: number;
-  redCards: number;
-  overall: number;
-  championshipName: string;
+  player?: Partial<Player> | null;
+  team?: Partial<Team> | null;
+  position?: string;
+  shirtNumber?: number;
+  photoUrl?: string | null;
+  teamColor?: string;
+  goals?: number;
+  yellowCards?: number;
+  redCards?: number;
+  overall?: number;
+  championshipName?: string;
   topAchievements?: AchievementDefinition[];
 }
 
-function getInitials(name: string): string {
+interface BoundaryProps {
+  children: React.ReactNode;
+}
+
+interface BoundaryState {
+  hasError: boolean;
+}
+
+export class PlayerCardErrorBoundary extends React.Component<BoundaryProps, BoundaryState> {
+  state: BoundaryState = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorFallback}>
+          <Text style={styles.errorTitle}>Card nao disponivel</Text>
+          <Text style={styles.errorSubtitle}>Jogue partidas para ativar seu card</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function getInitials(name?: string): string {
+  if (!name) return '?';
   const parts = name.trim().split(' ');
   if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '?';
   return ((parts[0][0] ?? '') + (parts[parts.length - 1][0] ?? '')).toUpperCase();
@@ -25,15 +58,23 @@ function getInitials(name: string): string {
 export function PlayerCard({
   player,
   team,
-  goals,
-  yellowCards,
-  redCards,
-  overall,
-  championshipName,
+  position = 'Atleta',
+  shirtNumber = 0,
+  photoUrl = null,
+  teamColor = '#F5A623',
+  goals = 0,
+  yellowCards = 0,
+  redCards = 0,
+  overall = 50,
+  championshipName = 'Campeonato',
   topAchievements = [],
 }: PlayerCardProps) {
   const gradient = getCardGradient(overall) as [string, string, string];
-  const posLabel = (POSITION_LABELS[player.position] ?? player.position).toUpperCase();
+  const playerName = player?.name ?? 'Atleta';
+  const playerPosition = player?.position ?? position;
+  const posLabel = (POSITION_LABELS[playerPosition as keyof typeof POSITION_LABELS] ?? playerPosition).toUpperCase();
+  const resolvedPhotoUrl = player?.photoUrl ?? photoUrl;
+  const resolvedTeamColor = team?.primaryColor ?? teamColor;
 
   return (
     <LinearGradient
@@ -50,20 +91,20 @@ export function PlayerCard({
 
       {/* Photo / Initials */}
       <View style={styles.photoArea}>
-        {player.photoUrl ? (
-          <Image source={{ uri: player.photoUrl }} style={styles.photo} />
+        {resolvedPhotoUrl ? (
+          <Image source={{ uri: resolvedPhotoUrl }} style={styles.photo} />
         ) : (
           <View style={[styles.photo, styles.initialsContainer]}>
-            <Text style={styles.initialsText}>{getInitials(player.name)}</Text>
+            <Text style={styles.initialsText}>{getInitials(playerName)}</Text>
           </View>
         )}
       </View>
 
       {/* Name */}
-      <Text style={styles.name} numberOfLines={1}>{player.name}</Text>
+      <Text style={styles.name} numberOfLines={1}>{playerName}</Text>
 
       {/* Team shield */}
-      <View style={[styles.teamShield, { backgroundColor: team.primaryColor }]} />
+      <View style={[styles.teamShield, { backgroundColor: resolvedTeamColor }]} />
 
       {/* Divider */}
       <View style={styles.divider} />
@@ -102,7 +143,9 @@ export function PlayerCard({
       )}
 
       {/* Championship name */}
-      <Text style={styles.champName} numberOfLines={1}>{championshipName}</Text>
+      <Text style={styles.champName} numberOfLines={1}>
+        {shirtNumber > 0 ? `#${shirtNumber} · ${championshipName}` : championshipName}
+      </Text>
     </LinearGradient>
   );
 }
@@ -236,5 +279,25 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 12,
     paddingHorizontal: 16,
+  },
+  errorFallback: {
+    width: 280,
+    minHeight: 180,
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: 'rgba(8,14,23,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  errorTitle: {
+    color: '#8A9BB0',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  errorSubtitle: {
+    color: '#4A5568',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

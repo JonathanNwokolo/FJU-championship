@@ -19,7 +19,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { usePlayerStats } from '../../hooks/usePlayerStats';
 import { usePlayerAchievements } from '../../hooks/usePlayerAchievements';
-import { PlayerCard } from '../../components/PlayerCard';
+import { PlayerCard, PlayerCardErrorBoundary } from '../../components/PlayerCard';
 import { AppButton } from '../../components/AppButton';
 import { colors } from '../../theme/colors';
 import { RARITY_ORDER } from '../../utils/achievementDefinitions';
@@ -67,6 +67,9 @@ export function PlayerCardScreen({ route, navigation }: Props) {
 
     (async () => {
       try {
+        const available = await DeviceMotion.isAvailableAsync();
+        if (!available) return;
+
         // iOS 13+ requires permission for DeviceMotion
         if (typeof DeviceMotion.requestPermissionsAsync === 'function') {
           const { status } = await DeviceMotion.requestPermissionsAsync();
@@ -160,16 +163,18 @@ export function PlayerCardScreen({ route, navigation }: Props) {
           <Animated.View style={animatedCardStyle}>
             {/* Capture target — no animated transforms so the image is flat */}
             <View ref={cardRef} collapsable={false}>
-              <PlayerCard
-                player={player}
-                team={team}
-                goals={goals}
-                yellowCards={yellowCards}
-                redCards={redCards}
-                overall={overall}
-                championshipName={championship?.name ?? 'Campeonato'}
-                topAchievements={topAchievements}
-              />
+              <PlayerCardErrorBoundary>
+                <PlayerCard
+                  player={player}
+                  team={team}
+                  goals={goals}
+                  yellowCards={yellowCards}
+                  redCards={redCards}
+                  overall={overall}
+                  championshipName={championship?.name ?? 'Campeonato'}
+                  topAchievements={topAchievements}
+                />
+              </PlayerCardErrorBoundary>
             </View>
 
             {/* Animated glare overlay (not captured) */}

@@ -9,7 +9,20 @@
       "Bash(node -e \"const c=require\\('./app.json'\\); console.log\\('app.json: valid JSON'\\); console.log\\('version:', c.expo.version\\); console.log\\('versionCode:', c.expo.android.versionCode\\); console.log\\('icon:', c.expo.icon\\); console.log\\('projectId:', c.expo.extra.eas.projectId\\); console.log\\('googleServicesFile:', c.expo.android.googleServicesFile\\); const sp=c.expo.plugins.find\\(p=>Array.isArray\\(p\\)&&p[0]==='expo-splash-screen'\\); console.log\\('splash image:', sp[1].image\\);\")",
       "Bash(tail -30 expo-web.log)",
       "Bash(ls eas.json)",
-      "Bash(cat eas.json)"
+      "Bash(cat eas.json)",
+      "Bash(node scripts/verifyBuild.js)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('android:', p.scripts.android\\); console.log\\('ios:', p.scripts.ios\\);\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:19006)",
+      "Bash(node -e \"require\\('playwright'\\)\")",
+      "Bash(node -e \"require\\('puppeteer'\\)\")",
+      "Read(//c/Program Files/Google/Chrome/Application/**)",
+      "Read(//c/Program Files \\(x86\\)/Microsoft/Edge/Application/**)",
+      "Read(//c/Program Files/Microsoft/Edge/Application/**)",
+      "Bash(npm list *)",
+      "Bash(npx puppeteer *)",
+      "Bash(\"/c/Program Files/Google/Chrome/Application/chrome.exe\" --headless=new --screenshot=\"/c/Users/Home/Desktop/screenshot.png\" --window-size=390,844 --hide-scrollbars \"http://localhost:19006\")",
+      "Bash(echo \"exit: $?\")",
+      "Read(//c/Users/Home/Desktop/**)"
     ]
   },
   "enabledPlugins": {

@@ -56,7 +56,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "icons": "node scripts/replaceIcons.js"
+    "icons": "node scripts/replaceIcons.js",
+    "verify": "node scripts/verifyBuild.js"
   },
   "private": true
 }

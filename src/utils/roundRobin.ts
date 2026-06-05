@@ -32,6 +32,15 @@ function fisherYates<T>(arr: T[]): T[] {
   return a;
 }
 
+function uniqueTeamsById(teams: Team[]): Team[] {
+  const seen = new Set<string>();
+  return teams.filter((team) => {
+    if (!team.id || seen.has(team.id)) return false;
+    seen.add(team.id);
+    return true;
+  });
+}
+
 function makeId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = Math.floor(Math.random() * 16);
@@ -82,9 +91,10 @@ export function generateBracketFixtures(
   teams: Team[],
   championshipId: string,
 ): MatchModel[] {
-  if (teams.length < 2) return [];
+  const uniqueTeams = uniqueTeamsById(teams);
+  if (uniqueTeams.length < 2) return [];
 
-  const shuffled = fisherYates(teams);
+  const shuffled = fisherYates(uniqueTeams);
   const result: MatchModel[] = [];
 
   // Arredondar para potência de 2 mais próxima (para cima)
@@ -243,7 +253,9 @@ export function generateRoundRobinFixtures(
   teams: Team[],
   championshipId: string,
 ): MatchModel[] {
-  const shuffled = fisherYates(teams);
+  const shuffled = fisherYates(uniqueTeamsById(teams));
+  if (shuffled.length < 2) return [];
+
   const list: Array<Team | null> = [...shuffled];
   if (list.length % 2 !== 0) list.push(null); // BYE slot
 
@@ -259,6 +271,7 @@ export function generateRoundRobinFixtures(
       // Alternate home/away by round parity
       const home = round % 2 === 0 ? a : b;
       const away = round % 2 === 0 ? b : a;
+      if (home.id === away.id) continue;
 
       result.push({
         id: makeId(),
@@ -286,7 +299,7 @@ export function generateGroupStageFixtures(
   championshipId: string,
   numGroups: number = 2,
 ): { groupMatches: MatchModel[]; groups: Record<string, Team[]> } {
-  const shuffled = fisherYates(teams);
+  const shuffled = fisherYates(uniqueTeamsById(teams));
   const groups: Record<string, Team[]> = {};
   const groupMatches: MatchModel[] = [];
 
@@ -317,6 +330,7 @@ export function generateGroupStageFixtures(
 
         const home = round % 2 === 0 ? a : b;
         const away = round % 2 === 0 ? b : a;
+        if (home.id === away.id) continue;
 
         groupMatches.push({
           id: makeId(),

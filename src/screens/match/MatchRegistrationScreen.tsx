@@ -458,11 +458,11 @@ export function MatchRegistrationScreen() {
       );
 
       if (updatedNextMatch) {
-        // Atualizar a próxima partida com o vencedor
-        const nextMatchUpdate = {
-          homeTeamId: updatedNextMatch.homeTeamId,
-          awayTeamId: updatedNextMatch.awayTeamId,
-        };
+        // Escrever APENAS o campo que mudou para evitar race condition com o outro match do par
+        const bracketPos = updatedMatch.bracketPosition ?? 0;
+        const nextMatchUpdate = bracketPos % 2 === 0
+          ? { homeTeamId: winnerId }
+          : { awayTeamId: winnerId };
         updateMatch(updatedNextMatch.id, nextMatchUpdate);
         updateDocument('matches', updatedNextMatch.id, nextMatchUpdate).catch(console.warn);
       }

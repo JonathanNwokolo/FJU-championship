@@ -29,6 +29,7 @@ import { updateProfile } from 'firebase/auth';
 import { AppCard } from '../../components/AppCard';
 import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
+import { PlayerCard, PlayerCardErrorBoundary } from '../../components/PlayerCard';
 import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
@@ -520,23 +521,21 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
           <AppCard style={styles.fifaCard}>
             <View style={styles.fifaPreview}>
               <View style={styles.previewScale}>
-                {player && team ? (
-                  <LinearGradient colors={overallGradient} style={styles.previewCardShell}>
-                    <Text style={styles.previewOverall}>{overall}</Text>
-                    <Text style={styles.previewPosition}>
-                      {POSITION_LABELS[player.position] ?? player.position}
-                    </Text>
-                    <View style={styles.previewAvatar}>
-                      <Text style={styles.previewAvatarText}>{getInitials(profileName)}</Text>
-                    </View>
-                    <Text style={styles.previewName}>{profileName}</Text>
-                    <View style={[styles.previewTeamDot, { backgroundColor: team.primaryColor }]} />
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.previewEmpty}>
-                    <Text style={styles.previewEmptyText}>Card indisponível</Text>
-                  </View>
-                )}
+                <PlayerCardErrorBoundary>
+                  <PlayerCard
+                    player={player ?? { name: profileName, position: activePosition, photoUrl: profilePhoto }}
+                    team={team ?? { primaryColor: colors.accent }}
+                    position={activePosition}
+                    shirtNumber={player?.number ?? 0}
+                    photoUrl={profilePhoto ?? null}
+                    teamColor={team?.primaryColor ?? colors.accent}
+                    goals={goals}
+                    yellowCards={yellowCards}
+                    redCards={redCards}
+                    overall={overall || 50}
+                    championshipName={activeChampionshipName || 'Sem campeonato ativo'}
+                  />
+                </PlayerCardErrorBoundary>
               </View>
             </View>
 
@@ -595,44 +594,48 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
         {/* ── CARREIRA ── */}
         <View style={styles.sectionWrap}>
           <SectionHeader title="CARREIRA" />
-          <LinearGradient
-            colors={[colors.bg300, colors.bg100]}
-            style={styles.careerHero}
-          >
-            <Text style={styles.careerHeroTitle}>CARREIRA FJU</Text>
+          {careerStats ? (
+            <LinearGradient
+              colors={[colors.bg300, colors.bg100]}
+              style={styles.careerHero}
+            >
+              <Text style={styles.careerHeroTitle}>CARREIRA FJU</Text>
 
-            {/* Grid 2 colunas × 3 linhas */}
-            <View style={styles.careerGrid}>
-              <CareerStatCard icon="🏆" label="TÍTULOS"     value={careerStats?.totalTitles ?? 0}        valueColor={colors.accentLight} />
-              <CareerStatCard icon="⚽" label="GOLS"        value={careerStats?.totalGoals ?? 0}         valueColor={colors.accent} />
-              <CareerStatCard icon="🅰️" label="ASSIST."     value={careerStats?.totalAssists ?? 0}       valueColor={colors.neon} />
-              <CareerStatCard icon="🏟️" label="JOGOS"       value={careerStats?.totalMatches ?? 0}       valueColor={colors.textPrimary} />
-              <CareerStatCard icon="🌟" label="MVPs"        value={careerStats?.totalMvps ?? 0}          valueColor={colors.accentLight} />
-              <CareerStatCard icon="📅" label="TEMPORADAS"  value={careerStats?.totalChampionships ?? 0} valueColor={colors.textSecondary} />
-            </View>
+              <View style={styles.careerGrid}>
+                <CareerStatCard icon="🏆" label="TÍTULOS"     value={careerStats.totalTitles}        valueColor={colors.accentLight} />
+                <CareerStatCard icon="⚽" label="GOLS"        value={careerStats.totalGoals}         valueColor={colors.accent} />
+                <CareerStatCard icon="🅰️" label="ASSIST."     value={careerStats.totalAssists ?? 0}  valueColor={colors.neon} />
+                <CareerStatCard icon="🏟️" label="JOGOS"       value={careerStats.totalMatches}       valueColor={colors.textPrimary} />
+                <CareerStatCard icon="🌟" label="MVPs"        value={careerStats.totalMvps}          valueColor={colors.accentLight} />
+                <CareerStatCard icon="📅" label="TEMPORADAS"  value={careerStats.totalChampionships} valueColor={colors.textSecondary} />
+              </View>
 
-            {/* Melhor temporada */}
-            {careerStats?.bestSeason ? (
-              <AppCard variant="accent" style={styles.bestSeasonCard}>
-                <View style={styles.bestSeasonTopRow}>
-                  <Text style={styles.bestSeasonLabel}>🏅 MELHOR TEMPORADA</Text>
-                  <View style={styles.bestSeasonRight}>
-                    <Text style={styles.bestSeasonYear}>{careerStats.bestSeason}</Text>
-                    {wasBestSeasonChampion && (
-                      <View style={styles.championBadgeSmall}>
-                        <Text style={styles.championBadgeSmallText}>🏆 CAMPEÃO</Text>
-                      </View>
-                    )}
+              {careerStats.bestSeason ? (
+                <AppCard variant="accent" style={styles.bestSeasonCard}>
+                  <View style={styles.bestSeasonTopRow}>
+                    <Text style={styles.bestSeasonLabel}>🏅 MELHOR TEMPORADA</Text>
+                    <View style={styles.bestSeasonRight}>
+                      <Text style={styles.bestSeasonYear}>{careerStats.bestSeason}</Text>
+                      {wasBestSeasonChampion && (
+                        <View style={styles.championBadgeSmall}>
+                          <Text style={styles.championBadgeSmallText}>🏆 CAMPEÃO</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.bestSeasonStats}>
-                  ⚽ {careerStats.bestSeasonGoals} gols · 🏟️ {
-                    history.find((h) => h.season === careerStats.bestSeason)?.matchesPlayed ?? '—'
-                  } partidas · Overall {careerStats.bestOverall}
-                </Text>
-              </AppCard>
-            ) : null}
-          </LinearGradient>
+                  <Text style={styles.bestSeasonStats}>
+                    ⚽ {careerStats.bestSeasonGoals} gols · 🏟️ {
+                      history.find((h) => h.season === careerStats.bestSeason)?.matchesPlayed ?? '—'
+                    } partidas · Overall {careerStats.bestOverall}
+                  </Text>
+                </AppCard>
+              ) : null}
+            </LinearGradient>
+          ) : (
+            <AppCard style={styles.emptyCard}>
+              <Text style={styles.emptyText}>Participe de campeonatos para ver sua carreira.</Text>
+            </AppCard>
+          )}
 
           {resolvedUserId ? (
             <TouchableOpacity

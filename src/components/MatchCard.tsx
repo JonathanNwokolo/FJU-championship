@@ -83,13 +83,23 @@ export function MatchCard({
   const homePenalty = match.homePenaltyScore ?? 0;
   const awayPenalty = match.awayPenaltyScore ?? 0;
   const resultColor = getResultColor(match, userTeamId);
+  const hasInvalidTeams = !!match.homeTeamId && match.homeTeamId === match.awayTeamId;
+  const resolvedAwayTeam = hasInvalidTeams ? undefined : awayTeam;
   const homeGoals = getGoalRows(events, match.homeTeamId);
-  const awayGoals = getGoalRows(events, match.awayTeamId);
+  const awayGoals = hasInvalidTeams ? [] : getGoalRows(events, match.awayTeamId);
   const goalRows = [...homeGoals, ...awayGoals];
   const today = isScheduled && isToday(match.scheduledAt);
   const formattedDate = formatScheduledAt(match.scheduledAt);
 
-  const statusColor = isLive ? colors.neon : isFinished ? colors.bg300 : today ? colors.accent : colors.border;
+  const statusColor = hasInvalidTeams
+    ? colors.danger
+    : isLive
+      ? colors.neon
+      : isFinished
+        ? colors.bg300
+        : today
+          ? colors.accent
+          : colors.border;
 
   return (
     <Pressable
@@ -144,9 +154,9 @@ export function MatchCard({
         </View>
 
         <View style={styles.teamRight}>
-          <TeamColorDot color={awayTeam?.primaryColor ?? colors.textMuted} />
+          <TeamColorDot color={resolvedAwayTeam?.primaryColor ?? colors.textMuted} />
           <Text style={styles.teamNameRight} numberOfLines={2}>
-            {awayTeam?.name ?? 'Time B'}
+            {resolvedAwayTeam?.name ?? 'Time B'}
           </Text>
         </View>
       </View>

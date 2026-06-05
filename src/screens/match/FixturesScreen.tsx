@@ -11,12 +11,12 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Font from 'expo-font';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationProp, useNavigation, useIsFocused } from '@react-navigation/native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { MatchCard } from '../../components/MatchCard';
-import { ScheduleMatchBottomSheet, ScheduleMatchBottomSheetRef } from '../../components/ScheduleMatchBottomSheet';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
@@ -40,8 +40,9 @@ export function FixturesScreen() {
   const teams = useTeamStore((s) => s.teams);
   const players = useTeamStore((s) => s.players);
   const user = useAuthStore((s) => s.user);
-  const scheduleSheetRef = useRef<ScheduleMatchBottomSheetRef>(null);
 
+  const isBarlowMediumLoaded = Font.isLoaded('Barlow-Medium');
+  const isBarlowSemiBoldLoaded = Font.isLoaded('Barlow-SemiBold');
   const isOrganizer = user?.role === 'organizador';
   const activeChampionship =
     championships.find((c) => c.status === 'em_andamento') ??
@@ -165,22 +166,20 @@ export function FixturesScreen() {
   }, []);
 
   const handleMatchPress = (match: MatchModel) => {
-    if (isOrganizer && match.status === 'agendado') {
-      const home = getTeam(match.homeTeamId);
-      const away = getTeam(match.awayTeamId);
-      scheduleSheetRef.current?.open(match, home, away);
-    } else if (match.status === 'finalizado') {
+    const status = match.status as MatchModel['status'] | 'em_andamento';
+
+    if (status === 'finalizado') {
       navigation.navigate('MatchSummary', { matchId: match.id });
-    } else if (match.status === 'ao_vivo') {
-      // Organizer goes to LiveMatch, others go to PreMatch
-      if (isOrganizer) {
-        navigation.navigate('LiveMatch', { matchId: match.id });
-      } else {
-        navigation.navigate('PreMatch', { matchId: match.id });
-      }
-    } else if (match.status === 'agendado') {
-      // Non-organizers can view pre-match info
-      navigation.navigate('PreMatch', { matchId: match.id });
+      return;
+    }
+
+    if (status === 'ao_vivo' || status === 'em_andamento') {
+      navigation.navigate('LiveMatch', { matchId: match.id });
+      return;
+    }
+
+    if (status === 'agendado') {
+      navigation.navigate(isOrganizer ? 'MatchRegistration' : 'PreMatch', { matchId: match.id });
     }
   };
 
@@ -232,7 +231,16 @@ export function FixturesScreen() {
                   active && styles.roundChipScale,
                 ]}
               >
-                <Text style={[styles.roundChipText, active && styles.roundChipTextActive]}>
+                <Text
+                  style={[
+                    styles.roundChipText,
+                    { fontFamily: isBarlowMediumLoaded ? 'Barlow-Medium' : undefined },
+                    active && styles.roundChipTextActive,
+                    active && {
+                      fontFamily: isBarlowSemiBoldLoaded ? 'Barlow-SemiBold' : undefined,
+                    },
+                  ]}
+                >
                   {phase.label}
                 </Text>
                 {active && <View style={styles.roundUnderline} />}
@@ -330,9 +338,6 @@ export function FixturesScreen() {
         />
       </Animated.View>
 
-      {isOrganizer && user && (
-        <ScheduleMatchBottomSheet ref={scheduleSheetRef} userId={user.id} />
-      )}
     </View>
   );
 }
@@ -382,12 +387,10 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   roundChipText: {
-    fontFamily: 'Barlow-Medium',
     fontSize: 13,
     color: colors.textSecondary,
   },
   roundChipTextActive: {
-    fontFamily: 'Barlow-Bold',
     color: colors.bg100,
   },
   roundUnderline: {

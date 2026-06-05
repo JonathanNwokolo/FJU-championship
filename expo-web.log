@@ -1,103 +1,16 @@
 
 > fju-championship@1.0.0 web
-> expo start --web
+> expo start --web --port 8082
 
 Starting project at C:\Users\Home\Desktop\WORKS\FJU-championship
 Starting Metro Bundler
 
-Waiting on http://localhost:8081
+Waiting on http://localhost:8082
+An update for expo is available: 56.0.8 → ~56.0.9
+4 other packages may need updating. Run npx expo install --check for details.
 Logs for your project will appear below.
-Web Bundling failed 3692ms index.ts (1612 modules)
-Unable to resolve "firebase/auth/react-native" from "src\services\firebase.ts"
-[0m [90m 3 |[39m [36mimport[39m { getStorage } [36mfrom[39m [32m'firebase/storage'[39m[33m;[39m
- [90m 4 |[39m [36mimport[39m { initializeAuth[33m,[39m getAuth[33m,[39m browserLocalPersistence } [36mfrom[39m [32m'firebase/auth'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m { getReactNativePersistence } [36mfrom[39m [32m'firebase/auth/react-native'[39m[33m;[39m
- [90m   |[39m                                            [31m[1m^[22m[39m
- [90m 6 |[39m [36mimport[39m { [33mPlatform[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m
- [90m 7 |[39m [36mimport[39m [33mAsyncStorage[39m [36mfrom[39m [32m'@react-native-async-storage/async-storage'[39m[33m;[39m
- [90m 8 |[39m[0m
-
-Import stack:
-
- src\services\firebase.ts
- | import "firebase/auth/react-native"
-
- src\services\notificationService.ts
- | import "./firebase"
-
- src\navigation\AppNavigator.tsx
- | import "../services/notificationService"
-
- App.tsx
- | import "./src/navigation/AppNavigator"
-
- index.ts
- | import "./App"
-
- 
- | import "./index.ts"
-
-Web Bundling failed 593ms index.ts (1433 modules)
-Unable to resolve "firebase/auth/react-native" from "src\services\firebase.ts"
-[0m [90m 3 |[39m [36mimport[39m { getStorage } [36mfrom[39m [32m'firebase/storage'[39m[33m;[39m
- [90m 4 |[39m [36mimport[39m { initializeAuth[33m,[39m getAuth[33m,[39m browserLocalPersistence } [36mfrom[39m [32m'firebase/auth'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m { getReactNativePersistence } [36mfrom[39m [32m'firebase/auth/react-native'[39m[33m;[39m
- [90m   |[39m                                            [31m[1m^[22m[39m
- [90m 6 |[39m [36mimport[39m { [33mPlatform[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m
- [90m 7 |[39m [36mimport[39m [33mAsyncStorage[39m [36mfrom[39m [32m'@react-native-async-storage/async-storage'[39m[33m;[39m
- [90m 8 |[39m[0m
-
-Import stack:
-
- src\services\firebase.ts
- | import "firebase/auth/react-native"
-
- src\services\notificationService.ts
- | import "./firebase"
-
- src\navigation\AppNavigator.tsx
- | import "../services/notificationService"
-
- App.tsx
- | import "./src/navigation/AppNavigator"
-
- index.ts
- | import "./App"
-
- 
- | import "./index.ts"
-
-Web Bundling failed 557ms index.ts (1448 modules)
-Unable to resolve "firebase/auth/react-native" from "src\services\firebase.ts"
-[0m [90m 3 |[39m [36mimport[39m { getStorage } [36mfrom[39m [32m'firebase/storage'[39m[33m;[39m
- [90m 4 |[39m [36mimport[39m { initializeAuth[33m,[39m getAuth[33m,[39m browserLocalPersistence } [36mfrom[39m [32m'firebase/auth'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m { getReactNativePersistence } [36mfrom[39m [32m'firebase/auth/react-native'[39m[33m;[39m
- [90m   |[39m                                            [31m[1m^[22m[39m
- [90m 6 |[39m [36mimport[39m { [33mPlatform[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m
- [90m 7 |[39m [36mimport[39m [33mAsyncStorage[39m [36mfrom[39m [32m'@react-native-async-storage/async-storage'[39m[33m;[39m
- [90m 8 |[39m[0m
-
-Import stack:
-
- src\services\firebase.ts
- | import "firebase/auth/react-native"
-
- src\services\notificationService.ts
- | import "./firebase"
-
- src\navigation\AppNavigator.tsx
- | import "../services/notificationService"
-
- App.tsx
- | import "./src/navigation/AppNavigator"
-
- index.ts
- | import "./App"
-
- 
- | import "./index.ts"
-
-Web Bundled 1047ms index.ts (1527 modules)
+Web Bundled 2446ms index.ts (1594 modules)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
 Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
@@ -107,131 +20,7 @@ Web  LOG  Running application "main" with appParams:
 Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  ERROR  [2026-06-05T13:02:36.881Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:02:36.882Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T13:02:36.989Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:02:37.143Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:02:37.147Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
-Web  ERROR  The action 'NAVIGATE' with payload {"name":"CareerCard","params":{"userId":"Lr0JssfuopOCHZQyfwT8IcZ9Zas2"}} was not handled by any navigator.
-
-Do you have a screen named 'CareerCard'?
-
-If you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.
-
-If you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.
-
-This is a development-only warning and won't be shown in production.
-Web  ERROR  [2026-06-05T13:04:12.511Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:04:12.521Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:04:18.185Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:04:18.186Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  WARN  DateTimePicker is not supported on: web
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664691445)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664693123)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664693331)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664693590)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664707811)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664708809)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664708978)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664709258)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664709519)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664710156)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664710451)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664713280)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664713450)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664713648)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664714536)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664714807)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664715019)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664715213)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664715417)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664715645)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664715842)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664716020)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664748900)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664749087)]
-Web  WARN  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664750000)]
-Web  ERROR  [2026-06-05T13:05:58.347Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:05:58.366Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:07:44.195Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:07:44.205Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664875515)]
-Web  ERROR  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664886560)]
-Web  ERROR  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664907727)]
-Web Bundled 91ms index.ts (1 module)
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T13:08:41.184Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:08:41.185Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:08:41.190Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:08:41.535Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:08:41.572Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [CreateChampionship] failed: [FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field registrationDeadline in document championships/champ-1780664936043)]
-Web Bundled 83ms index.ts (1 module)
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T13:16:49.136Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:16:49.137Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:16:49.138Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:16:49.492Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:16:49.526Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T13:17:40.649Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T13:17:40.650Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:17:40.653Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:17:40.653Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T13:17:40.898Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T13:17:41.073Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:17:41.074Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T13:17:41.093Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web Bundled 131ms index.ts (1 module)
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T13:34:34.642Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:34:34.642Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:34:34.643Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:34:34.821Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T13:34:34.834Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:34:34.836Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:34:34.836Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:34:34.961Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClRwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL18QARoSCg5jaGFtcGlvbnNoaXBJZBABGg0KCWNyZWF0ZWRBdBACGgwKCF9fbmFtZV9fEAI
-Web  ERROR  [2026-06-05T13:34:34.985Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl1wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9pbl9hcHBfbm90aWZpY2F0aW9ucy9pbmRleGVzL18QARoKCgZ1c2VySWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  ERROR  [2026-06-05T13:34:34.986Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web  ERROR  [2026-06-05T13:55:37.296Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T13:55:37.298Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. That index is currently building and cannot be used yet. See its status here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=Cl9wcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9tdXJhbF9wb3N0cy9pbmRleGVzL0NJQ0FnSmlVcG9NSxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web Bundled 141ms index.ts (1 module)
+Web Bundled 98ms index.ts (1 module)
 Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
@@ -243,157 +32,39 @@ Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
 Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T16:29:44.007Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:29:44.153Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:29:54.702Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:29:58.681Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:30:14.404Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:30:28.867Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:30:37.808Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:30:56.490Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:30:56.490Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:30:57.844Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:31:09.301Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:09.301Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:09.301Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:31:28.430Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:28.430Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:31:45.569Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:45.569Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:53.670Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:53.671Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:31:53.852Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:34:12.526Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:34:12.527Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:34:12.527Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:35:01.491Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:01.491Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:01.492Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:02.640Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  [2026-06-05T16:35:06.933Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:06.934Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:06.934Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:06.934Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:35:18.401Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  WARN  could not find scrollable ref!
+Web  ERROR  [2026-06-05T21:47:12.826Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-05T21:47:12.934Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-05T21:47:13.033Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
 Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
-Web  ERROR  [2026-06-05T16:35:36.484Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
+Web Bundled 106ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
 Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T16:43:19.813Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T16:43:26.632Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:43:27.024Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T16:43:33.682Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:43:33.988Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T16:43:41.679Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T16:43:42.029Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T16:58:41.861Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:28:34.727Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:29:56.735Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:38:56.838Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:39:10.686Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:39:14.661Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. You can create it here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=ClZwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvXxABGhIKDmNoYW1waW9uc2hpcElkEAEaDQoJY3JlYXRlZEF0EAIaDAoIX19uYW1lX18QAg
-Web  ERROR  [2026-06-05T17:48:11.645Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:48:26.702Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-05T17:48:26.715Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. That index is currently building and cannot be used yet. See its status here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=CmFwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvQ0lDQWdPaTNrSkFKEAEaEgoOY2hhbXBpb25zaGlwSWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:48:39.700Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-05T17:48:39.710Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. That index is currently building and cannot be used yet. See its status here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=CmFwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvQ0lDQWdPaTNrSkFKEAEaEgoOY2hhbXBpb25zaGlwSWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-05T17:48:49.722Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-05T17:48:49.734Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=failed-precondition]: The query requires an index. That index is currently building and cannot be used yet. See its status here: https://console.firebase.google.com/v1/r/project/fju-championship/firestore/indexes?create_composite=CmFwcm9qZWN0cy9manUtY2hhbXBpb25zaGlwL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9hbm5vdW5jZW1lbnRzL2luZGV4ZXMvQ0lDQWdPaTNrSkFKEAEaEgoOY2hhbXBpb25zaGlwSWQQARoNCgljcmVhdGVkQXQQAhoMCghfX25hbWVfXxAC
-Web Bundled 77ms index.ts (1 module)
+Web  ERROR  [2026-06-05T21:47:55.421Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-05T21:47:55.538Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-05T21:47:55.691Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  WARN  Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
+Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
+Web  ERROR  The action 'NAVIGATE' with payload {"name":"CareerCard","params":{"userId":"Lr0JssfuopOCHZQyfwT8IcZ9Zas2"}} was not handled by any navigator.
+
+Do you have a screen named 'CareerCard'?
+
+If you're trying to navigate to a screen in a nested navigator, see https://reactnavigation.org/docs/nesting-navigators#navigating-to-a-screen-in-a-nested-navigator.
+
+If you're using conditional rendering, navigation will happen automatically and you shouldn't navigate manually, see.
+
+This is a development-only warning and won't be shown in production.
