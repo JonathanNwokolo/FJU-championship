@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   shimmerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
