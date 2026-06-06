@@ -1,18 +1,17 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { AppCard } from '../../components/AppCard';
 import { SectionHeader } from '../../components/SectionHeader';
-import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import { TAB_NAMES } from '../../navigation/constants';
 import { useStats } from '../../hooks/useStats';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { colors } from '../../theme/colors';
 import { SuspendedPlayer } from '../../types';
 
-type NavProp = NativeStackNavigationProp<HomeStackParamList>;
+type NavProp = NavigationProp<Record<string, object | undefined>>;
 
 function HighlightCard({
   icon,
@@ -85,9 +84,12 @@ export function StatsOverviewScreen() {
   const openAthlete = (playerId: string) => {
     const player = players.find((item) => item.id === playerId);
     if (!player?.userId) return;
-    navigation.navigate('AthleteProfile', {
-      userId: player.userId,
-      championshipId: champId,
+    navigation.navigate(TAB_NAMES.PERFIL, {
+      screen: 'AthleteProfile',
+      params: {
+        userId: player.userId,
+        championshipId: champId,
+      },
     });
   };
 

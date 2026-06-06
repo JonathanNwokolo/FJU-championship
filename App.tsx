@@ -16,6 +16,7 @@ import {
 } from '@expo-google-fonts/barlow';
 import Toast, { BaseToast, ErrorToast, InfoToast, ToastConfig } from 'react-native-toast-message';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { colors } from './src/theme/colors';
 
 SplashScreen.preventAutoHideAsync();
@@ -116,7 +117,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <AppNavigator />
+        <ErrorBoundary>
+          <AppNavigator />
+        </ErrorBoundary>
         <Toast config={toastConfig} />
       </SafeAreaProvider>
     </GestureHandlerRootView>

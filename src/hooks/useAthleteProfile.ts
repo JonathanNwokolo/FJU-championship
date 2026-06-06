@@ -194,7 +194,7 @@ export function useAthleteProfile(userId?: string, championshipId?: string) {
     return () => {
       isMounted = false;
     };
-  }, [activeChampionshipId, allAchievements, championships, matches, players, teams, userId]);
+  }, [activeChampionshipId, allAchievements.length, championships.length, matches.length, players.length, teams.length, userId]);
 
   return { ...data, loading };
 }

@@ -6,20 +6,20 @@ React Native + Expo (managed workflow) + TypeScript + Firebase JS SDK (Firestore
 ## Design System
 
 ### Cores
-primaryDark: #0D1B2A | primary: #1B2838 | accent: #F5A623 (dourado, COR ASSINATURA) | accentLight: #FFD700
-success: #2ECC71 | danger: #E74C3C | warning: #F39C12
-background: #FFFFFF | surface: #F5F5F5 | textPrimary: #1A1A1A | textSecondary: #6B6B6B | border: #E0E0E0
+background: #080E17 | primaryDark: #0D1B2A | primary: #1B2838 | accent: #F5A623 (dourado, COR ASSINATURA) | accentLight: #FFD700
+success: #00C853 | danger: #FF3B47 | warning: #F39C12
+surface: #F5F5F5 | textPrimary: #1A1A1A | textSecondary: #6B6B6B | border: #E0E0E0
 
 ### Regra principal
-Light base + Dark hero: telas gerais têm fundo branco. Headers hero, login, sorteio, card do atleta usam fundo primaryDark.
+Light base + Dark hero: telas gerais têm fundo branco. Headers hero, login, sorteio, card do atleta usam fundo primaryDark (#080E17).
 
 ### Accent (#F5A623) só em
 Botões primários, líder da classificação, badges importantes, tabs ativas, destaques de gol.
 
 ### Componentes
-AppButton primary: fundo accent, texto #0D1B2A, height 50, radius 14, sombra dourada sutil
+AppButton primary: fundo accent, texto #080E17, height 52, radius 14, sombra dourada sutil
 AppCard: fundo branco, radius 16, sombra leve (shadowOpacity 0.06), sem borda
-AppTextField: fundo surface, radius 12, height 50, borda accent no focus
+AppTextField: fundo surface, radius 12, height 52, borda accent no focus
 AppToggle: label esquerda, Switch direita, trackColor accent quando on
 
 ### Padrões de tela
@@ -30,7 +30,7 @@ AppToggle: label esquerda, Switch direita, trackColor accent quando on
 - Sorteio: estilo esports (tela dark, animação dramática, partículas douradas)
 
 ### Fonte
-Inter (Google Fonts via Expo)
+Barlow (Google Fonts via Expo)
 
 ## Estrutura de pastas
 src/components, screens, types, stores, services, data, theme, utils, navigation

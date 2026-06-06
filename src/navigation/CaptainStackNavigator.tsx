@@ -4,15 +4,27 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CaptainDashboardScreen } from '../screens/team/CaptainDashboardScreen';
 import { ManageRosterScreen } from '../screens/team/ManageRosterScreen';
+import { InviteShareScreen } from '../screens/team/InviteShareScreen';
 import { PlayerCardScreen } from '../screens/player/PlayerCardScreen';
+import { PlayerAchievementsScreen } from '../screens/player/PlayerAchievementsScreen';
+import { PlayerStatsDetailScreen } from '../screens/player/PlayerStatsDetailScreen';
 import { AthleteProfileScreen } from '../screens/home/AthleteProfileScreen';
+import { EditProfileScreen } from '../screens/home/EditProfileScreen';
+import { CareerCardScreen } from '../screens/player/CareerCardScreen';
+import { AnnouncementsScreen } from '../screens/championship/AnnouncementsScreen';
 import { colors } from '../theme/colors';
 
 export type CaptainStackParamList = {
   CaptainDashboard: undefined;
   ManageRoster: { teamId: string };
+  InviteShare: { teamId: string };
   PlayerCard: { playerId: string; championshipId: string };
+  PlayerAchievements: { playerId: string; championshipId: string };
+  PlayerStatsDetail: { playerId: string; championshipId: string };
   AthleteProfile: { userId?: string; championshipId?: string } | undefined;
+  EditProfile: undefined;
+  CareerCard: { userId: string };
+  Announcements: { championshipId: string };
 };
 
 const Stack = createNativeStackNavigator<CaptainStackParamList>();
@@ -50,13 +62,43 @@ export function CaptainStackNavigator() {
         options={{ title: 'Elenco' }}
       />
       <Stack.Screen
+        name="InviteShare"
+        component={InviteShareScreen}
+        options={{ title: 'Convidar para o time' }}
+      />
+      <Stack.Screen
         name="PlayerCard"
         component={PlayerCardScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="PlayerAchievements"
+        component={PlayerAchievementsScreen}
+        options={{ title: 'Conquistas' }}
+      />
+      <Stack.Screen
+        name="PlayerStatsDetail"
+        component={PlayerStatsDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="AthleteProfile"
         component={AthleteProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CareerCard"
+        component={CareerCardScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Announcements"
+        component={AnnouncementsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

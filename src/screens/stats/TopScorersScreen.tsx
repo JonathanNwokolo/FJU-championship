@@ -1,20 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
-import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import { TAB_NAMES } from '../../navigation/constants';
 import { useStats } from '../../hooks/useStats';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { colors } from '../../theme/colors';
 import { PlayerScorer } from '../../types';
 
-type NavProp = NativeStackNavigationProp<HomeStackParamList>;
+type NavProp = NavigationProp<Record<string, object | undefined>>;
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -124,9 +123,12 @@ export function TopScorersScreen() {
   const openAthlete = (playerId: string) => {
     const player = players.find((item) => item.id === playerId);
     if (!player?.userId) return;
-    navigation.navigate('AthleteProfile', {
-      userId: player.userId,
-      championshipId: champId,
+    navigation.navigate(TAB_NAMES.PERFIL, {
+      screen: 'AthleteProfile',
+      params: {
+        userId: player.userId,
+        championshipId: champId,
+      },
     });
   };
 

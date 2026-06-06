@@ -67,6 +67,7 @@ export function SearchBar({
           onBlur={handleBlur}
           autoCapitalize="none"
           autoCorrect={false}
+          accessibilityLabel="Campo de busca"
           {...rest}
         />
         {value.length > 0 && (

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import Constants from 'expo-constants';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +22,8 @@ import { colors, shadows } from '../../theme/colors';
 import { auth } from '../../services/firebase';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { AuthBackground } from './AuthBackground';
+
+const version = Constants.expoConfig?.version ?? '1.0.0';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
@@ -158,7 +161,7 @@ export function LoginScreen({ navigation }: Props) {
             />
           </Animated.View>
 
-          <Text style={styles.version}>v1.0.0</Text>
+          <Text style={styles.version}>v{version}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </AuthBackground>

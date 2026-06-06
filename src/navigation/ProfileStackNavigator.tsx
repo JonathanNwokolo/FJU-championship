@@ -6,6 +6,8 @@ import { AthleteProfileScreen } from '../screens/home/AthleteProfileScreen';
 import { PlayerCardScreen } from '../screens/player/PlayerCardScreen';
 import { PlayerAchievementsScreen } from '../screens/player/PlayerAchievementsScreen';
 import { PlayerStatsDetailScreen } from '../screens/player/PlayerStatsDetailScreen';
+import { EditProfileScreen } from '../screens/home/EditProfileScreen';
+import { CareerCardScreen } from '../screens/player/CareerCardScreen';
 import { HomeStackParamList } from './HomeStackNavigator';
 import { colors } from '../theme/colors';
 
@@ -48,6 +50,16 @@ export function ProfileStackNavigator() {
       <Stack.Screen
         name="PlayerStatsDetail"
         component={PlayerStatsDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CareerCard"
+        component={CareerCardScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

@@ -89,6 +89,8 @@ export function AppButton({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
       style={[
         styles.base,
         fullWidth && styles.fullWidth,
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   primaryText: {
-    color: colors.textPrimary,
+    color: '#080E17',
   },
   outlineText: {
     color: colors.accent,

@@ -100,6 +100,7 @@ export function AppTextField({
           secureTextEntry={hidden}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          accessibilityLabel={label || placeholder}
           style={styles.input}
         />
         {secureTextEntry && (
