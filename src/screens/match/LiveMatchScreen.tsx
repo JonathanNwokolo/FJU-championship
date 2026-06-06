@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TeamColorDot } from '../../components/TeamColorDot';
+import { TeamLogo } from '../../components/TeamLogo';
 import { Badge } from '../../components/Badge';
 import { colors, gradients } from '../../theme/colors';
 import { useMatchStore } from '../../stores/matchStore';
@@ -219,7 +220,11 @@ export function LiveMatchScreen() {
 
           <View style={styles.scoreRow}>
             <View style={styles.teamColumn}>
-              <TeamColorDot color={homeTeam?.primaryColor ?? colors.textMuted} size={14} />
+              {homeTeam ? (
+                <TeamLogo team={homeTeam} size={48} />
+              ) : (
+                <TeamColorDot color={colors.textMuted} size={14} />
+              )}
               <Text style={styles.teamName} numberOfLines={2}>
                 {homeTeam?.name ?? 'Casa'}
               </Text>
@@ -237,7 +242,11 @@ export function LiveMatchScreen() {
               <Text style={[styles.teamName, styles.teamNameRight]} numberOfLines={2}>
                 {awayTeam?.name ?? 'Fora'}
               </Text>
-              <TeamColorDot color={awayTeam?.primaryColor ?? colors.textMuted} size={14} />
+              {awayTeam ? (
+                <TeamLogo team={awayTeam} size={48} />
+              ) : (
+                <TeamColorDot color={colors.textMuted} size={14} />
+              )}
             </View>
           </View>
         </SafeAreaView>

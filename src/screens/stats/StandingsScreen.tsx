@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { captureRef } from 'react-native-view-shot';
 import { PodiumCard } from '../../components/PodiumCard';
 import { TeamColorDot } from '../../components/TeamColorDot';
+import { TeamLogo } from '../../components/TeamLogo';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { useStats } from '../../hooks/useStats';
@@ -116,6 +117,7 @@ function StandingRow({
   expanded,
   onPress,
   form,
+  teams,
 }: {
   item: TeamStanding;
   index: number;
@@ -123,11 +125,13 @@ function StandingRow({
   expanded: boolean;
   onPress: () => void;
   form: FormResult[];
+  teams: Team[];
 }) {
   const position = index + 1;
   const goalDiff = item.goalDifference;
   const goalDiffText = goalDiff > 0 ? `+${goalDiff}` : `${goalDiff}`;
   const rowBg = index % 2 === 0 ? colors.bg200 : colors.bg100;
+  const team = teams.find((t) => t.id === item.teamId);
 
   return (
     <TouchableOpacity activeOpacity={0.82} onPress={onPress}>
@@ -151,9 +155,13 @@ function StandingRow({
         </View>
 
         <View style={styles.teamCell}>
-          <TeamColorDot color={item.primaryColor} size={10} />
+          {team ? (
+            <TeamLogo team={team} size={20} />
+          ) : (
+            <TeamColorDot color={item.primaryColor} size={10} />
+          )}
           <Text style={styles.teamName} numberOfLines={1}>{item.teamName}</Text>
-          {isUserTeam && <Text style={styles.userArrow}>›</Text>}
+          {isUserTeam && <Text style={styles.userArrow}>{'>'}</Text>}
         </View>
 
         <Text style={[styles.pointsCell, { width: W.pts }]}>{item.points}</Text>
@@ -358,6 +366,7 @@ export function StandingsScreen() {
               setExpandedTeamId((current) => (current === item.teamId ? null : item.teamId))
             }
             form={formByTeam[item.teamId] ?? []}
+            teams={teams}
           />
         )}
         ListEmptyComponent={

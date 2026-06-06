@@ -25,6 +25,7 @@ const TAB_CONFIG: Record<string, { active: IoniconName; inactive: IoniconName }>
   Classificacao: { active: 'trophy', inactive: 'trophy-outline' },
   Artilheiros: { active: 'football', inactive: 'football-outline' },
   Time: { active: 'shield', inactive: 'shield-outline' },
+  Campeonatos: { active: 'trophy', inactive: 'trophy-outline' },
   Mais: { active: 'stats-chart', inactive: 'stats-chart-outline' },
   Perfil: { active: 'person', inactive: 'person-outline' },
 };

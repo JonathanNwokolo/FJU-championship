@@ -31,11 +31,12 @@ export async function setDocument<T extends object>(
   collectionName: string,
   docId: string,
   data: T
-): Promise<void> {
+): Promise<string> {
   await setDoc(doc(db, collectionName, docId), {
     ...data,
     createdAt: serverTimestamp(),
   });
+  return docId;
 }
 
 /**

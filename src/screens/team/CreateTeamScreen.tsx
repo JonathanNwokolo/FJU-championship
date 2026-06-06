@@ -10,11 +10,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppTextField } from '../../components/AppTextField';
 import { AppButton } from '../../components/AppButton';
+import { TeamShieldPicker } from '../../components/TeamShieldPicker';
+import { TeamLogo } from '../../components/TeamLogo';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
@@ -23,6 +26,7 @@ import { TEAM_COLORS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { createInviteLink, createTeamInvite, generateInviteCode } from '../../services/inviteService';
 import { setDocument, getCollection } from '../../services/firestore';
+import { uploadTeamLogo } from '../../services/imageUpload';
 import { Team } from '../../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CreateTeam'>;
@@ -42,8 +46,27 @@ export function CreateTeamScreen({ route, navigation }: Props) {
   const [nameError, setNameError] = useState('');
   const [primaryColor, setPrimaryColor] = useState(TEAM_COLORS[0]);
   const [secondaryColor, setSecondaryColor] = useState(TEAM_COLORS[7]);
+  const [logoPreset, setLogoPreset] = useState<string | undefined>(undefined);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<SuccessState | null>(null);
+
+  // Temporary team ID for logo upload before team creation
+  const [tempTeamId] = useState(() => `team-${Date.now()}`);
+
+  const handleShieldSelect = (selection: { type: 'preset'; id: string } | { type: 'custom'; url: string }) => {
+    if (selection.type === 'preset') {
+      setLogoPreset(selection.id);
+      setLogoUrl(undefined);
+    } else {
+      setLogoUrl(selection.url);
+      setLogoPreset(undefined);
+    }
+  };
+
+  const handleUploadLogo = async (localUri: string): Promise<string> => {
+    return uploadTeamLogo(localUri, tempTeamId);
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -109,7 +132,7 @@ export function CreateTeamScreen({ route, navigation }: Props) {
     try {
       const inviteCode = await generateInviteCode();
       const inviteLink = createInviteLink(inviteCode);
-      const teamId = `team-${Date.now()}`;
+      const teamId = tempTeamId;
       const team: Team = {
         id: teamId,
         championshipId,
@@ -124,12 +147,14 @@ export function CreateTeamScreen({ route, navigation }: Props) {
         registrationOpen: true,
         pendingRequests: [],
         createdAt: new Date().toISOString(),
+        ...(logoPreset && { logoPreset }),
+        ...(logoUrl && { logoUrl }),
       };
 
-      await setDocument('teams', teamId, team);
+      const createdTeamId = await setDocument('teams', teamId, team);
       await createTeamInvite(team);
       addTeam(team);
-      setSuccess({ teamId, teamName: team.name, inviteCode });
+      setSuccess({ teamId: createdTeamId, teamName: team.name, inviteCode });
     } catch (error) {
       console.warn('[CreateTeamScreen] create team failed:', error);
       Toast.show({
@@ -191,6 +216,16 @@ export function CreateTeamScreen({ route, navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {user?.role === 'atleta' && (
+            <View style={styles.athleteBanner}>
+              <Ionicons name="information-circle" size={20} color={colors.accent} />
+              <Text style={styles.athleteBannerText}>
+                Ao criar um time, você se torna capitão dele. Você continuará como atleta em outras
+                partidas.
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.sectionLabel}>NOME DO TIME</Text>
           <AppTextField
             value={name}
@@ -208,8 +243,34 @@ export function CreateTeamScreen({ route, navigation }: Props) {
           <Text style={styles.sectionLabel}>COR SECUNDARIA</Text>
           <ColorPicker selected={secondaryColor} onSelect={setSecondaryColor} exclude={primaryColor} />
 
+          <Text style={styles.sectionLabel}>ESCUDO DO TIME</Text>
+          <TeamShieldPicker
+            primaryColor={primaryColor}
+            selectedPreset={logoPreset}
+            selectedLogoUrl={logoUrl}
+            onSelect={handleShieldSelect}
+            onUploadImage={handleUploadLogo}
+          />
+
           <Text style={styles.sectionLabel}>PREVIA</Text>
           <View style={[styles.preview, { backgroundColor: primaryColor }]}>
+            <TeamLogo
+              team={{
+                id: tempTeamId,
+                name: name.trim() || 'Time',
+                primaryColor,
+                secondaryColor,
+                logoPreset,
+                logoUrl,
+                championshipId,
+                captainId: user?.id ?? '',
+                status: 'pendente',
+                inviteCode: '',
+                createdAt: '',
+              }}
+              size={44}
+              style={styles.previewLogo}
+            />
             <Text style={[styles.previewText, { color: secondaryColor }]}>
               {name.trim() || 'Nome do time'}
             </Text>
@@ -293,6 +354,24 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 40,
   },
+  athleteBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  athleteBannerText: {
+    flex: 1,
+    fontFamily: 'Barlow-Medium',
+    fontSize: 13,
+    color: colors.textPrimary,
+    lineHeight: 18,
+  },
   sectionLabel: {
     fontFamily: 'Barlow-SemiBold',
     fontSize: 12,
@@ -308,6 +387,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 64,
+    gap: 12,
+  },
+  previewLogo: {
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   previewText: {
     fontFamily: 'Barlow-Bold',

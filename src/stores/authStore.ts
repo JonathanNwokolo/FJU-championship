@@ -13,6 +13,7 @@ import { useTeamStore } from './teamStore';
 import { useMatchStore } from './matchStore';
 import { useAchievementStore } from './achievementStore';
 import { useVotingStore } from './votingStore';
+import { useContextStore } from './contextStore';
 
 interface AuthState {
   user: AppUser | null;
@@ -60,11 +61,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     useMatchStore.setState({ matches: [], events: [], loading: true });
     useAchievementStore.getState().reset();
     useVotingStore.getState().reset();
+    useContextStore.getState().reset();
     await useVotingStore.persist.clearStorage();
     await useAchievementStore.persist.clearStorage();
+    await useContextStore.persist.clearStorage();
     await AsyncStorage.multiRemove([
       'fju-voting-storage',
       'fju-achievements-storage',
+      'fju-active-context',
       'pushToken',
     ]);
     set({ user: null, isOnboarded: false });

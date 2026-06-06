@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, {
@@ -30,6 +31,7 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { ChampionshipHistoryCard } from '../../components/ChampionshipHistoryCard';
+import { RoleContextSwitch } from '../../components/RoleContextSwitch';
 import { SearchBar } from '../../components/SearchBar';
 import { EmptyState } from '../../components/EmptyState';
 import { useChampionshipHistory } from '../../hooks/useChampionshipHistory';
@@ -39,7 +41,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { Championship, MatchModel, Team, UserRole } from '../../types';
+import { getCollection } from '../../services/firestore';
+import { Championship, MatchModel, Team, UserRole, Player } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { colors, gradients, shadows } from '../../theme/colors';
 
@@ -146,6 +149,7 @@ function StickyHeader({
   userName,
   userPhotoUrl,
   unreadCount,
+  isOrganizer,
   onOpenRoleSwitcher,
   onAvatarPress,
   onBellPress,
@@ -155,6 +159,7 @@ function StickyHeader({
   userName?: string;
   userPhotoUrl?: string;
   unreadCount: number;
+  isOrganizer: boolean;
   onOpenRoleSwitcher: () => void;
   onAvatarPress: () => void;
   onBellPress: () => void;
@@ -178,9 +183,20 @@ function StickyHeader({
             </View>
           )}
         </Pressable>
-        <Pressable onPress={onOpenRoleSwitcher}>
-          <Text style={styles.hello} numberOfLines={1}>Olá, {userName}</Text>
-        </Pressable>
+        {isOrganizer ? (
+          // Organizador não troca de perfil: badge fixo, sem abrir o RoleSwitcher.
+          <View style={styles.organizerCluster}>
+            <Text style={styles.hello} numberOfLines={1}>Olá, {userName}</Text>
+            <View style={styles.organizerBadge}>
+              <MaterialCommunityIcons name="shield-crown" size={13} color={colors.accent} />
+              <Text style={styles.organizerBadgeText}>Organizador</Text>
+            </View>
+          </View>
+        ) : (
+          <Pressable onPress={onOpenRoleSwitcher}>
+            <Text style={styles.hello} numberOfLines={1}>Olá, {userName}</Text>
+          </Pressable>
+        )}
       </View>
       <View style={styles.headerActions}>
         <Pressable onPress={onSearchPress} style={styles.bellWrap}>
@@ -811,7 +827,15 @@ export function HomeScreen() {
   const unreadCount = inAppUnread + announcementsUnread;
   const [modalVisible, setModalVisible] = useState(false);
   const [champSelectorVisible, setChampSelectorVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const scrollY = useSharedValue(0);
+
+  // Dualidade Atleta/Capitão: um atleta também é capitão se tiver algum time seu.
+  const captainTeam = useMemo(
+    () => teams.find((t) => t.captainId === user?.id),
+    [teams, user?.id],
+  );
+  const isCaptain = !!captainTeam;
 
   const activeChampionship = useMemo(
     () =>
@@ -821,6 +845,31 @@ export function HomeScreen() {
       championships[0],
     [championships, selectedChampionshipId],
   );
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    if (!activeChampionship?.id) return;
+    setRefreshing(true);
+    try {
+      const champId = activeChampionship.id;
+      const [freshMatches, freshTeams, freshPlayers] = await Promise.all([
+        getCollection<MatchModel>('matches', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Team>('teams', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Player>('players', [{ field: 'championshipId', operator: '==', value: champId }]),
+      ]);
+      // Merge fresh data into stores
+      const prevMatches = useMatchStore.getState().matches.filter((m) => m.championshipId !== champId);
+      useMatchStore.getState().setMatches([...prevMatches, ...freshMatches]);
+      const prevTeams = useTeamStore.getState().teams.filter((t) => t.championshipId !== champId);
+      const prevPlayers = useTeamStore.getState().players.filter((p) => p.championshipId !== champId);
+      useTeamStore.getState().setTeams([...prevTeams, ...freshTeams]);
+      useTeamStore.setState({ players: [...prevPlayers, ...freshPlayers] });
+    } catch (e) {
+      console.warn('[HomeScreen] onRefresh error:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [activeChampionship?.id]);
 
   const championshipTeams = useMemo(
     () =>
@@ -874,11 +923,13 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <RoleSwitcherModal
-        visible={modalVisible}
-        currentRole={role}
-        onClose={() => setModalVisible(false)}
-      />
+      {role !== 'organizador' && (
+        <RoleSwitcherModal
+          visible={modalVisible}
+          currentRole={role}
+          onClose={() => setModalVisible(false)}
+        />
+      )}
       {championships.length > 1 && (
         <ChampionshipSelectorModal
           visible={champSelectorVisible}
@@ -896,11 +947,23 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+            progressBackgroundColor={colors.bg200}
+            title="Atualizando..."
+            titleColor={colors.textSecondary}
+          />
+        }
       >
         <StickyHeader
           userName={user?.name}
           userPhotoUrl={myPlayer?.photoUrl}
           unreadCount={unreadCount}
+          isOrganizer={role === 'organizador'}
           onOpenRoleSwitcher={() => setModalVisible(true)}
           onAvatarPress={() => navigation.navigate('AthleteProfile')}
           onBellPress={() => navigation.navigate('NotificationCenter')}
@@ -940,6 +1003,16 @@ export function HomeScreen() {
             teams={teams}
             matches={matches}
           />
+        )}
+
+        {!isLoading && role === 'atleta' && (
+          <View style={styles.section}>
+            <RoleContextSwitch
+              isCaptain={isCaptain}
+              captainTeamName={captainTeam?.name}
+              onCreateTeam={() => navigation.navigate('AvailableChampionships')}
+            />
+          </View>
         )}
 
         {!isLoading && (role === 'capitao' || role === 'atleta') && (
@@ -1103,6 +1176,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Regular',
     fontSize: 15,
     color: colors.textPrimary,
+  },
+  organizerCluster: {
+    flex: 1,
+  },
+  organizerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  organizerBadgeText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 11,
+    letterSpacing: 0.5,
+    color: colors.accent,
+    textTransform: 'uppercase',
   },
   headerActions: {
     flexDirection: 'row',

@@ -58,7 +58,6 @@ export function PlayerCardScreen({ route, navigation }: Props) {
     [unlocked],
   );
 
-  // ── 3D device motion ───────────────────────────────────────────────────────
   const rotateX = useSharedValue(0);
   const rotateY = useSharedValue(0);
 
@@ -70,7 +69,6 @@ export function PlayerCardScreen({ route, navigation }: Props) {
         const available = await DeviceMotion.isAvailableAsync();
         if (!available) return;
 
-        // iOS 13+ requires permission for DeviceMotion
         if (typeof DeviceMotion.requestPermissionsAsync === 'function') {
           const { status } = await DeviceMotion.requestPermissionsAsync();
           if (status !== 'granted') return;
@@ -103,7 +101,6 @@ export function PlayerCardScreen({ route, navigation }: Props) {
     opacity: Math.abs(rotateY.value) / 15,
   }));
 
-  // ── Share ──────────────────────────────────────────────────────────────────
   const cardRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -149,7 +146,6 @@ export function PlayerCardScreen({ route, navigation }: Props) {
       style={styles.root}
     >
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        {/* Header with back button */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -158,10 +154,8 @@ export function PlayerCardScreen({ route, navigation }: Props) {
           <View style={styles.backBtn} />
         </View>
 
-        {/* Card with 3D effect */}
         <View style={styles.center}>
           <Animated.View style={animatedCardStyle}>
-            {/* Capture target — no animated transforms so the image is flat */}
             <View ref={cardRef} collapsable={false}>
               <PlayerCardErrorBoundary>
                 <PlayerCard
@@ -177,7 +171,6 @@ export function PlayerCardScreen({ route, navigation }: Props) {
               </PlayerCardErrorBoundary>
             </View>
 
-            {/* Animated glare overlay (not captured) */}
             <Animated.View
               style={[StyleSheet.absoluteFill, animatedGlareStyle]}
               pointerEvents="none"
@@ -192,7 +185,6 @@ export function PlayerCardScreen({ route, navigation }: Props) {
           </Animated.View>
         </View>
 
-        {/* Share + Achievements + Stats buttons */}
         <View style={styles.shareArea}>
           <View style={styles.btnRow}>
             <AppButton

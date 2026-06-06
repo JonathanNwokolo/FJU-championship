@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
@@ -25,6 +25,7 @@ import { AppTextField } from '../../components/AppTextField';
 import { AppToggle } from '../../components/AppToggle';
 import { SectionHeader } from '../../components/SectionHeader';
 import { useAuthStore } from '../../stores/authStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { Championship, ChampionshipFormat } from '../../types';
 import { colors } from '../../theme/colors';
 import { generateInviteCode } from '../../utils/generateInviteCode';
@@ -42,6 +43,26 @@ const DEFAULT_TIEBREAKERS: TiebreakerItem[] = [
   { key: 'confronto_direto', label: 'Confronto direto' },
   { key: 'fair_play',        label: 'Fair play (menos cartões)' },
 ];
+
+function combineRegistrationDeadline(deadlineDate: Date, deadlineTime: Date): Date {
+  const combinedDeadline = new Date(deadlineDate);
+  combinedDeadline.setHours(deadlineTime.getHours(), deadlineTime.getMinutes(), 0, 0);
+  return combinedDeadline;
+}
+
+function formatDeadlinePtBr(deadlineDate: Date, deadlineTime: Date): string {
+  const combinedDeadline = combineRegistrationDeadline(deadlineDate, deadlineTime);
+  const date = combinedDeadline.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const time = combinedDeadline.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${date} às ${time}`;
+}
 
 const FORMAT_OPTIONS: Array<{
   value: ChampionshipFormat;
@@ -74,6 +95,8 @@ const FORMAT_OPTIONS: Array<{
 export function CreateChampionshipScreen() {
   const navigation = useNavigation<NavProp>();
   const user = useAuthStore((s) => s.user);
+  const addChampionship = useChampionshipStore((s) => s.addChampionship);
+  const setSelectedChampionshipId = useChampionshipStore((s) => s.setSelectedChampionshipId);
 
   // Form state (unchanged)
   const [name, setName] = useState('');
@@ -94,13 +117,44 @@ export function CreateChampionshipScreen() {
   const [matchVerse, setMatchVerse] = useState(false);
   const [playerOfRound, setPlayerOfRound] = useState(true);
   const [liveMode, setLiveMode] = useState(false);
-  const [registrationDeadline, setRegistrationDeadline] = useState<Date | null>(null);
+  const [deadlineDate, setDeadlineDate] = useState<Date | null>(null);
+  const [deadlineTime, setDeadlineTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [season, setSeason] = useState(new Date().getFullYear().toString());
   const [edition, setEdition] = useState('1');
   const [isOfficial, setIsOfficial] = useState(true);
 
+  const handleDeadlineDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (!selectedDate) return;
+
+    setDeadlineDate(selectedDate);
+    if (Platform.OS === 'ios') {
+      setDeadlineTime(selectedDate);
+    }
+  };
+
+  const handleDeadlineTimeChange = (_event: DateTimePickerEvent, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (selectedTime) {
+      setDeadlineTime(selectedTime);
+    }
+  };
+
+  const clearDeadline = () => {
+    setDeadlineDate(null);
+    setDeadlineTime(new Date());
+    setShowDatePicker(false);
+    setShowTimePicker(false);
+  };
+
   const handleCreate = async () => {
+    if (user?.role !== 'organizador') {
+      Alert.alert('Acesso restrito', 'Apenas organizadores podem criar campeonatos.');
+      return;
+    }
+
     if (!name.trim()) {
       setNameError('Digite o nome do campeonato');
       Alert.alert('Campo obrigatório', 'Digite o nome do campeonato antes de continuar.');
@@ -119,6 +173,9 @@ export function CreateChampionshipScreen() {
           ? maxT - 1
           : maxT;
       const champId = `champ-${Date.now()}`;
+      const registrationDeadline = deadlineDate
+        ? combineRegistrationDeadline(deadlineDate, deadlineTime)
+        : null;
 
       const championship: Championship = {
         id: champId,
@@ -139,10 +196,14 @@ export function CreateChampionshipScreen() {
           pointsLoss,
           tiebreakers: tiebreakers.map((t) => t.key),
           fairPlay: fairPlayPrize,
+          roundAwards: playerOfRound,
           craqueDaRodada: playerOfRound,
           yellowCardLimit: yellowSuspend ? parseInt(yellowsToSuspend) || 3 : undefined,
           redCardSuspend,
           manualApproval,
+        },
+        registrationSettings: {
+          approvalRequired: manualApproval,
         },
         createdAt: new Date().toISOString(),
         ...(registrationDeadline ? { registrationDeadline: registrationDeadline.toISOString() } : {}),
@@ -151,11 +212,21 @@ export function CreateChampionshipScreen() {
         isOfficial,
       };
 
-      await setDocument('championships', champId, championship);
+      const createdChampionshipId = await setDocument('championships', champId, championship);
+      addChampionship(championship);
+      setSelectedChampionshipId(createdChampionshipId);
       Alert.alert(
         'Campeonato criado!',
         `"${championship.name}" está pronto.\n\nCódigo de convite: ${championship.inviteCode}`,
-        [{ text: 'Ver campeonatos', onPress: () => navigation.goBack() }],
+        [
+          {
+            text: 'Gerenciar campeonato',
+            onPress: () =>
+              navigation.replace('ChampionshipDashboard', {
+                championshipId: createdChampionshipId,
+              }),
+          },
+        ],
       );
     } catch (err: any) {
       console.error('[CreateChampionship] failed:', err);
@@ -217,6 +288,7 @@ export function CreateChampionshipScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
         {/* ── 1. Nome ── */}
         <AppTextField
@@ -310,6 +382,8 @@ export function CreateChampionshipScreen() {
             onDragEnd={({ data }) => setTiebreakers(data)}
             keyExtractor={(item) => item.key}
             renderItem={renderTiebreakerItem}
+            activationDistance={10}
+            nestedScrollEnabled
             scrollEnabled={false}
           />
         </View>
@@ -393,53 +467,86 @@ export function CreateChampionshipScreen() {
               <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
               <Text style={styles.deadlineLabel}>Prazo de inscrições</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.deadlineButton}
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.deadlineButtonText,
-                !registrationDeadline && styles.deadlineButtonTextPlaceholder
+                !deadlineDate && styles.deadlineButtonTextPlaceholder
               ]}>
-                {registrationDeadline 
-                  ? registrationDeadline.toLocaleDateString('pt-BR', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
+                {deadlineDate
+                  ? formatDeadlinePtBr(deadlineDate, deadlineTime)
+                  : Platform.OS === 'ios'
+                  ? 'Selecionar data e hora'
                   : 'Selecionar data limite'}
               </Text>
-              {registrationDeadline && (
-                <TouchableOpacity 
-                  onPress={() => setRegistrationDeadline(null)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-                </TouchableOpacity>
-              )}
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </TouchableOpacity>
+
+            {Platform.OS === 'android' && (
+              <View style={styles.deadlineActions}>
+                <TouchableOpacity
+                  style={styles.deadlineActionButton}
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar-outline" size={16} color={colors.accent} />
+                  <Text style={styles.deadlineActionText}>Data</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deadlineActionButton}
+                  onPress={() => {
+                    if (!deadlineDate) setDeadlineDate(new Date());
+                    setShowTimePicker(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="time-outline" size={16} color={colors.accent} />
+                  <Text style={styles.deadlineActionText}>Hora</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {deadlineDate && (
+              <TouchableOpacity
+                style={styles.deadlineClearButton}
+                onPress={clearDeadline}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close-circle-outline" size={16} color={colors.textMuted} />
+                <Text style={styles.deadlineClearText}>Limpar</Text>
+              </TouchableOpacity>
+            )}
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={
+                  deadlineDate
+                    ? combineRegistrationDeadline(deadlineDate, deadlineTime)
+                    : new Date()
+                }
+                mode={Platform.OS === 'ios' ? 'datetime' : 'date'}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={handleDeadlineDateChange}
+              />
+            )}
+
+            {Platform.OS === 'android' && showTimePicker && (
+              <DateTimePicker
+                value={deadlineTime}
+                mode="time"
+                display="default"
+                onChange={handleDeadlineTimeChange}
+              />
+            )}
+
             <Text style={styles.deadlineHint}>
               Após essa data, inscrições serão fechadas automaticamente
             </Text>
           </View>
-          
-          {showDatePicker && (
-            <DateTimePicker
-              value={registrationDeadline ?? new Date()}
-              mode="datetime"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              minimumDate={new Date()}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (selectedDate) {
-                  setRegistrationDeadline(selectedDate);
-                }
-              }}
-            />
-          )}
         </View>
 
         {/* ── 7. Extras da FJU ── */}
@@ -835,6 +942,42 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   deadlineButtonTextPlaceholder: {
+    color: colors.textMuted,
+  },
+  deadlineActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  deadlineActionButton: {
+    flex: 1,
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg300,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  deadlineActionText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.accent,
+  },
+  deadlineClearButton: {
+    alignSelf: 'flex-start',
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: colors.bg300,
+    gap: 6,
+  },
+  deadlineClearText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
     color: colors.textMuted,
   },
   deadlineHint: {

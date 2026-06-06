@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 
 import * as Haptics from 'expo-haptics';
 import { colors } from '../../theme/colors';
+import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
@@ -227,17 +228,21 @@ function BigButton({
   title,
   onPress,
   loading,
+  disabled,
 }: {
   title: string;
   onPress: () => void;
   loading?: boolean;
+  disabled?: boolean;
 }) {
+  const isDisabled = loading || disabled;
+
   return (
     <TouchableOpacity
-      style={bbStyles.btn}
+      style={[bbStyles.btn, isDisabled && bbStyles.btnDisabled]}
       onPress={onPress}
       activeOpacity={0.85}
-      disabled={loading}
+      disabled={isDisabled}
     >
       {loading ? (
         <ActivityIndicator color={colors.textOnAccent} />
@@ -268,6 +273,9 @@ const bbStyles = StyleSheet.create({
       web: {},
     }),
   },
+  btnDisabled: {
+    opacity: 0.45,
+  },
   text: {
     fontSize: 18,
     fontWeight: '700',
@@ -291,8 +299,11 @@ export function DrawFullscreenScreen() {
   const championships = useChampionshipStore((s) => s.championships);
   const addMatches = useMatchStore((s) => s.addMatches);
   const updateChampionship = useChampionshipStore((s) => s.updateChampionship);
+  const user = useAuthStore((s) => s.user);
 
   const championship = championships.find((c) => c.id === championshipId);
+  const canManageChampionship =
+    user?.role === 'organizador' && championship?.organizerId === user?.id;
   const groupsFormatUnavailable = championship?.format === 'grupos_e_mata_mata';
   const approvedTeams = storeTeams.filter(
     (t) => t.championshipId === championshipId && t.status === 'aprovado',
@@ -369,6 +380,11 @@ export function DrawFullscreenScreen() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleStartDraw = () => {
+    if (!canManageChampionship) {
+      Alert.alert('Acesso restrito', 'Apenas o organizador deste campeonato pode gerar a tabela.');
+      return;
+    }
+
     const shuffled = fisherYates(approvedTeams);
     setShuffledTeams(shuffled);
 
@@ -410,6 +426,11 @@ export function DrawFullscreenScreen() {
   };
 
   const handleConfirm = async () => {
+    if (!canManageChampionship) {
+      Alert.alert('Acesso restrito', 'Apenas o organizador deste campeonato pode iniciar a tabela.');
+      return;
+    }
+
     setLoading(true);
     try {
       // For bracket formats use the pre-generated MatchModel list; for round-robin build from pairs
@@ -547,7 +568,11 @@ export function DrawFullscreenScreen() {
 
           {phase === 'presenting' && (
             <View style={styles.startBtnWrap}>
-              <BigButton title="INICIAR SORTEIO" onPress={handleStartDraw} />
+              <BigButton
+                title="INICIAR SORTEIO"
+                onPress={handleStartDraw}
+                disabled={!canManageChampionship}
+              />
             </View>
           )}
         </ScrollView>
@@ -600,6 +625,7 @@ export function DrawFullscreenScreen() {
                 title={isLastRound ? 'CONFIRMAR TABELA E INICIAR' : 'PRÓXIMA RODADA'}
                 onPress={isLastRound ? handleConfirm : handleNextRound}
                 loading={loading}
+                disabled={isLastRound && !canManageChampionship}
               />
             </Animated.View>
           )}

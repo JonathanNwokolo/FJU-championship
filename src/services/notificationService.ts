@@ -1,6 +1,7 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
+// TODO: reativar push notifications no build de produção
+// import * as Notifications from 'expo-notifications';
+// import * as Device from 'expo-device';
+// import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
@@ -42,42 +43,45 @@ async function writeTokenStore(store: Record<string, TokenRecord>): Promise<void
 // Obtém o token Expo e persiste no Firestore + cache local.
 // ---------------------------------------------------------------------------
 
+// TODO: reativar push notifications no build de produção
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  if (!Device.isDevice) {
-    console.log('[notifications] Skipped: not a physical device');
-    return null;
-  }
+  // TODO: reativar push notifications no build de produção
+  // if (!Device.isDevice) {
+  //   console.log('[notifications] Skipped: not a physical device');
+  //   return null;
+  // }
 
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
+  // const { status: existing } = await Notifications.getPermissionsAsync();
+  // let finalStatus = existing;
 
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+  // if (existing !== 'granted') {
+  //   const { status } = await Notifications.requestPermissionsAsync();
+  //   finalStatus = status;
+  // }
 
-  if (finalStatus !== 'granted') {
-    console.log('[notifications] Permission denied');
-    return null;
-  }
+  // if (finalStatus !== 'granted') {
+  //   console.log('[notifications] Permission denied');
+  //   return null;
+  // }
 
-  const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    Constants.easConfig?.projectId;
+  // const projectId =
+  //   Constants.expoConfig?.extra?.eas?.projectId ??
+  //   Constants.easConfig?.projectId;
 
-  if (!projectId) {
-    console.warn('[notifications] No EAS projectId found in app config');
-    return null;
-  }
+  // if (!projectId) {
+  //   console.warn('[notifications] No EAS projectId found in app config');
+  //   return null;
+  // }
 
-  try {
-    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    await saveTokenToFirestore(userId, token);
-    return token;
-  } catch (e) {
-    console.warn('[notifications] getExpoPushTokenAsync error:', e);
-    return null;
-  }
+  // try {
+  //   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+  //   await saveTokenToFirestore(userId, token);
+  //   return token;
+  // } catch (e) {
+  //   console.warn('[notifications] getExpoPushTokenAsync error:', e);
+  //   return null;
+  // }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

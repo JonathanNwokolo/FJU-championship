@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   Image,
   Alert,
@@ -35,14 +36,15 @@ import { AppCard } from '../../components/AppCard';
 import { Badge } from '../../components/Badge';
 import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
+import { TeamLogo } from '../../components/TeamLogo';
 import { EmptyState } from '../../components/EmptyState';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { calculateStandings } from '../../services/statsService';
-import { updateDocument, setDocument, getDocument } from '../../services/firestore';
-import { Player, MatchModel, TeamStanding, PlayerStatus } from '../../types';
+import { updateDocument, setDocument, getDocument, getCollection } from '../../services/firestore';
+import { Player, MatchModel, Team, TeamStanding, PlayerStatus } from '../../types';
 import { colors, shadows } from '../../theme/colors';
 import { POSITION_COLORS, POSITION_LABELS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
@@ -78,7 +80,7 @@ function MatchResultCard({
 }: {
   match: MatchModel;
   myTeamId: string;
-  teams: { id: string; name: string; primaryColor: string }[];
+  teams: Team[];
 }) {
   const isHome = match.homeTeamId === myTeamId;
   const opponentId = isHome ? match.awayTeamId : match.homeTeamId;
@@ -102,7 +104,11 @@ function MatchResultCard({
         </View>
       </View>
       <View style={styles.matchResultRow}>
-        <TeamColorDot color={opponent?.primaryColor ?? colors.textMuted} size={10} />
+        {opponent ? (
+          <TeamLogo team={opponent} size={24} />
+        ) : (
+          <TeamColorDot color={colors.textMuted} size={10} />
+        )}
         <Text style={styles.matchResultTeam} numberOfLines={1}>{opponent?.name ?? 'Time'}</Text>
       </View>
       <Text style={styles.matchResultScore}>
@@ -268,6 +274,33 @@ export function CaptainDashboardScreen() {
     () => teamMatches.find((m) => m.status !== 'finalizado'),
     [teamMatches]
   );
+
+  // Pull-to-refresh state
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    if (!myTeam?.championshipId) return;
+    setRefreshing(true);
+    try {
+      const champId = myTeam.championshipId;
+      const [freshMatches, freshTeams, freshPlayers] = await Promise.all([
+        getCollection<MatchModel>('matches', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Team>('teams', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Player>('players', [{ field: 'championshipId', operator: '==', value: champId }]),
+      ]);
+      // Merge fresh data into stores
+      const prevMatches = useMatchStore.getState().matches.filter((m) => m.championshipId !== champId);
+      useMatchStore.getState().setMatches([...prevMatches, ...freshMatches]);
+      const prevTeams = useTeamStore.getState().teams.filter((t) => t.championshipId !== champId);
+      const prevPlayers = useTeamStore.getState().players.filter((p) => p.championshipId !== champId);
+      useTeamStore.getState().setTeams([...prevTeams, ...freshTeams]);
+      useTeamStore.setState({ players: [...prevPlayers, ...freshPlayers] });
+    } catch (e) {
+      console.warn('[CaptainDashboard] onRefresh error:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [myTeam?.championshipId]);
 
   // Calculate standings
   const standings = useMemo(() => {
@@ -540,6 +573,17 @@ export function CaptainDashboardScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+            progressBackgroundColor={colors.bg200}
+            title="Atualizando..."
+            titleColor={colors.textSecondary}
+          />
+        }
       >
         {/* Hero Section */}
         <LinearGradient
@@ -551,9 +595,7 @@ export function CaptainDashboardScreen() {
           <SafeAreaView edges={['top']} style={styles.heroSafe}>
             <View style={styles.heroContent}>
               <View style={styles.heroLeft}>
-                <View style={styles.heroLogoWrap}>
-                  <Text style={styles.heroInitials}>{getInitials(myTeam.name)}</Text>
-                </View>
+                <TeamLogo team={myTeam} size={64} style={styles.heroLogo} />
               </View>
               <View style={styles.heroInfo}>
                 <Text style={styles.heroName}>{myTeam.name}</Text>
@@ -611,10 +653,14 @@ export function CaptainDashboardScreen() {
           <View style={styles.section}>
             <SectionHeader title="PRÓXIMA PARTIDA" />
             <AppCard style={styles.nextMatchCard}>
-              <Text style={styles.nextMatchLabel}>PRÓXIMA PARTIDA</Text>
+              <Text style={styles.nextMatchLabel}>PROXIMA PARTIDA</Text>
               <View style={styles.nextMatchRow}>
-                <TeamColorDot color={opponent?.primaryColor ?? colors.textMuted} size={14} />
-                <Text style={styles.nextMatchTeam}>{opponent?.name ?? 'Adversário'}</Text>
+                {opponent ? (
+                  <TeamLogo team={opponent} size={32} />
+                ) : (
+                  <TeamColorDot color={colors.textMuted} size={14} />
+                )}
+                <Text style={styles.nextMatchTeam}>{opponent?.name ?? 'Adversario'}</Text>
               </View>
               <Text style={styles.nextMatchRound}>Rodada {nextMatch.round}</Text>
               {countdown && (
@@ -957,18 +1003,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroLeft: {},
-  heroLogoWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroInitials: {
-    fontFamily: 'Barlow-Black',
-    fontSize: 24,
-    color: '#fff',
+  heroLogo: {
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   heroInfo: {
     flex: 1,

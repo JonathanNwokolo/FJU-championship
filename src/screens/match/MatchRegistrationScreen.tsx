@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -31,6 +31,7 @@ import { colors } from '../../theme/colors';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
+import { useAuthStore } from '../../stores/authStore';
 import { MatchEvent, MatchEventType } from '../../types';
 import { addDocument, setDocument, updateDocument, deleteDocument } from '../../services/firestore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
@@ -90,6 +91,7 @@ export function MatchRegistrationScreen() {
   const { matches, events, addEvent, removeEvent, updateMatch, startMatch } = useMatchStore();
   const { teams, players } = useTeamStore();
   const { championships, updateChampionship } = useChampionshipStore();
+  const user = useAuthStore((s) => s.user);
   const { awards } = useVotingStore();
   const [toastQueue, setToastQueue] = useState<AchievementDefinition[]>([]);
   const [showPenaltySheet, setShowPenaltySheet] = useState(false);
@@ -105,6 +107,9 @@ export function MatchRegistrationScreen() {
 
   const homeTeam = teams.find((t) => t.id === match?.homeTeamId);
   const awayTeam = teams.find((t) => t.id === match?.awayTeamId);
+  const matchChampionship = championships.find((c) => c.id === match?.championshipId);
+  const canManageMatch =
+    user?.role === 'organizador' && matchChampionship?.organizerId === user?.id;
 
   const isLive = match?.status === 'ao_vivo';
 
@@ -181,6 +186,7 @@ export function MatchRegistrationScreen() {
   };
 
   const openBottomSheet = () => {
+    if (!canManageMatch) return;
     setBsType('gol');
     setBsTeamId('');
     setBsPlayerId('');
@@ -189,6 +195,7 @@ export function MatchRegistrationScreen() {
   };
 
   const handleAddEvent = async () => {
+    if (!canManageMatch) return;
     const minute = parseInt(bsMinute, 10);
     if (!bsTeamId || !bsPlayerId || !minute || !match) return;
     if (minute < 1 || minute > 120) {
@@ -246,6 +253,7 @@ export function MatchRegistrationScreen() {
   };
 
   const handleRemoveEvent = (eventId: string) => {
+    if (!canManageMatch) return;
     Alert.alert('Remover evento', 'Remover este evento da partida?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -279,17 +287,19 @@ export function MatchRegistrationScreen() {
   const homeGoalMismatch = homeScoreNum !== null && homeGoalsRegistered !== homeScoreNum;
   const awayGoalMismatch = awayScoreNum !== null && awayGoalsRegistered !== awayScoreNum;
 
-  const canFinalize = isLive || (homeScoreNum !== null && awayScoreNum !== null);
+  const canFinalize = canManageMatch && (isLive || (homeScoreNum !== null && awayScoreNum !== null));
   const bsMinuteNumber = parseInt(bsMinute, 10);
   const isBsMinuteValid =
     Number.isInteger(bsMinuteNumber) && bsMinuteNumber >= 1 && bsMinuteNumber <= 120;
   const canAddBsEvent =
+    canManageMatch &&
     bsTeamId.length > 0 &&
     bsPlayerId.length > 0 &&
     bsMinute.length > 0 &&
     isBsMinuteValid;
 
   const handleStartLive = () => {
+    if (!canManageMatch) return;
     Alert.alert('Iniciar Partida', 'Iniciar a partida no modo ao vivo?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -312,8 +322,6 @@ export function MatchRegistrationScreen() {
   };
 
   const runAchievementChecks = async (
-    finalHome: number,
-    finalAway: number,
     updatedEvents: typeof events,
     updatedMatches: typeof matches,
   ) => {
@@ -347,7 +355,7 @@ export function MatchRegistrationScreen() {
   };
 
   const handleFinalize = () => {
-    if (!canFinalize) return;
+    if (!canManageMatch || !canFinalize) return;
 
     const championship = championships.find((c) => c.id === match?.championshipId);
     const isKnockout = championship?.format === 'mata_mata' || match?.bracketRound;
@@ -386,7 +394,7 @@ export function MatchRegistrationScreen() {
     homePenalty: number | null,
     awayPenalty: number | null,
   ) => {
-    if (finalizing) return;
+    if (!canManageMatch || finalizing) return;
     setFinalizing(true);
     try {
     const finishedAt = new Date().toISOString();
@@ -590,7 +598,7 @@ export function MatchRegistrationScreen() {
       ).catch(() => {});
     }
 
-    runAchievementChecks(finalHome, finalAway, events, updatedMatches).catch(() => {});
+    runAchievementChecks(events, updatedMatches).catch(() => {});
 
     if (isLive) {
       navigation.replace('MatchSummary', { matchId });
@@ -610,6 +618,7 @@ export function MatchRegistrationScreen() {
   };
 
   const handleConfirmPenalty = () => {
+    if (!canManageMatch) return;
     const hp = parseInt(penaltyHome, 10);
     const ap = parseInt(penaltyAway, 10);
     if (isNaN(hp) || isNaN(ap) || hp === ap) {
@@ -829,9 +838,11 @@ export function MatchRegistrationScreen() {
                           <Text style={styles.eventPlayer}>{player?.name ?? '—'}</Text>
                           <Text style={styles.eventTeam}>{team?.name ?? '—'}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => handleRemoveEvent(event.id)}>
-                          <Ionicons name="close" size={18} color={colors.textMuted} />
-                        </TouchableOpacity>
+                        {canManageMatch && (
+                          <TouchableOpacity onPress={() => handleRemoveEvent(event.id)}>
+                            <Ionicons name="close" size={18} color={colors.textMuted} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </AppCard>
                   </Animated.View>
@@ -840,29 +851,33 @@ export function MatchRegistrationScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.addButton} onPress={openBottomSheet} activeOpacity={0.8}>
-            <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
-            <Text style={styles.addButtonText}>Adicionar evento</Text>
-          </TouchableOpacity>
+          {canManageMatch && (
+            <TouchableOpacity style={styles.addButton} onPress={openBottomSheet} activeOpacity={0.8}>
+              <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+              <Text style={styles.addButtonText}>Adicionar evento</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <View style={styles.bottomSpacer} />
+        {canManageMatch && <View style={styles.bottomSpacer} />}
       </ScrollView>
 
-      <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
-        <Text style={styles.bottomInfo}>{matchEvents.length} eventos registrados</Text>
-        {match.status === 'agendado' ? (
-          <AppButton title="INICIAR PARTIDA" onPress={handleStartLive} fullWidth />
-        ) : (
-          <AppButton
-            title="FINALIZAR PARTIDA"
-            onPress={handleFinalize}
-            disabled={!canFinalize || finalizing}
-            loading={finalizing}
-            fullWidth
-          />
-        )}
-      </SafeAreaView>
+      {canManageMatch && (
+        <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
+          <Text style={styles.bottomInfo}>{matchEvents.length} eventos registrados</Text>
+          {match.status === 'agendado' ? (
+            <AppButton title="INICIAR PARTIDA" onPress={handleStartLive} fullWidth />
+          ) : (
+            <AppButton
+              title="FINALIZAR PARTIDA"
+              onPress={handleFinalize}
+              disabled={!canFinalize || finalizing}
+              loading={finalizing}
+              fullWidth
+            />
+          )}
+        </SafeAreaView>
+      )}
 
       <AchievementToast queue={toastQueue} onDismiss={() => setToastQueue([])} />
 

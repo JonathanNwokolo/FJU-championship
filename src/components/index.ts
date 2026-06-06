@@ -9,6 +9,8 @@ export { MatchCard } from './MatchCard';
 export { PodiumCard } from './PodiumCard';
 export { EmptyState } from './EmptyState';
 export { TeamColorDot } from './TeamColorDot';
+export { TeamLogo } from './TeamLogo';
+export { TeamShieldPicker } from './TeamShieldPicker';
 export { SectionHeader } from './SectionHeader';
 export { SearchBar } from './SearchBar';
 export { SkeletonLoader } from './SkeletonLoader';

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   View,
   Text,
@@ -178,12 +178,12 @@ export function PreMatchScreen() {
   const players = useTeamStore((s) => s.players);
   const championships = useChampionshipStore((s) => s.championships);
 
-  const isOrganizer = user?.role === 'organizador';
-
   const match = matches.find((m) => m.id === matchId);
   const homeTeam = teams.find((t) => t.id === match?.homeTeamId);
   const awayTeam = teams.find((t) => t.id === match?.awayTeamId);
   const championship = championships.find((c) => c.id === match?.championshipId);
+  const isOrganizer =
+    user?.role === 'organizador' && championship?.organizerId === user?.id;
 
   // Get players for each team (sorted: goalkeepers first, then by number)
   const homePlayers = useMemo(() => {

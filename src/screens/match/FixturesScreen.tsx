@@ -20,12 +20,13 @@ import { MatchCard } from '../../components/MatchCard';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
-import { MatchModel, BracketRound } from '../../types';
+import { MatchModel, BracketRound, Team, Player } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { getCollection } from '../../services/firestore';
 import { registerForPushNotifications } from '../../services/notificationService';
 import { isRoundComplete } from '../../services/votingService';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
@@ -43,11 +44,14 @@ export function FixturesScreen() {
 
   const isBarlowMediumLoaded = Font.isLoaded('Barlow-Medium');
   const isBarlowSemiBoldLoaded = Font.isLoaded('Barlow-SemiBold');
-  const isOrganizer = user?.role === 'organizador';
   const activeChampionship =
     championships.find((c) => c.status === 'em_andamento') ??
     championships.find((c) => c.status === 'inscricoes_abertas') ??
     championships[0];
+  // Gestão de partidas (iniciar/registrar/encerrar) exige ser o organizador DONO
+  // do campeonato ativo. Para os demais, a tela de confrontos é somente leitura.
+  const isOrganizer =
+    user?.role === 'organizador' && activeChampionship?.organizerId === user?.id;
   const champMatches = matches.filter((m) => m.championshipId === activeChampionship?.id);
   const totalRounds = activeChampionship?.totalRounds ?? 0;
   const format = activeChampionship?.format ?? 'pontos_corridos';
@@ -160,10 +164,32 @@ export function FixturesScreen() {
 
   const getTeam = (teamId: string) => teams.find((t) => t.id === teamId);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
+    if (!activeChampionship?.id) {
+      setRefreshing(false);
+      return;
+    }
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 500);
-  }, []);
+    try {
+      const champId = activeChampionship.id;
+      const [freshMatches, freshTeams, freshPlayers] = await Promise.all([
+        getCollection<MatchModel>('matches', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Team>('teams', [{ field: 'championshipId', operator: '==', value: champId }]),
+        getCollection<Player>('players', [{ field: 'championshipId', operator: '==', value: champId }]),
+      ]);
+      // Merge fresh data into stores
+      const prevMatches = useMatchStore.getState().matches.filter((m) => m.championshipId !== champId);
+      useMatchStore.getState().setMatches([...prevMatches, ...freshMatches]);
+      const prevTeams = useTeamStore.getState().teams.filter((t) => t.championshipId !== champId);
+      const prevPlayers = useTeamStore.getState().players.filter((p) => p.championshipId !== champId);
+      useTeamStore.getState().setTeams([...prevTeams, ...freshTeams]);
+      useTeamStore.setState({ players: [...prevPlayers, ...freshPlayers] });
+    } catch (e) {
+      console.warn('[FixturesScreen] onRefresh error:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [activeChampionship?.id]);
 
   const handleMatchPress = (match: MatchModel) => {
     const status = match.status;

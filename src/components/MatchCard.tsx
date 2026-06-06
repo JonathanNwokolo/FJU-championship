@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Badge } from './Badge';
 import { TeamColorDot } from './TeamColorDot';
+import { TeamLogo } from './TeamLogo';
 import { MatchEvent, MatchModel, Player, Team } from '../types';
 import { colors } from '../theme/colors';
 
@@ -123,7 +124,11 @@ export function MatchCard({
           <Text style={styles.teamNameLeft} numberOfLines={2}>
             {homeTeam?.name ?? 'Time A'}
           </Text>
-          <TeamColorDot color={homeTeam?.primaryColor ?? colors.textMuted} />
+          {homeTeam ? (
+            <TeamLogo team={homeTeam} size={28} />
+          ) : (
+            <TeamColorDot color={colors.textMuted} />
+          )}
         </View>
 
         <View style={styles.center}>
@@ -156,7 +161,11 @@ export function MatchCard({
         </View>
 
         <View style={styles.teamRight}>
-          <TeamColorDot color={resolvedAwayTeam?.primaryColor ?? colors.textMuted} />
+          {resolvedAwayTeam ? (
+            <TeamLogo team={resolvedAwayTeam} size={28} />
+          ) : (
+            <TeamColorDot color={colors.textMuted} />
+          )}
           <Text style={styles.teamNameRight} numberOfLines={2}>
             {resolvedAwayTeam?.name ?? 'Time B'}
           </Text>

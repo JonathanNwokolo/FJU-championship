@@ -625,7 +625,9 @@ export function ChampionshipDashboardScreen() {
   const championships = useChampionshipStore((s) => s.championships);
   const championship = championships.find((c) => c.id === championshipId);
   const authUser = useAuthStore((s) => s.user);
-  const isOrganizer = championship?.organizerId === authUser?.id;
+  // Ações administrativas só aparecem para o organizador dono do campeonato.
+  const isOrganizer =
+    authUser?.role === 'organizador' && championship?.organizerId === authUser?.id;
   const { teams, players, updateTeam } = useTeamStore();
   const allMatches = useMatchStore((s) => s.matches);
   const matches = allMatches.filter((m) => m.championshipId === championshipId);

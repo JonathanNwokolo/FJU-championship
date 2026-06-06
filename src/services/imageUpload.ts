@@ -40,3 +40,14 @@ export async function uploadUserPhoto(
   const path = `users/${userId}/avatar.jpg`;
   return uploadToFirebaseStorage(localUri, path);
 }
+
+/**
+ * Upload team logo - returns the public URL
+ */
+export async function uploadTeamLogo(
+  localUri: string,
+  teamId: string
+): Promise<string> {
+  const path = `teams/${teamId}/logo_${Date.now()}.jpg`;
+  return uploadToFirebaseStorage(localUri, path);
+}

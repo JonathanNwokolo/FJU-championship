@@ -30,7 +30,8 @@ import { updateProfile } from 'firebase/auth';
 import { AppCard } from '../../components/AppCard';
 import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
-import { PlayerCard, PlayerCardErrorBoundary, CARD_DIMS } from '../../components/PlayerCard';
+import { PlayerCard, PlayerCardErrorBoundary } from '../../components/PlayerCard';
+import { RoleContextSwitch } from '../../components/RoleContextSwitch';
 import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
@@ -126,9 +127,17 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
   const setUser = useAuthStore((s) => s.setUser);
   const signOut = useAuthStore((s) => s.signOut);
   const updatePlayer = useTeamStore((s) => s.updatePlayer);
+  const allTeams = useTeamStore((s) => s.teams);
   const { userId: routeUserId, championshipId } = route.params ?? {};
   const resolvedUserId = routeUserId ?? authUser?.id;
   const isOwnProfile = !!authUser?.id && authUser.id === resolvedUserId;
+
+  // Dualidade Atleta/Capitão (apenas para o próprio perfil de um atleta).
+  const captainTeam = useMemo(
+    () => allTeams.find((t) => t.captainId === authUser?.id),
+    [allTeams, authUser?.id],
+  );
+  const showRoleContext = isOwnProfile && authUser?.role === 'atleta';
 
   const {
     user,
@@ -516,6 +525,16 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
           <QuickStatCard icon="🟥" label="Vermelhos" value={redCards} />
           <QuickStatCard icon="⚡" label="Partidas" value={matchesPlayed} />
         </View>
+
+        {showRoleContext && (
+          <View style={styles.sectionWrap}>
+            <RoleContextSwitch
+              isCaptain={!!captainTeam}
+              captainTeamName={captainTeam?.name}
+              onCreateTeam={() => navigation.navigate('AvailableChampionships')}
+            />
+          </View>
+        )}
 
         <View style={styles.sectionWrap}>
           <SectionHeader title="MEU CARD FIFA" />
@@ -1028,15 +1047,12 @@ const styles = StyleSheet.create({
   },
   fifaPreview: {
     width: '100%',
-    height: Math.round(CARD_DIMS.height * 0.6) + 12,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    paddingVertical: 6,
   },
   previewScale: {
     transform: [{ scale: 0.6 }],
-    width: CARD_DIMS.width,
-    height: CARD_DIMS.height,
   },
   previewCardShell: {
     width: 220,

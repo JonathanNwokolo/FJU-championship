@@ -18,10 +18,15 @@ export interface ChampionshipRules {
   pointsLoss: number;
   tiebreakers: string[];
   fairPlay: boolean;
+  roundAwards?: boolean;
   craqueDaRodada: boolean;
   yellowCardLimit?: number;
   redCardSuspend?: boolean;
   manualApproval?: boolean;
+}
+
+export interface ChampionshipRegistrationSettings {
+  approvalRequired: boolean;
 }
 
 export interface Championship {
@@ -36,6 +41,7 @@ export interface Championship {
   rules: ChampionshipRules;
   createdAt: string;
   registrationDeadline?: string;
+  registrationSettings?: ChampionshipRegistrationSettings;
   registrationsClosed?: boolean;
   finishedAt?: string;
   season?: string;
@@ -67,6 +73,8 @@ export interface Team {
   registrationOpen?: boolean;
   pendingRequests?: string[];
   createdAt: string;
+  logoUrl?: string;
+  logoPreset?: string;
 }
 
 export type PlayerPosition = 'goleiro' | 'zagueiro' | 'lateral' | 'volante' | 'meia' | 'atacante';

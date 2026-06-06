@@ -68,7 +68,8 @@ Web Bundled 67ms index.ts (1 module)
 Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  [expo-notifications] Listening to push token changes isAndroid Bundled 13919ms index.ts (2033 modules)
+er will have no effect.
 Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
 Web  LOG  Running application "main" with appParams:
  {"hydrate": undefined, "rootTag": "#root"} 
@@ -112,3 +113,6 @@ Web  ERROR  [2026-06-06T03:58:53.758Z]  @firebase/firestore: Firestore (12.14.0)
 Web  ERROR  [2026-06-06T03:58:53.933Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
 Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
 Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Android Bundled 10724ms index.ts (2033 modules)
+Android Bundled 80ms index.ts (1 module)
+Android Bundled 110ms index.ts (1 module)

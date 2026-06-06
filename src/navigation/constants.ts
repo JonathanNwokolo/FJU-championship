@@ -4,6 +4,7 @@ export const TAB_NAMES = {
   CLASSIFICACAO: 'Classificacao',
   ARTILHEIROS: 'Artilheiros',
   TIME: 'Time',
+  CAMPEONATOS: 'Campeonatos',
   MAIS: 'Mais',
   PERFIL: 'Perfil',
 } as const;

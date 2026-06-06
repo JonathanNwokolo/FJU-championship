@@ -4,6 +4,7 @@ import { HomeStackNavigator } from './HomeStackNavigator';
 import { FixturesStackNavigator } from './FixturesStackNavigator';
 import { ProfileStackNavigator } from './ProfileStackNavigator';
 import { CaptainStackNavigator } from './CaptainStackNavigator';
+import { OrganizerStackNavigator } from './OrganizerStackNavigator';
 import { StandingsScreen } from '../screens/stats/StandingsScreen';
 import { TopScorersScreen } from '../screens/stats/TopScorersScreen';
 import { StatsOverviewScreen } from '../screens/stats/StatsOverviewScreen';
@@ -28,7 +29,10 @@ function withErrorBoundary(Component: React.ComponentType<any>) {
 export function MainTabNavigator() {
   const user = useAuthStore((s) => s.user);
   const teams = useTeamStore((s) => s.teams);
-  const isCaptain = user?.role === 'capitao' || teams.some((t) => t.captainId === user?.id);
+  const isOrganizer = user?.role === 'organizador';
+  // Organizador nunca exibe a aba TIME (mesmo que apareça como capitão de algum time).
+  const isCaptain =
+    !isOrganizer && (user?.role === 'capitao' || teams.some((t) => t.captainId === user?.id));
 
   return (
     <Tab.Navigator
@@ -36,6 +40,9 @@ export function MainTabNavigator() {
       screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name={TAB_NAMES.INICIO} component={withErrorBoundary(HomeStackNavigator)} />
+      {isOrganizer && (
+        <Tab.Screen name={TAB_NAMES.CAMPEONATOS} component={withErrorBoundary(OrganizerStackNavigator)} />
+      )}
       <Tab.Screen name={TAB_NAMES.CONFRONTOS} component={withErrorBoundary(FixturesStackNavigator)} />
       <Tab.Screen name={TAB_NAMES.CLASSIFICACAO} component={withErrorBoundary(StandingsScreen)} />
       <Tab.Screen name={TAB_NAMES.ARTILHEIROS} component={withErrorBoundary(TopScorersScreen)} />

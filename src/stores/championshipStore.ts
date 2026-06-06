@@ -8,6 +8,7 @@ interface ChampionshipState {
   setChampionships: (championships: Championship[]) => void;
   addChampionship: (championship: Championship) => void;
   updateChampionship: (id: string, updates: Partial<Championship>) => void;
+  removeChampionship: (id: string) => void;
   setSelectedChampionshipId: (id: string | null) => void;
 }
 
@@ -34,5 +35,14 @@ export const useChampionshipStore = create<ChampionshipState>((set, get) => ({
         c.id === id ? { ...c, ...updates } : c,
       ),
     })),
+  removeChampionship: (id) =>
+    set((state) => {
+      const championships = state.championships.filter((c) => c.id !== id);
+      const selectedChampionshipId =
+        state.selectedChampionshipId === id
+          ? championships[0]?.id ?? null
+          : state.selectedChampionshipId;
+      return { championships, selectedChampionshipId };
+    }),
   setSelectedChampionshipId: (id) => set({ selectedChampionshipId: id }),
 }));
