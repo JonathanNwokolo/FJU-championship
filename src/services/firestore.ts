@@ -9,6 +9,7 @@ import {
   getDocs,
   query,
   where,
+  limit as limitConstraint,
   onSnapshot,
   serverTimestamp,
   QueryConstraint,
@@ -101,10 +102,14 @@ export function subscribeToCollection<T>(
   filters: FirestoreFilter[] | undefined,
   callback: (data: T[]) => void,
   onError?: (error: Error) => void,
+  limitCount?: number,
 ): () => void {
   const constraints: QueryConstraint[] = (filters ?? []).map((f) =>
     where(f.field, f.operator, f.value)
   );
+  if (limitCount != null) {
+    constraints.push(limitConstraint(limitCount));
+  }
   const q = query(collection(db, collectionName), ...constraints);
   return onSnapshot(
     q,

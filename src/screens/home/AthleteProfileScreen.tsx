@@ -6,6 +6,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,7 +30,7 @@ import { updateProfile } from 'firebase/auth';
 import { AppCard } from '../../components/AppCard';
 import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
-import { PlayerCard, PlayerCardErrorBoundary } from '../../components/PlayerCard';
+import { PlayerCard, PlayerCardErrorBoundary, CARD_DIMS } from '../../components/PlayerCard';
 import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
@@ -519,27 +520,7 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
         <View style={styles.sectionWrap}>
           <SectionHeader title="MEU CARD FIFA" />
           <AppCard style={styles.fifaCard}>
-            <View style={styles.fifaPreview}>
-              <View style={styles.previewScale}>
-                <PlayerCardErrorBoundary>
-                  <PlayerCard
-                    player={player ?? { name: profileName, position: activePosition, photoUrl: profilePhoto }}
-                    team={team ?? { primaryColor: colors.accent }}
-                    position={activePosition}
-                    shirtNumber={player?.number ?? 0}
-                    photoUrl={profilePhoto ?? null}
-                    teamColor={team?.primaryColor ?? colors.accent}
-                    goals={goals}
-                    yellowCards={yellowCards}
-                    redCards={redCards}
-                    overall={overall || 50}
-                    championshipName={activeChampionshipName || 'Sem campeonato ativo'}
-                  />
-                </PlayerCardErrorBoundary>
-              </View>
-            </View>
-
-            <TouchableOpacity
+            <Pressable
               onPress={() => {
                 if (player && activeChampionshipId) {
                   navigation.navigate('PlayerCard', {
@@ -549,11 +530,32 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
                 }
               }}
               disabled={!player || !activeChampionshipId}
+              style={({ pressed }) => ({ opacity: pressed ? 0.95 : 1 })}
             >
+              <View style={styles.fifaPreview}>
+                <View style={styles.previewScale}>
+                  <PlayerCardErrorBoundary>
+                    <PlayerCard
+                      player={player ?? { name: profileName, position: activePosition, photoUrl: profilePhoto }}
+                      team={team ?? { primaryColor: colors.accent }}
+                      position={activePosition}
+                      shirtNumber={player?.number ?? 0}
+                      photoUrl={profilePhoto ?? null}
+                      teamColor={team?.primaryColor ?? colors.accent}
+                      goals={goals}
+                      yellowCards={yellowCards}
+                      redCards={redCards}
+                      overall={overall || 50}
+                      championshipName={activeChampionshipName || 'Sem campeonato ativo'}
+                    />
+                  </PlayerCardErrorBoundary>
+                </View>
+              </View>
+
               <Text style={[styles.linkAction, (!player || !activeChampionshipId) && styles.linkDisabled]}>
                 Ver card completo →
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </AppCard>
         </View>
 
@@ -1026,12 +1028,15 @@ const styles = StyleSheet.create({
   },
   fifaPreview: {
     width: '100%',
+    height: Math.round(CARD_DIMS.height * 0.6) + 12,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    overflow: 'hidden',
   },
   previewScale: {
     transform: [{ scale: 0.6 }],
+    width: CARD_DIMS.width,
+    height: CARD_DIMS.height,
   },
   previewCardShell: {
     width: 220,

@@ -11,6 +11,15 @@ import {
 
 // ─── Standings ────────────────────────────────────────────────────────────────
 
+// Goals for a given team in a finished match come from the match document
+// (homeScore/awayScore) — the single source of truth. Goal events are used
+// ONLY for individual top-scorer stats, never for V/E/D/points/saldo.
+function goalsForTeamInMatch(m: MatchModel, teamId: string): number {
+  if (teamId === m.homeTeamId) return m.homeScore ?? 0;
+  if (teamId === m.awayTeamId) return m.awayScore ?? 0;
+  return 0;
+}
+
 export function calculateStandings(
   matches: MatchModel[],
   events: MatchEvent[],
@@ -19,14 +28,6 @@ export function calculateStandings(
 ): TeamStanding[] {
   const finishedMatches = matches.filter((m) => m.status === 'finalizado');
   const finishedMatchIds = new Set(finishedMatches.map((m) => m.id));
-
-  // Goals keyed by matchId → teamId → count (uses events, not homeScore/awayScore)
-  const goalsByMatch: Record<string, Record<string, number>> = {};
-  for (const e of events) {
-    if (e.type !== 'gol' || !finishedMatchIds.has(e.matchId)) continue;
-    if (!goalsByMatch[e.matchId]) goalsByMatch[e.matchId] = {};
-    goalsByMatch[e.matchId][e.teamId] = (goalsByMatch[e.matchId][e.teamId] ?? 0) + 1;
-  }
 
   const map: Record<string, TeamStanding> = {};
   for (const t of teams) {
@@ -53,8 +54,8 @@ export function calculateStandings(
     const away = map[m.awayTeamId];
     if (!home || !away) continue;
 
-    const hg = goalsByMatch[m.id]?.[m.homeTeamId] ?? 0;
-    const ag = goalsByMatch[m.id]?.[m.awayTeamId] ?? 0;
+    const hg = m.homeScore ?? 0;
+    const ag = m.awayScore ?? 0;
 
     home.played++;
     away.played++;
@@ -115,8 +116,8 @@ export function calculateStandings(
         let ap = 0;
         let bp = 0;
         for (const m of h2h) {
-          const ag2 = goalsByMatch[m.id]?.[a.teamId] ?? 0;
-          const bg2 = goalsByMatch[m.id]?.[b.teamId] ?? 0;
+          const ag2 = goalsForTeamInMatch(m, a.teamId);
+          const bg2 = goalsForTeamInMatch(m, b.teamId);
           if (ag2 > bg2) ap += rules.pointsWin;
           else if (ag2 < bg2) bp += rules.pointsWin;
           else { ap += rules.pointsDraw; bp += rules.pointsDraw; }
@@ -190,6 +191,78 @@ export function calculateRoundMVP(
 
 // ─── Suspensions ──────────────────────────────────────────────────────────────
 
+type SuspensionReason = 'cartao_vermelho' | 'amarelos_acumulados';
+
+interface PlayerCard {
+  round: number;
+  type: 'cartao_amarelo' | 'cartao_vermelho';
+}
+
+function collectPlayerCards(
+  events: MatchEvent[],
+  finishedMatchById: Map<string, MatchModel>,
+  playerId: string,
+): PlayerCard[] {
+  const cards: PlayerCard[] = [];
+  for (const e of events) {
+    if (e.playerId !== playerId) continue;
+    if (e.type !== 'cartao_amarelo' && e.type !== 'cartao_vermelho') continue;
+    const match = finishedMatchById.get(e.matchId);
+    if (!match) continue;
+    cards.push({ round: match.round, type: e.type });
+  }
+  return cards;
+}
+
+/**
+ * Simulates the discipline cycle and returns, per round, why the player is
+ * suspended in it:
+ *  - Yellows accumulate across rounds. As soon as they reach the limit the
+ *    player is suspended the FOLLOWING round and the counter resets to zero,
+ *    so the cycle starts over.
+ *  - A red card suspends the FOLLOWING round directly (and takes precedence
+ *    over an accumulated-yellows suspension on the same round).
+ */
+function buildSuspensionMap(
+  cards: PlayerCard[],
+  yellowLimit: number,
+): Map<number, SuspensionReason> {
+  const ordered = [...cards].sort((a, b) => a.round - b.round);
+  const map = new Map<number, SuspensionReason>();
+  let yellowAcc = 0;
+
+  for (const card of ordered) {
+    if (card.type === 'cartao_vermelho') {
+      map.set(card.round + 1, 'cartao_vermelho');
+    } else {
+      yellowAcc += 1;
+      if (yellowAcc >= yellowLimit) {
+        if (!map.has(card.round + 1)) map.set(card.round + 1, 'amarelos_acumulados');
+        yellowAcc = 0; // reset the cycle once a suspension is triggered
+      }
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Whether a player is suspended for a specific round, applying the cycle above
+ * to cards earned in earlier finished rounds. Returns the reason or null.
+ * Shared by the suspensions list and by match registration.
+ */
+export function getPlayerSuspensionReason(
+  events: MatchEvent[],
+  finishedMatches: MatchModel[],
+  playerId: string,
+  targetRound: number,
+  yellowLimit: number,
+): SuspensionReason | null {
+  const byId = new Map(finishedMatches.map((m) => [m.id, m]));
+  const cards = collectPlayerCards(events, byId, playerId);
+  return buildSuspensionMap(cards, yellowLimit).get(targetRound) ?? null;
+}
+
 export function getSuspendedPlayers(
   matches: MatchModel[],
   events: MatchEvent[],
@@ -201,51 +274,27 @@ export function getSuspendedPlayers(
   if (!finishedMatches.length) return [];
 
   const lastRound = Math.max(...finishedMatches.map((m) => m.round));
-  const lastRoundMatchIds = new Set(
-    finishedMatches.filter((m) => m.round === lastRound).map((m) => m.id),
-  );
-
-  const redInLastRound = new Set(
-    events
-      .filter((e) => e.type === 'cartao_vermelho' && lastRoundMatchIds.has(e.matchId))
-      .map((e) => e.playerId),
-  );
-
+  const nextRound = lastRound + 1;
   const limit = rules.yellowCardLimit ?? 3;
-  const yellowCount: Record<string, number> = {};
-  for (const e of events) {
-    if (e.type === 'cartao_amarelo') {
-      yellowCount[e.playerId] = (yellowCount[e.playerId] ?? 0) + 1;
-    }
-  }
+  const finishedMatchById = new Map(finishedMatches.map((m) => [m.id, m]));
 
   const result: SuspendedPlayer[] = [];
-  const added = new Set<string>();
 
   for (const player of players) {
-    if (added.has(player.id)) continue;
-    const team = teams.find((t) => t.id === player.teamId);
-    const teamName = team?.name ?? '';
+    const cards = collectPlayerCards(events, finishedMatchById, player.id);
+    if (cards.length === 0) continue;
 
-    if (redInLastRound.has(player.id)) {
-      result.push({
-        playerId: player.id,
-        playerName: player.name,
-        teamId: player.teamId ?? '',
-        teamName,
-        reason: 'cartao_vermelho',
-      });
-      added.add(player.id);
-    } else if ((yellowCount[player.id] ?? 0) >= limit) {
-      result.push({
-        playerId: player.id,
-        playerName: player.name,
-        teamId: player.teamId ?? '',
-        teamName,
-        reason: 'amarelos_acumulados',
-      });
-      added.add(player.id);
-    }
+    const reason = buildSuspensionMap(cards, limit).get(nextRound);
+    if (!reason) continue;
+
+    const team = teams.find((t) => t.id === player.teamId);
+    result.push({
+      playerId: player.id,
+      playerName: player.name,
+      teamId: player.teamId ?? '',
+      teamName: team?.name ?? '',
+      reason,
+    });
   }
 
   return result;

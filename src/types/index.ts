@@ -281,22 +281,6 @@ export interface Achievement {
   round?: number;
 }
 
-// ── Mural ─────────────────────────────────────────────────────────────────────
-
-export interface MuralPost {
-  id: string;
-  championshipId: string;
-  round: number; // 0 = geral (não vinculado a rodada)
-  authorId: string;
-  authorName: string;
-  authorPhotoUrl?: string;
-  teamId: string;
-  imageUrl: string;
-  caption?: string;
-  likesCount: number;
-  createdAt: string; // ISO string
-}
-
 // ── In-App Notifications ───────────────────────────────────────────────────────
 
 export type InAppNotificationType =

@@ -40,6 +40,7 @@ import {
   notifyMatchFinished,
 } from '../../services/notificationService';
 import { checkAndGrantAchievements } from '../../services/achievementService';
+import { getPlayerSuspensionReason } from '../../services/statsService';
 import { finishChampionship } from '../../services/championshipFinisher';
 import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
@@ -135,24 +136,26 @@ export function MatchRegistrationScreen() {
   const yellowLimit = championshipRules?.yellowCardLimit ?? 3;
   const redCardSuspend = championshipRules?.redCardSuspend !== false;
 
-  const yellowsByPlayer = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const e of events) {
-      if (e.type === 'cartao_amarelo') {
-        counts[e.playerId] = (counts[e.playerId] ?? 0) + 1;
-      }
-    }
-    return counts;
-  }, [events]);
+  // Finished matches drive the cycle-based suspension calculation (cards from the
+  // current, not-yet-finalized match correctly do not count toward this round).
+  const finishedMatches = useMemo(
+    () => matches.filter((m) => m.status === 'finalizado'),
+    [matches],
+  );
 
   const checkSuspended = useCallback(
     (p: (typeof players)[0]) => {
       if (p.status === 'suspenso' || p.status === 'lesionado') return true;
       if (p.suspendedRound != null && match && p.suspendedRound === match.round) return true;
-      if ((yellowsByPlayer[p.id] ?? 0) >= yellowLimit) return true;
+      if (
+        match &&
+        getPlayerSuspensionReason(events, finishedMatches, p.id, match.round, yellowLimit) != null
+      ) {
+        return true;
+      }
       return false;
     },
-    [match, yellowsByPlayer, yellowLimit],
+    [match, events, finishedMatches, yellowLimit],
   );
 
   // Filter players to only show active, non-suspended players
@@ -308,7 +311,7 @@ export function MatchRegistrationScreen() {
     ]);
   };
 
-  const runAchievementChecks = (
+  const runAchievementChecks = async (
     finalHome: number,
     finalAway: number,
     updatedEvents: typeof events,
@@ -324,7 +327,7 @@ export function MatchRegistrationScreen() {
     const newDefs: AchievementDefinition[] = [];
 
     for (const p of allPlayers) {
-      const granted = checkAndGrantAchievements(
+      const granted = await checkAndGrantAchievements(
         p.id,
         champId,
         updatedEvents,
@@ -587,7 +590,7 @@ export function MatchRegistrationScreen() {
       ).catch(() => {});
     }
 
-    runAchievementChecks(finalHome, finalAway, events, updatedMatches);
+    runAchievementChecks(finalHome, finalAway, events, updatedMatches).catch(() => {});
 
     if (isLive) {
       navigation.replace('MatchSummary', { matchId });

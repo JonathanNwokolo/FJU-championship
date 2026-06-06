@@ -2,12 +2,20 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Achievement } from '../types';
-import { addDocument } from '../services/firestore';
 
+/**
+ * Display cache ONLY.
+ *
+ * The source of truth for whether a player owns an achievement is Firestore
+ * (`players/{playerId}/achievements/{achievementId}`), checked by
+ * `hasAchievement` in achievementService before any grant. This store just
+ * mirrors achievements for fast rendering of badges/toasts and holds no
+ * dedup/granting logic of its own.
+ */
 interface AchievementState {
   achievements: Achievement[];
-  grantAchievement: (achievement: Achievement) => void;
-  hasAchievement: (playerId: string, achievementId: string) => boolean;
+  cacheAchievement: (achievement: Achievement) => void;
+  setAchievements: (achievements: Achievement[]) => void;
   getPlayerAchievements: (playerId: string, championshipId: string) => Achievement[];
   reset: () => void;
 }
@@ -17,35 +25,27 @@ export const useAchievementStore = create<AchievementState>()(
     (set, get) => ({
       achievements: [],
 
-      grantAchievement: (achievement) =>
+      // Upsert by (player, achievement, championship) to keep the cache tidy.
+      // This is cache hygiene, not source-of-truth dedup.
+      cacheAchievement: (achievement) =>
         set((state) => {
-          const exists = state.achievements.some(
+          const others = state.achievements.filter(
             (a) =>
-              a.playerId === achievement.playerId &&
-              a.achievementId === achievement.achievementId &&
-              a.championshipId === achievement.championshipId,
+              !(
+                a.playerId === achievement.playerId &&
+                a.achievementId === achievement.achievementId &&
+                a.championshipId === achievement.championshipId
+              ),
           );
-          if (exists) return state;
-
-          // Persiste no Firestore para não perder ao reinstalar o app
-          addDocument('achievements', achievement).catch((e) =>
-            console.warn('[achievementStore] Firestore write error:', e),
-          );
-
-          return { achievements: [...state.achievements, achievement] };
+          return { achievements: [...others, achievement] };
         }),
 
-      hasAchievement: (playerId, achievementId) => {
-        return get().achievements.some(
-          (a) => a.playerId === playerId && a.achievementId === achievementId,
-        );
-      },
+      setAchievements: (achievements) => set({ achievements }),
 
-      getPlayerAchievements: (playerId, championshipId) => {
-        return get().achievements.filter(
+      getPlayerAchievements: (playerId, championshipId) =>
+        get().achievements.filter(
           (a) => a.playerId === playerId && a.championshipId === championshipId,
-        );
-      },
+        ),
 
       reset: () => set({ achievements: [] }),
     }),

@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Uploads must be images and under 5 MB.
+    function isImageUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Championship assets (team/player/profile photos) are publicly readable so
+    // they render without auth; writes require a signed-in user and a valid image.
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImageUnder5MB();
+    }
+  }
+}

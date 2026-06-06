@@ -1,0 +1,12 @@
+Error while reading cache, falling back to a full crawl:
+ Error: Unable to deserialize cloned data.
+    at deserialize (node:v8:436:14)
+    at DiskCacheManager.read (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@expo\metro-file-map\build\cache\DiskCacheManager.js:55:41)
+    at async FileMap.read (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@expo\metro-file-map\build\index.js:371:20)
+    at async C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\@expo\metro-file-map\build\index.js:262:35
+    at async DependencyGraph.ready (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\metro\src\node-haste\DependencyGraph.js:94:5)
+    at async Bundler.ready (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\metro\src\Bundler.js:62:5)
+    at async IncrementalBundler.ready (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\metro\src\IncrementalBundler.js:310:5)
+    at async Server.ready (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\metro\src\Server.js:1446:5)
+    at async runMetro (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\metro\src\index.flow.js:142:5)
+    at async createConnectMiddleware (C:\Users\Home\Desktop\WORKS\FJU-championship\node_modules\metro\src\index.flow.js:147:23)

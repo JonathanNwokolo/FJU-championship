@@ -26,7 +26,8 @@ export function usePlayerStats(playerId: string, championshipId: string) {
     const goals = playerEvents.filter((e) => e.type === 'gol').length;
     const yellowCards = playerEvents.filter((e) => e.type === 'cartao_amarelo').length;
     const redCards = playerEvents.filter((e) => e.type === 'cartao_vermelho').length;
-    const overall = calculateOverall(goals, yellowCards, redCards);
+    const matchesPlayed = new Set(playerEvents.map((event) => event.matchId)).size;
+    const overall = calculateOverall(goals, yellowCards, redCards, matchesPlayed);
 
     // Per-match breakdown for stats detail screen
     const matchBreakdown: MatchPerformance[] = champMatches
@@ -44,6 +45,6 @@ export function usePlayerStats(playerId: string, championshipId: string) {
       .filter((p) => p.events.length > 0) // only matches with participation
       .sort((a, b) => b.match.round - a.match.round);
 
-    return { goals, yellowCards, redCards, overall, matchBreakdown, loading: false };
+    return { goals, yellowCards, redCards, matchesPlayed, overall, matchBreakdown, loading: false };
   }, [playerId, championshipId, matches, events]);
 }

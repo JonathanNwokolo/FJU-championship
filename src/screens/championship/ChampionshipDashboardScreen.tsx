@@ -40,7 +40,7 @@ import { colors } from '../../theme/colors';
 import { Team, Player, ChampionshipStatus, MatchModel, MatchEvent } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { isRoundComplete, closeVoting } from '../../services/votingService';
-import { updateDocument, addDocument, deleteDocument, getCollection } from '../../services/firestore';
+import { updateDocument, addDocument, getCollection } from '../../services/firestore';
 import { calculateStandings, calculateTopScorers } from '../../services/statsService';
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';
@@ -901,17 +901,10 @@ export function ChampionshipDashboardScreen() {
     }
 
     try {
-      // Delete existing goal events for this match so artilheiros don't reflect stale data.
-      // Cards are kept (they affect suspensions). Use MatchRegistration for full attribution.
-      const { events: allEvents, removeEvent } = useMatchStore.getState();
-      const goalEventsToDelete = allEvents.filter(
-        (e) => e.matchId === selectedMatch.id && e.type === 'gol',
-      );
-      await Promise.all(
-        goalEventsToDelete.map((e) => deleteDocument('match_events', e.id).catch(() => {})),
-      );
-      goalEventsToDelete.forEach((e) => removeEvent(e.id));
-
+      // Quick result edit only updates the match score (the source of truth for
+      // standings). Goal events are NOT touched here — they drive individual
+      // top-scorer stats and must be managed via MatchRegistration to keep
+      // attribution intact.
       await updateDocument('matches', selectedMatch.id, {
         homeScore,
         awayScore,

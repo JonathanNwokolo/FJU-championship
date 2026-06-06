@@ -33,7 +33,6 @@ import { ChampionshipHistoryCard } from '../../components/ChampionshipHistoryCar
 import { SearchBar } from '../../components/SearchBar';
 import { EmptyState } from '../../components/EmptyState';
 import { useChampionshipHistory } from '../../hooks/useChampionshipHistory';
-import { useMuralBadge } from '../../hooks/useMuralBadge';
 import { useNotificationBadge } from '../../hooks/useNotificationBadge';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
 import { useAuthStore } from '../../stores/authStore';
@@ -146,7 +145,6 @@ function LinearProgress({ value, style }: { value: number; style?: ViewStyle }) 
 function StickyHeader({
   userName,
   userPhotoUrl,
-  hasNotification,
   unreadCount,
   onOpenRoleSwitcher,
   onAvatarPress,
@@ -156,7 +154,6 @@ function StickyHeader({
 }: {
   userName?: string;
   userPhotoUrl?: string;
-  hasNotification: boolean;
   unreadCount: number;
   onOpenRoleSwitcher: () => void;
   onAvatarPress: () => void;
@@ -191,7 +188,7 @@ function StickyHeader({
         </Pressable>
         <Pressable onPress={onBellPress} style={styles.bellWrap}>
           <Ionicons name="notifications-outline" size={23} color={colors.textPrimary} />
-          {(hasNotification || unreadCount > 0) && <View style={styles.notificationBadge} />}
+          {unreadCount > 0 && <View style={styles.notificationBadge} />}
           {unreadCount > 0 && (
             <View style={styles.unreadBubble}>
               <Text style={styles.unreadBubbleText}>
@@ -809,7 +806,6 @@ export function HomeScreen() {
     () => players.find((p) => p.userId === user?.id),
     [players, user?.id],
   );
-  const hasNotification = useMuralBadge(selectedChampionshipId);
   const { unreadCount: inAppUnread } = useNotificationBadge();
   const { unreadCount: announcementsUnread } = useAnnouncementsBadge(selectedChampionshipId);
   const unreadCount = inAppUnread + announcementsUnread;
@@ -904,7 +900,6 @@ export function HomeScreen() {
         <StickyHeader
           userName={user?.name}
           userPhotoUrl={myPlayer?.photoUrl}
-          hasNotification={hasNotification}
           unreadCount={unreadCount}
           onOpenRoleSwitcher={() => setModalVisible(true)}
           onAvatarPress={() => navigation.navigate('AthleteProfile')}

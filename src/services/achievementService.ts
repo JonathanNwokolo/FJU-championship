@@ -1,5 +1,6 @@
 import { Achievement, MatchEvent, MatchModel, Player, RoundAward } from '../types';
 import { useAchievementStore } from '../stores/achievementStore';
+import { getCollection, getDocument, setDocument } from './firestore';
 
 function buildAchievement(
   playerId: string,
@@ -18,22 +19,69 @@ function buildAchievement(
   };
 }
 
-// ─── Core check function ───────────────────────────────────────────────────────
-// Returns newly granted Achievement objects (not previously held).
+// ─── Firestore source of truth ─────────────────────────────────────────────────
+// Achievements live at players/{playerId}/achievements/{achievementId}.
 
-export function checkAndGrantAchievements(
+/**
+ * Whether a player already owns an achievement, checked in Firestore (NOT the
+ * local store). The store is only a display cache.
+ */
+export async function hasAchievement(
+  playerId: string,
+  achievementId: string,
+): Promise<boolean> {
+  const doc = await getDocument(`players/${playerId}/achievements`, achievementId);
+  return doc !== null;
+}
+
+/**
+ * Persists an achievement to Firestore (doc id = achievementId → idempotent per
+ * player + type) and mirrors it into the display cache.
+ */
+export async function grantAchievement(achievement: Achievement): Promise<void> {
+  await setDocument(
+    `players/${achievement.playerId}/achievements`,
+    achievement.achievementId,
+    achievement,
+  );
+  useAchievementStore.getState().cacheAchievement(achievement);
+}
+
+function eventCreatedAtMillis(e: MatchEvent): number {
+  const c = e.createdAt as unknown;
+  if (c == null) return 0;
+  if (typeof c === 'number') return c;
+  if (typeof c === 'string') return new Date(c).getTime();
+  if (typeof c === 'object') {
+    const obj = c as { toMillis?: () => number; seconds?: number };
+    if (typeof obj.toMillis === 'function') return obj.toMillis();
+    if (typeof obj.seconds === 'number') return obj.seconds * 1000;
+  }
+  return 0;
+}
+
+// ─── Core check function ───────────────────────────────────────────────────────
+// Returns newly granted Achievement objects (not previously held). Firestore is
+// the source of truth: existing achievements are prefetched once, and each grant
+// is written to the players/{id}/achievements subcollection.
+
+export async function checkAndGrantAchievements(
   playerId: string,
   championshipId: string,
   allEvents: MatchEvent[],
   allMatches: MatchModel[],
   allPlayers: Player[],
   roundAwards: RoundAward[],
-): Achievement[] {
-  const store = useAchievementStore.getState();
+): Promise<Achievement[]> {
   const newAchievements: Achievement[] = [];
 
   const player = allPlayers.find((p) => p.id === playerId);
   if (!player) return [];
+
+  // Prefetch the player's owned achievements (source of truth) for dedup.
+  const owned = await getCollection<Achievement>(`players/${playerId}/achievements`);
+  const ownedIds = new Set(owned.map((a) => a.achievementId));
+  const writes: Promise<void>[] = [];
 
   const champEvents = allEvents.filter((e) => {
     const match = allMatches.find((m) => m.id === e.matchId);
@@ -49,11 +97,18 @@ export function checkAndGrantAchievements(
   const totalGoals = playerGoalEvents.length;
   const teamId = player.teamId;
 
+  // Reserves the id synchronously (so multiple checks in one run can't double
+  // grant) and schedules the Firestore write; writes are awaited before return.
   function grant(achievementId: string, matchId?: string, round?: number) {
-    if (store.hasAchievement(playerId, achievementId)) return;
+    if (ownedIds.has(achievementId)) return;
+    ownedIds.add(achievementId);
     const a = buildAchievement(playerId, achievementId, championshipId, matchId, round);
-    store.grantAchievement(a);
     newAchievements.push(a);
+    writes.push(
+      grantAchievement(a).catch((e) =>
+        console.warn('[achievementService] grant write error:', e),
+      ),
+    );
   }
 
   // ── hat_trick ──────────────────────────────────────────────────────────────
@@ -80,12 +135,18 @@ export function checkAndGrantAchievements(
   }
 
   // ── primeiro_gol ───────────────────────────────────────────────────────────
+  // The very first goal ever scored in the championship. Query all goal events
+  // from Firestore (source of truth), order by createdAt, and check ownership.
   if (totalGoals >= 1) {
-    const anyOtherHasIt = allPlayers
-      .filter((p) => p.id !== playerId)
-      .some((p) => store.hasAchievement(p.id, 'primeiro_gol'));
-    if (!anyOtherHasIt) {
-      grant('primeiro_gol', playerGoalEvents[0]?.matchId);
+    const goalEvents = await getCollection<MatchEvent>('match_events', [
+      { field: 'championshipId', operator: '==', value: championshipId },
+      { field: 'type', operator: '==', value: 'gol' },
+    ]);
+    const firstGoal = [...goalEvents].sort(
+      (a, b) => eventCreatedAtMillis(a) - eventCreatedAtMillis(b),
+    )[0];
+    if (firstGoal && firstGoal.playerId === playerId) {
+      grant('primeiro_gol', firstGoal.matchId);
     }
   }
 
@@ -290,6 +351,9 @@ export function checkAndGrantAchievements(
   if (matchesWithPlayer >= 5) {
     grant('participacao');
   }
+
+  // Ensure every scheduled Firestore write has completed before returning.
+  await Promise.all(writes);
 
   return newAchievements;
 }

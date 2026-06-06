@@ -66,7 +66,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       'fju-voting-storage',
       'fju-achievements-storage',
       'pushToken',
-      'muralLastVisit',
     ]);
     set({ user: null, isOnboarded: false });
   },

@@ -34,7 +34,7 @@ import {
   getCollection,
 } from './firestore';
 import { calculateStandings, calculateTopScorers } from './statsService';
-import { useAchievementStore } from '../stores/achievementStore';
+import { hasAchievement, grantAchievement } from './achievementService';
 import { getTokensForChampionship, sendPushNotification } from './notificationService';
 import { calculateOverall } from '../utils/playerOverall';
 
@@ -69,6 +69,17 @@ export async function finishChampionship(
   championshipId: string,
 ): Promise<FinishChampionshipResult> {
   try {
+    // 0. Idempotency guard: if this championship was already finished, return the
+    // stored result instead of re-running the whole pipeline (which would create
+    // duplicate player_history and inflate career_stats).
+    const existingResult = await getDocument<ChampionshipResultData>(
+      'championship_results',
+      championshipId,
+    );
+    if (existingResult) {
+      return { success: true, resultData: existingResult };
+    }
+
     // 1. Fetch all necessary data
     const [championships, teams, players, matches, events, roundAwards] = await Promise.all([
       getCollection<Championship>('championships', [
@@ -193,8 +204,14 @@ export async function finishChampionship(
         (roundMvpCountByPlayerId[award.winnerPlayerId] ?? 0) + 1;
     }
 
-    // 4. Create player_history for each player, grant achievements, upsert career_stats
-    const achievementStore = useAchievementStore.getState();
+    // 4. Create player_history for each player, grant achievements, recalc career_stats
+
+    // Idempotency: collect which users already have history for this championship
+    // so we never create duplicate player_history entries on a partial re-run.
+    const existingHistory = await getCollection<PlayerHistoryEntry>('player_history', [
+      { field: 'championshipId', operator: '==', value: championshipId },
+    ]);
+    const userIdsWithHistory = new Set(existingHistory.map((h) => h.userId));
 
     for (const player of players) {
       const playerGoals = champEvents.filter(
@@ -225,46 +242,38 @@ export async function finishChampionship(
       );
 
       if (player.userId) {
-        await addDocument('player_history', {
-          playerId: player.id,
-          userId: player.userId,
-          championshipId,
-          championshipName: championship.name,
-          teamId: player.teamId ?? '',
-          teamName: team?.name ?? '',
-          season,
-          goals: playerGoals,
-          assists: playerAssists,
-          yellowCards: playerYellowCards,
-          redCards: playerRedCards,
-          matchesPlayed: playerMatchesPlayed,
-          overall: playerOverall,
-          finishedAt: now,
-          position: player.position,
-          isChampion,
-          isMvp,
-          roundMvpCount,
-        });
+        // Skip duplicate history creation (idempotent), but still recalc career_stats.
+        if (!userIdsWithHistory.has(player.userId)) {
+          await addDocument('player_history', {
+            playerId: player.id,
+            userId: player.userId,
+            championshipId,
+            championshipName: championship.name,
+            teamId: player.teamId ?? '',
+            teamName: team?.name ?? '',
+            season,
+            goals: playerGoals,
+            assists: playerAssists,
+            yellowCards: playerYellowCards,
+            redCards: playerRedCards,
+            matchesPlayed: playerMatchesPlayed,
+            overall: playerOverall,
+            finishedAt: now,
+            position: player.position,
+            isChampion,
+            isMvp,
+            roundMvpCount,
+          });
+          userIdsWithHistory.add(player.userId);
+        }
 
-        // Upsert career_stats/{userId}
-        await upsertCareerStats({
-          userId: player.userId,
-          name: player.name,
-          teamName: team?.name ?? '',
-          goals: playerGoals,
-          assists: playerAssists,
-          matchesPlayed: playerMatchesPlayed,
-          isChampion,
-          roundMvpCount,
-          overall: playerOverall,
-          season,
-          now,
-        });
+        // Recalculate career_stats/{userId} from scratch over ALL player_history.
+        await recalcCareerStats(player.userId, player.name, team?.name ?? '', now);
       }
 
-      // Grant achievements
-      if (isChampion && !achievementStore.hasAchievement(player.id, 'campeao')) {
-        achievementStore.grantAchievement({
+      // Grant end-of-championship achievements (Firestore is the source of truth)
+      if (isChampion && !(await hasAchievement(player.id, 'campeao'))) {
+        await grantAchievement({
           achievementId: 'campeao',
           playerId: player.id,
           championshipId,
@@ -272,8 +281,11 @@ export async function finishChampionship(
         });
       }
 
-      if (player.teamId === runnerUpTeam?.id && !achievementStore.hasAchievement(player.id, 'vice_campeao')) {
-        achievementStore.grantAchievement({
+      if (
+        player.teamId === runnerUpTeam?.id &&
+        !(await hasAchievement(player.id, 'vice_campeao'))
+      ) {
+        await grantAchievement({
           achievementId: 'vice_campeao',
           playerId: player.id,
           championshipId,
@@ -281,8 +293,11 @@ export async function finishChampionship(
         });
       }
 
-      if (player.id === topScorerPlayer?.id && !achievementStore.hasAchievement(player.id, 'artilheiro_campeonato')) {
-        achievementStore.grantAchievement({
+      if (
+        player.id === topScorerPlayer?.id &&
+        !(await hasAchievement(player.id, 'artilheiro_campeonato'))
+      ) {
+        await grantAchievement({
           achievementId: 'artilheiro_campeonato',
           playerId: player.id,
           championshipId,
@@ -294,9 +309,9 @@ export async function finishChampionship(
         playerYellowCards === 0 &&
         playerRedCards === 0 &&
         playerMatchesPlayed > 0 &&
-        !achievementStore.hasAchievement(player.id, 'fair_play_campeonato')
+        !(await hasAchievement(player.id, 'fair_play_campeonato'))
       ) {
-        achievementStore.grantAchievement({
+        await grantAchievement({
           achievementId: 'fair_play_campeonato',
           playerId: player.id,
           championshipId,
@@ -339,63 +354,62 @@ export async function finishChampionship(
   }
 }
 
-// ── Career Stats upsert ───────────────────────────────────────────────────────
+// ── Career Stats (recalculated from scratch → idempotent) ─────────────────────
 
-interface UpsertCareerStatsParams {
-  userId: string;
-  name: string;
-  teamName: string;
-  goals: number;
-  assists: number;
-  matchesPlayed: number;
-  isChampion: boolean;
-  roundMvpCount: number;
-  overall: number;
-  season: string;
-  now: string;
-}
+/**
+ * Rebuilds career_stats/{userId} by summing ALL of the user's player_history
+ * entries from zero. Because nothing is incremented relative to a previous value,
+ * running the finisher more than once produces the same totals (idempotent).
+ */
+async function recalcCareerStats(
+  userId: string,
+  name: string,
+  lastTeamName: string,
+  now: string,
+): Promise<void> {
+  const history = await getCollection<PlayerHistoryEntry>('player_history', [
+    { field: 'userId', operator: '==', value: userId },
+  ]);
+  if (history.length === 0) return;
 
-async function upsertCareerStats(params: UpsertCareerStatsParams): Promise<void> {
-  const { userId, name, teamName, goals, assists, matchesPlayed, isChampion, roundMvpCount, overall, season, now } = params;
+  let totalGoals = 0;
+  let totalAssists = 0;
+  let totalMatches = 0;
+  let totalTitles = 0;
+  let totalMvps = 0;
+  let bestOverall = 0;
+  let bestSeasonGoals = 0;
+  let bestSeason = history[0].season;
+  let firstSeasonYear = history[0].season;
 
-  const existing = await getDocument<CareerStats>('career_stats', userId);
-
-  if (!existing) {
-    await setDocument<CareerStats>('career_stats', userId, {
-      userId,
-      name,
-      lastTeamName: teamName,
-      totalGoals: goals,
-      totalAssists: assists,
-      totalMatches: matchesPlayed,
-      totalTitles: isChampion ? 1 : 0,
-      totalMvps: roundMvpCount,
-      totalChampionships: 1,
-      bestOverall: overall,
-      bestSeason: season,
-      bestSeasonGoals: goals,
-      firstSeasonYear: season,
-      updatedAt: now,
-    });
-    return;
+  for (const h of history) {
+    totalGoals += h.goals ?? 0;
+    totalAssists += h.assists ?? 0;
+    totalMatches += h.matchesPlayed ?? 0;
+    totalTitles += h.isChampion ? 1 : 0;
+    totalMvps += h.roundMvpCount ?? 0;
+    bestOverall = Math.max(bestOverall, h.overall ?? 0);
+    if ((h.goals ?? 0) > bestSeasonGoals) {
+      bestSeasonGoals = h.goals ?? 0;
+      bestSeason = h.season;
+    }
+    if (h.season < firstSeasonYear) firstSeasonYear = h.season;
   }
-
-  const isBetterSeason = goals > existing.bestSeasonGoals;
 
   await upsertDocument<Omit<CareerStats, 'id'>>('career_stats', userId, {
     userId,
     name,
-    lastTeamName: teamName,
-    totalGoals: existing.totalGoals + goals,
-    totalAssists: (existing.totalAssists ?? 0) + assists,
-    totalMatches: existing.totalMatches + matchesPlayed,
-    totalTitles: existing.totalTitles + (isChampion ? 1 : 0),
-    totalMvps: existing.totalMvps + roundMvpCount,
-    totalChampionships: existing.totalChampionships + 1,
-    bestOverall: Math.max(existing.bestOverall, overall),
-    bestSeason: isBetterSeason ? season : existing.bestSeason,
-    bestSeasonGoals: isBetterSeason ? goals : existing.bestSeasonGoals,
-    firstSeasonYear: existing.firstSeasonYear,
+    lastTeamName,
+    totalGoals,
+    totalAssists,
+    totalMatches,
+    totalTitles,
+    totalMvps,
+    totalChampionships: history.length,
+    bestOverall,
+    bestSeason,
+    bestSeasonGoals,
+    firstSeasonYear,
     updatedAt: now,
   });
 }

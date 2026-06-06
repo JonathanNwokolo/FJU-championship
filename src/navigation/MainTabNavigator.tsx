@@ -2,7 +2,6 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeStackNavigator } from './HomeStackNavigator';
 import { FixturesStackNavigator } from './FixturesStackNavigator';
-import { MuralStackNavigator } from './MuralStackNavigator';
 import { ProfileStackNavigator } from './ProfileStackNavigator';
 import { CaptainStackNavigator } from './CaptainStackNavigator';
 import { StandingsScreen } from '../screens/stats/StandingsScreen';
@@ -38,7 +37,6 @@ export function MainTabNavigator() {
     >
       <Tab.Screen name={TAB_NAMES.INICIO} component={withErrorBoundary(HomeStackNavigator)} />
       <Tab.Screen name={TAB_NAMES.CONFRONTOS} component={withErrorBoundary(FixturesStackNavigator)} />
-      <Tab.Screen name={TAB_NAMES.MURAL} component={withErrorBoundary(MuralStackNavigator)} />
       <Tab.Screen name={TAB_NAMES.CLASSIFICACAO} component={withErrorBoundary(StandingsScreen)} />
       <Tab.Screen name={TAB_NAMES.ARTILHEIROS} component={withErrorBoundary(TopScorersScreen)} />
       {isCaptain && (

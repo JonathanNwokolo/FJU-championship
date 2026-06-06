@@ -11,7 +11,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
-import { useMuralBadge } from '../hooks/useMuralBadge';
 import { useLiveMatch } from '../hooks/useLiveMatch';
 import { usePendingJoinRequests } from '../hooks/usePendingJoinRequests';
 import { useChampionshipStore } from '../stores/championshipStore';
@@ -23,7 +22,6 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_CONFIG: Record<string, { active: IoniconName; inactive: IoniconName }> = {
   Inicio: { active: 'home', inactive: 'home-outline' },
   Confrontos: { active: 'calendar', inactive: 'calendar-outline' },
-  Mural: { active: 'camera', inactive: 'camera-outline' },
   Classificacao: { active: 'trophy', inactive: 'trophy-outline' },
   Artilheiros: { active: 'football', inactive: 'football-outline' },
   Time: { active: 'shield', inactive: 'shield-outline' },
@@ -105,7 +103,6 @@ function TabItem({
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
-  const muralHasNew = useMuralBadge(champId);
   const hasLiveMatch = useLiveMatch(champId);
   const userRole = useAuthStore((s) => s.user?.role);
   const userId = useAuthStore((s) => s.user?.id);
@@ -122,11 +119,10 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       if (name === 'Inicio') {
         return hasPendingTeams || (userRole === 'capitao' && pendingJoinRequestsCount > 0);
       }
-      if (name === 'Mural') return muralHasNew;
       if (name === 'Confrontos') return hasLiveMatch;
       return false;
     },
-    [hasPendingTeams, hasLiveMatch, muralHasNew, pendingJoinRequestsCount, userRole],
+    [hasPendingTeams, hasLiveMatch, pendingJoinRequestsCount, userRole],
   );
 
   const safeBottom = insets.bottom;

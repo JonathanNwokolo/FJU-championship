@@ -132,23 +132,6 @@
       ]
     },
     {
-      "collectionGroup": "mural_posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "championshipId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "mural_posts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "championshipId", "order": "ASCENDING" },
-        { "fieldPath": "round", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "announcements",
       "queryScope": "COLLECTION",
       "fields": [
