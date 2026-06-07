@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import { PodiumCard } from '../../components/PodiumCard';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors, shadows } from '../../theme/colors';
-import { getDocument } from '../../services/firestore';
+import { getDocument } from '../../services/index';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useMatchStore } from '../../stores/matchStore';

@@ -105,39 +105,47 @@ export function listenToAnnouncements(
     orderBy('createdAt', 'desc'),
   );
 
-  return onSnapshot(q, (snap) => {
-    const all = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        championshipId: data.championshipId,
-        authorId: data.authorId,
-        authorName: data.authorName,
-        authorRole: data.authorRole,
-        title: data.title,
-        body: data.body,
-        targetAudience: data.targetAudience,
-        targetTeamId: data.targetTeamId,
-        priority: data.priority ?? 'normal',
-        createdAt:
-          data.createdAt instanceof Timestamp
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt ?? new Date().toISOString(),
-        readBy: data.readBy ?? [],
-      } as Announcement;
-    });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const all = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          championshipId: data.championshipId,
+          authorId: data.authorId,
+          authorName: data.authorName,
+          authorRole: data.authorRole,
+          title: data.title,
+          body: data.body,
+          targetAudience: data.targetAudience,
+          targetTeamId: data.targetTeamId,
+          priority: data.priority ?? 'normal',
+          createdAt:
+            data.createdAt instanceof Timestamp
+              ? data.createdAt.toDate().toISOString()
+              : data.createdAt ?? new Date().toISOString(),
+          readBy: data.readBy ?? [],
+        } as Announcement;
+      });
 
-    const filtered = all.filter((a) => {
-      if (role === 'organizador') return true;
-      if (a.targetAudience === 'todos') return true;
-      if (a.targetAudience === 'capitaes') return role === 'capitao';
-      if (a.targetAudience === 'atletas') return role === 'atleta';
-      if (a.targetAudience === 'time_especifico') return a.targetTeamId === teamId;
-      return false;
-    });
+      const filtered = all.filter((a: Announcement) => {
+        if (role === 'organizador') return true;
+        if (a.targetAudience === 'todos') return true;
+        if (a.targetAudience === 'capitaes') return role === 'capitao';
+        if (a.targetAudience === 'atletas') return role === 'atleta';
+        if (a.targetAudience === 'time_especifico') return a.targetTeamId === teamId;
+        return false;
+      });
 
-    onChange(filtered);
-  });
+      onChange(filtered);
+    },
+    (error) => {
+      console.warn('[announcementsService] listenToAnnouncements error:', error);
+      // Retorna lista vazia em caso de erro para encerrar o loading
+      onChange([]);
+    },
+  );
 }
 
 // ── Mark as read ──────────────────────────────────────────────────────────────

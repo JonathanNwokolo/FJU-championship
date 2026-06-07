@@ -1,5 +1,15 @@
 import { Linking } from 'react-native';
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
+} from 'firebase/firestore';
 import { addDocument, getCollection, getDocument, updateDocument } from './firestore';
+import { auth, db } from './firebase';
 import { notifyJoinRequest, notifyJoinRequestResult } from './notificationService';
 import { JoinRequest, Player, Team, TeamInvite } from '../types';
 
@@ -19,6 +29,10 @@ function nextAvailableNumber(players: Player[]) {
     }
   }
   return 99;
+}
+
+function hasActiveTeam(player: Player) {
+  return !!player.teamId && player.status !== 'sem_time';
 }
 
 export async function generateInviteCode(): Promise<string> {
@@ -75,6 +89,7 @@ export async function joinByCode(
   userName: string,
 ): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed' | 'already_in_championship' | 'team_not_approved'> {
   const normalizedCode = code.trim().toUpperCase();
+
   const teams = await getCollection<Team>('teams', [
     { field: 'inviteCode', operator: '==', value: normalizedCode },
   ]);
@@ -97,7 +112,7 @@ export async function joinByCode(
     { field: 'championshipId', operator: '==', value: team.championshipId },
     { field: 'userId', operator: '==', value: userId },
   ]);
-  if (userPlayersInChampionship.length > 0) {
+  if (userPlayersInChampionship.some(hasActiveTeam)) {
     return 'already_in_championship';
   }
 
@@ -170,7 +185,7 @@ export async function requestToJoin(
     { field: 'championshipId', operator: '==', value: team.championshipId },
     { field: 'userId', operator: '==', value: requesterId },
   ]);
-  if (userPlayersInChampionship.length > 0) {
+  if (userPlayersInChampionship.some(hasActiveTeam)) {
     return 'already_in_championship';
   }
 
@@ -364,4 +379,109 @@ export async function processWaitlistOnVacancy(teamId: string): Promise<void> {
   } catch (error) {
     console.warn('[inviteService] Failed to notify waitlist:', error);
   }
+}
+
+export type LeaveTeamResult =
+  | 'success'
+  | 'not_authenticated'
+  | 'not_found'
+  | 'not_allowed'
+  | 'championship_finished'
+  | 'blocked_only_player_pending_matches';
+
+export async function leaveTeam(
+  playerId: string,
+  teamId: string,
+  championshipId: string,
+): Promise<LeaveTeamResult> {
+  const userId = auth.currentUser?.uid;
+  if (!userId) return 'not_authenticated';
+
+  const rosterSnapshot = await getDocs(query(collection(db, 'players'), where('teamId', '==', teamId)));
+  const matchSnapshot = await getDocs(query(collection(db, 'matches'), where('championshipId', '==', championshipId)));
+  const waitlistSnapshot = await getDocs(query(
+    collection(db, 'join_requests'),
+    where('championshipId', '==', championshipId),
+    where('requesterId', '==', userId),
+    where('status', '==', 'pending'),
+  ));
+
+  return runTransaction(db, async (transaction) => {
+    const playerRef = doc(db, 'players', playerId);
+    const teamRef = doc(db, 'teams', teamId);
+    const championshipRef = doc(db, 'championships', championshipId);
+    const userRef = doc(db, 'users', userId);
+
+    const [playerSnap, teamSnap, championshipSnap] = await Promise.all([
+      transaction.get(playerRef),
+      transaction.get(teamRef),
+      transaction.get(championshipRef),
+    ]);
+
+    if (!playerSnap.exists() || !teamSnap.exists() || !championshipSnap.exists()) {
+      return 'not_found';
+    }
+
+    const player = { id: playerSnap.id, ...playerSnap.data() } as Player;
+    const team = { id: teamSnap.id, ...teamSnap.data() } as Team;
+    const championship = championshipSnap.data();
+
+    if (player.userId !== userId || player.teamId !== teamId || team.championshipId !== championshipId) {
+      return 'not_allowed';
+    }
+
+    if (team.captainId === userId) {
+      return 'not_allowed';
+    }
+
+    if (championship.status === 'finalizado') {
+      return 'championship_finished';
+    }
+
+    const rosterSnaps = await Promise.all(
+      rosterSnapshot.docs.map((rosterDoc) => transaction.get(rosterDoc.ref)),
+    );
+    const activeRoster = rosterSnaps
+      .filter((snap) => snap.exists())
+      .map((snap) => ({ id: snap.id, ...snap.data() }) as Player)
+      .filter((rosterPlayer) => rosterPlayer.teamId === teamId && rosterPlayer.status !== 'sem_time');
+
+    const matchSnaps = await Promise.all(
+      matchSnapshot.docs.map((matchDoc) => transaction.get(matchDoc.ref)),
+    );
+    const hasPendingTeamMatch = matchSnaps
+      .filter((snap) => snap.exists())
+      .some((snap) => {
+        const match = snap.data();
+        return (
+          match.championshipId === championshipId &&
+          match.status !== 'finalizado' &&
+          (match.homeTeamId === teamId || match.awayTeamId === teamId)
+        );
+      });
+
+    if (activeRoster.length <= 1 && hasPendingTeamMatch) {
+      return 'blocked_only_player_pending_matches';
+    }
+
+    transaction.update(playerRef, {
+      teamId: null,
+      status: 'sem_time',
+      leftAt: serverTimestamp(),
+    });
+
+    transaction.update(userRef, {
+      teamId: null,
+      championshipId: null,
+    });
+
+    waitlistSnapshot.docs.forEach((requestDoc) => {
+      const request = requestDoc.data() as JoinRequest;
+      if (request.type === 'waitlist' || request.teamId === teamId) {
+        transaction.delete(requestDoc.ref);
+      }
+    });
+
+    return 'success';
+  });
 }

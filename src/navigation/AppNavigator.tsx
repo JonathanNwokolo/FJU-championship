@@ -1,29 +1,36 @@
-import React, { useEffect, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
-// TODO: reativar push notifications no build de produção
-// import * as Notifications from 'expo-notifications';
+import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useFirestoreSync } from '../hooks/useFirestoreSync';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabNavigator } from './MainTabNavigator';
-// TODO: reativar push notifications no build de produção
-// import { registerForPushNotifications } from '../services/notificationService';
+import { registerForPushNotifications } from '../services/notificationService';
 import { colors } from '../theme/colors';
 import { TAB_NAMES } from './constants';
 
-// TODO: reativar push notifications no build de produção
-// Garante que notificações aparecem mesmo com o app em foreground
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowAlert: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: true,
-//     shouldShowBanner: true,
-//     shouldShowList: true,
-//   }),
-// });
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+type NotificationData = {
+  type?: string;
+  matchId?: string;
+  championshipId?: string;
+  teamId?: string;
+};
+
+function normalizeType(type?: string) {
+  return (type ?? '').toLowerCase();
+}
 
 export function AppNavigator() {
   const isOnboarded = useAuthStore((s) => s.isOnboarded);
@@ -32,66 +39,115 @@ export function AppNavigator() {
   const initialize = useAuthStore((s) => s.initialize);
   const initTheme = useThemeStore((s) => s.initialize);
 
+  const navigationRef = useRef<NavigationContainerRef<any>>(null);
+  const pendingNotificationRef = useRef<NotificationData | null>(null);
+
   useFirestoreSync();
 
   useEffect(() => {
     initTheme();
-  }, []);
+  }, [initTheme]);
 
   useEffect(() => {
     const unsubscribe = initialize();
     return unsubscribe;
-  }, []);
+  }, [initialize]);
 
-  const navigationRef = useRef<NavigationContainerRef<any>>(null);
-  // TODO: reativar push notifications no build de produção
-  // const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-  // const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  useEffect(() => {
+    if (!isOnboarded || !user?.id) return;
+    registerForPushNotifications(user.id);
+  }, [isOnboarded, user?.id]);
 
-  // TODO: reativar push notifications no build de produção
-  // Registra token quando o usuário conclui o onboarding
-  // useEffect(() => {
-  //   if (!isOnboarded || !user) return;
-  //   registerForPushNotifications(user.id);
-  // }, [isOnboarded, user?.id]);
+  const navigateFromNotification = useCallback((data: NotificationData | null | undefined) => {
+    if (!data || !user || !isOnboarded || !navigationRef.current?.isReady()) {
+      pendingNotificationRef.current = data ?? null;
+      return;
+    }
 
-  // TODO: reativar push notifications no build de produção
-  // Listeners de notificação
-  // useEffect(() => {
-  //   notificationListener.current = Notifications.addNotificationReceivedListener(
-  //     (notification) => {
-  //       console.log('[notifications] Recebida em foreground:', notification.request.content.title);
-  //     },
-  //   );
+    const type = normalizeType(data.type);
+    const nav = navigationRef.current;
 
-  //   responseListener.current = Notifications.addNotificationResponseReceivedListener(
-  //     (response) => {
-  //       const data = response.notification.request.content.data as {
-  //         type?: string;
-  //         matchId?: string;
-  //       };
+    if (
+      data.matchId &&
+      ['goal', 'match_started', 'live_match', 'livematch', 'live', 'partida_ao_vivo'].includes(type)
+    ) {
+      nav.navigate(TAB_NAMES.CONFRONTOS, {
+        screen: 'LiveMatch',
+        params: { matchId: data.matchId },
+      });
+      return;
+    }
 
-  //       if (!data?.matchId || !navigationRef.current) return;
+    if (data.matchId && type === 'match_finished') {
+      nav.navigate(TAB_NAMES.CONFRONTOS, {
+        screen: 'MatchSummary',
+        params: { matchId: data.matchId },
+      });
+      return;
+    }
 
-  //       if (data.type === 'match_finished') {
-  //         navigationRef.current.navigate(TAB_NAMES.CONFRONTOS, {
-  //           screen: 'MatchSummary',
-  //           params: { matchId: data.matchId },
-  //         });
-  //       } else if (data.type === 'match_started' || data.type === 'goal') {
-  //         navigationRef.current.navigate(TAB_NAMES.CONFRONTOS, {
-  //           screen: 'LiveMatch',
-  //           params: { matchId: data.matchId },
-  //         });
-  //       }
-  //     },
-  //   );
+    if (data.matchId && ['match', 'partida', 'match_scheduled'].includes(type)) {
+      nav.navigate(TAB_NAMES.CONFRONTOS, {
+        screen: 'PreMatch',
+        params: { matchId: data.matchId },
+      });
+      return;
+    }
 
-  //   return () => {
-  //     notificationListener.current?.remove();
-  //     responseListener.current?.remove();
-  //   };
-  // }, []);
+    if (data.championshipId && ['announcement', 'announcements', 'anuncio'].includes(type)) {
+      nav.navigate(TAB_NAMES.INICIO, {
+        screen: 'Announcements',
+        params: { championshipId: data.championshipId },
+      });
+      return;
+    }
+
+    if (['team_approved', 'team_rejected', 'teamapproval', 'aprovacao'].includes(type)) {
+      nav.navigate(TAB_NAMES.TIME);
+      return;
+    }
+
+    if (data.championshipId && ['championship', 'campeonato'].includes(type)) {
+      nav.navigate(TAB_NAMES.INICIO, {
+        screen: 'ChampionshipDashboard',
+        params: { championshipId: data.championshipId },
+      });
+    }
+  }, [isOnboarded, user]);
+
+  const flushPendingNotification = useCallback(() => {
+    if (!pendingNotificationRef.current || !user || !isOnboarded || !navigationRef.current?.isReady()) {
+      return;
+    }
+
+    const data = pendingNotificationRef.current;
+    pendingNotificationRef.current = null;
+    navigateFromNotification(data);
+  }, [isOnboarded, navigateFromNotification, user]);
+
+  useEffect(() => {
+    const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('[notifications] Received in foreground:', notification.request.content.title);
+    });
+
+    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+      navigateFromNotification(response.notification.request.content.data as NotificationData);
+    });
+
+    const lastResponse = Notifications.getLastNotificationResponse();
+    if (lastResponse?.notification) {
+      pendingNotificationRef.current = lastResponse.notification.request.content.data as NotificationData;
+    }
+
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, [navigateFromNotification]);
+
+  useEffect(() => {
+    flushPendingNotification();
+  }, [flushPendingNotification]);
 
   if (isLoading) {
     return (
@@ -102,7 +158,7 @@ export function AppNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={flushPendingNotification}>
       {isOnboarded ? <MainTabNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );

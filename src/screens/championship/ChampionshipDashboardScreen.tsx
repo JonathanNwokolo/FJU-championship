@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -40,7 +40,7 @@ import { colors } from '../../theme/colors';
 import { Team, Player, ChampionshipStatus, MatchModel, MatchEvent } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { isRoundComplete, closeVoting } from '../../services/votingService';
-import { updateDocument, addDocument, getCollection } from '../../services/firestore';
+import { updateDocument, addDocument, getCollection } from '../../services/index';
 import { calculateStandings, calculateTopScorers } from '../../services/statsService';
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';

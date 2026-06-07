@@ -5,6 +5,7 @@ import { useChampionshipStore } from '../stores/championshipStore';
 import {
   calculateStandings,
   calculateTopScorers,
+  calculatePlayerDisciplineRanking,
   calculateBestAttack,
   calculateBestDefense,
   calculateRoundMVP,
@@ -47,6 +48,19 @@ export function useStats(championshipId: string) {
     [players, champTeams],
   );
 
+  const champPlayersForDiscipline = useMemo(
+    () =>
+      players.filter(
+        (p) => p.championshipId === championshipId || champTeams.some((t) => t.id === p.teamId),
+      ),
+    [players, championshipId, champTeams],
+  );
+
+  const champEvents = useMemo(
+    () => events.filter((e) => e.championshipId === championshipId),
+    [events, championshipId],
+  );
+
   const standings = useMemo(
     () => calculateStandings(champMatches, events, champTeams, rules),
     [champMatches, events, champTeams, rules],
@@ -55,6 +69,11 @@ export function useStats(championshipId: string) {
   const topScorers = useMemo(
     () => calculateTopScorers(events, champPlayers, champTeams),
     [events, champPlayers, champTeams],
+  );
+
+  const disciplineRanking = useMemo(
+    () => calculatePlayerDisciplineRanking(champEvents, champPlayersForDiscipline, champTeams),
+    [champEvents, champPlayersForDiscipline, champTeams],
   );
 
   const bestAttack = useMemo(() => calculateBestAttack(standings), [standings]);
@@ -84,6 +103,7 @@ export function useStats(championshipId: string) {
   return {
     standings,
     topScorers,
+    disciplineRanking,
     bestAttack,
     bestDefense,
     roundMVP,

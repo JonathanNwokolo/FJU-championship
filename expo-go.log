@@ -24,3 +24,42 @@ Web  ERROR  [2026-06-06T17:37:37.728Z]  @firebase/firestore: Firestore (12.14.0)
  ERROR  [2026-06-06T17:35:00.699Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
  ERROR  [2026-06-06T17:35:01.769Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
  ERROR  [2026-06-06T17:35:02.335Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-06T17:47:49.604Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-06T17:47:56.503Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-06T17:47:56.597Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-06T17:48:02.382Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-06T17:48:07.374Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web  ERROR  [2026-06-06T17:48:26.493Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web Bundled 86ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  ERROR  [2026-06-06T18:01:38.131Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web Bundled 94ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  ERROR  [2026-06-06T18:01:50.697Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
+Web Bundled 63ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  ERROR  [2026-06-06T18:13:48.859Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.

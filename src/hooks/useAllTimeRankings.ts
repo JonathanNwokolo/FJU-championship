@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { subscribeToDocument } from '../services/firestore';
+﻿import { useEffect, useState } from 'react';
+import { subscribeToDocument } from '../services/index';
 import { AllTimeRanking, AllTimeRankingPlayer, AllTimeRankingTeam } from '../types';
 
 export type AllTimeCategory = 'scorers' | 'titles' | 'matches' | 'mvps' | 'teams';

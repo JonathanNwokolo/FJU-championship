@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,7 +25,7 @@ import { colors } from '../../theme/colors';
 import { TEAM_COLORS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { createInviteLink, createTeamInvite, generateInviteCode } from '../../services/inviteService';
-import { setDocument, getCollection } from '../../services/firestore';
+import { setDocument, getCollection } from '../../services/index';
 import { uploadTeamLogo } from '../../services/imageUpload';
 import { Team } from '../../types';
 

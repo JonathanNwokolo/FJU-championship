@@ -16,6 +16,8 @@ interface Props {
   players?: Player[];
   userTeamId?: string;
   canRegister?: boolean;
+  canSchedule?: boolean;
+  onSchedulePress?: () => void;
   onPress?: () => void;
 }
 
@@ -42,6 +44,16 @@ function isToday(value?: string | null): boolean {
   return d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
+}
+
+function isTomorrow(value?: string | null): boolean {
+  if (!value) return false;
+  const d = new Date(value);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return d.getFullYear() === tomorrow.getFullYear() &&
+    d.getMonth() === tomorrow.getMonth() &&
+    d.getDate() === tomorrow.getDate();
 }
 
 function getResultColor(match: MatchModel, userTeamId?: string) {
@@ -73,6 +85,8 @@ export function MatchCard({
   players = [],
   userTeamId,
   canRegister = false,
+  canSchedule = false,
+  onSchedulePress,
   onPress,
 }: Props) {
   const isFinished = match.status === 'finalizado';
@@ -92,6 +106,8 @@ export function MatchCard({
   const awayGoals = hasInvalidTeams ? [] : getGoalRows(events, match.awayTeamId);
   const goalRows = [...homeGoals, ...awayGoals];
   const today = isScheduled && isToday(match.scheduledAt);
+  const tomorrow = isScheduled && isTomorrow(match.scheduledAt);
+  const scheduleBadge = today ? 'HOJE' : tomorrow ? 'AMANH\u00C3' : null;
   const formattedDate = formatScheduledAt(match.scheduledAt);
 
   const statusColor = hasInvalidTeams
@@ -100,7 +116,7 @@ export function MatchCard({
       ? colors.neon
       : isFinished
         ? colors.bg300
-        : today
+        : scheduleBadge
           ? colors.accent
           : colors.border;
 
@@ -154,7 +170,7 @@ export function MatchCard({
           )}
           {!isFinished && !isLive && (
             <>
-              {today && <Badge label="HOJE" variant="gold" />}
+              {scheduleBadge && <Badge label={scheduleBadge} variant="gold" />}
               <Text style={styles.vs}>vs</Text>
             </>
           )}
@@ -176,7 +192,7 @@ export function MatchCard({
         <View style={styles.scheduleFooter}>
           <Ionicons name="calendar-outline" size={12} color={formattedDate ? colors.accent : colors.textMuted} />
           <Text style={[styles.scheduleDate, !formattedDate && styles.scheduleDateMuted]}>
-            {formattedDate ?? 'Data a definir'}
+            {formattedDate ?? 'A definir'}
           </Text>
           {match.location ? (
             <>
@@ -186,6 +202,19 @@ export function MatchCard({
             </>
           ) : null}
         </View>
+      )}
+
+      {isScheduled && canSchedule && onSchedulePress && (
+        <Pressable
+          style={styles.scheduleAction}
+          onPress={(event) => {
+            event.stopPropagation();
+            onSchedulePress();
+          }}
+        >
+          <Ionicons name="calendar-clear-outline" size={14} color={colors.accent} />
+          <Text style={styles.scheduleActionText}>Agendar</Text>
+        </Pressable>
       )}
 
       {isFinished && goalRows.length > 0 && (
@@ -333,6 +362,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Regular',
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  scheduleAction: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 14,
+    marginBottom: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  scheduleActionText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    color: colors.accent,
   },
   footer: {
     flexDirection: 'row',

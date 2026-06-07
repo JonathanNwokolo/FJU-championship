@@ -8,6 +8,7 @@ export function useNotificationBadge() {
 
   useEffect(() => {
     if (!user?.id) return;
+
     const unsub = listenToNotifications(user.id, (notifications) => {
       setUnreadCount(notifications.filter((n) => !n.read).length);
     });

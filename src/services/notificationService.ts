@@ -1,23 +1,41 @@
-// TODO: reativar push notifications no build de produção
-// import * as Notifications from 'expo-notifications';
-// import * as Device from 'expo-device';
-// import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { db } from './firebase';
 import { saveInAppNotification } from './inAppNotifications';
 
-// ---------------------------------------------------------------------------
-// Local token cache (AsyncStorage) — evita round-trip ao Firestore na releitura
-// Formato: { [userId]: { token: string; updatedAt: number } }
-// ---------------------------------------------------------------------------
-
+const EAS_PROJECT_ID = '5ec2467f-8312-4bc0-94a4-704fa0700e99';
 const TOKENS_KEY = 'push_tokens';
+const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 type TokenRecord = {
   token: string;
   updatedAt: number;
+};
+
+type PushData = Record<string, string | number>;
+
+type NotificationPayload = {
+  to: string;
+  title: string;
+  body: string;
+  data?: PushData;
+  sound: 'default';
+  badge: number;
 };
 
 async function readTokenStore(): Promise<Record<string, TokenRecord>> {
@@ -37,66 +55,64 @@ async function writeTokenStore(store: Record<string, TokenRecord>): Promise<void
   }
 }
 
-// ---------------------------------------------------------------------------
-// 1. registerForPushNotifications
-// Deve ser chamado APÓS o login, com o uid real do Firebase Auth.
-// Obtém o token Expo e persiste no Firestore + cache local.
-// ---------------------------------------------------------------------------
-
-// TODO: reativar push notifications no build de produção
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  // TODO: reativar push notifications no build de produção
-  // if (!Device.isDevice) {
-  //   console.log('[notifications] Skipped: not a physical device');
-  //   return null;
-  // }
+  if (!userId) return null;
 
-  // const { status: existing } = await Notifications.getPermissionsAsync();
-  // let finalStatus = existing;
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#F5A623',
+      });
+    }
 
-  // if (existing !== 'granted') {
-  //   const { status } = await Notifications.requestPermissionsAsync();
-  //   finalStatus = status;
-  // }
+    if (!Device.isDevice) {
+      console.log('[notifications] Push token skipped: unsupported simulator/emulator');
+      return null;
+    }
 
-  // if (finalStatus !== 'granted') {
-  //   console.log('[notifications] Permission denied');
-  //   return null;
-  // }
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  // const projectId =
-  //   Constants.expoConfig?.extra?.eas?.projectId ??
-  //   Constants.easConfig?.projectId;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
 
-  // if (!projectId) {
-  //   console.warn('[notifications] No EAS projectId found in app config');
-  //   return null;
-  // }
+    if (finalStatus !== 'granted') {
+      console.log('[notifications] Push permission denied');
+      return null;
+    }
 
-  // try {
-  //   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-  //   await saveTokenToFirestore(userId, token);
-  //   return token;
-  // } catch (e) {
-  //   console.warn('[notifications] getExpoPushTokenAsync error:', e);
-  //   return null;
-  // }
-  return null;
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId: EAS_PROJECT_ID,
+    });
+
+    await saveTokenToFirestore(userId, token);
+    return token;
+  } catch (e) {
+    console.warn('[notifications] registerForPushNotifications error:', e);
+    return null;
+  }
 }
-
-// ---------------------------------------------------------------------------
-// 2. saveTokenToFirestore
-// Persiste o token em push_tokens/{userId} no Firestore e atualiza cache local.
-// ---------------------------------------------------------------------------
 
 export async function saveTokenToFirestore(userId: string, token: string): Promise<void> {
   try {
-    // Cache local (AsyncStorage)
     const store = await readTokenStore();
     store[userId] = { token, updatedAt: Date.now() };
     await writeTokenStore(store);
 
-    // Firestore — fonte de verdade para notificações entre usuários
+    await setDoc(
+      doc(db, 'users', userId),
+      {
+        expoPushToken: token,
+        expoPushTokenUpdatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
     await setDoc(
       doc(db, 'push_tokens', userId),
       { userId, token, platform: Platform.OS, updatedAt: serverTimestamp() },
@@ -107,18 +123,19 @@ export async function saveTokenToFirestore(userId: string, token: string): Promi
   }
 }
 
-// ---------------------------------------------------------------------------
-// 3. removeTokenFromFirestore (Limpar no logout)
-// ---------------------------------------------------------------------------
-
 export async function removeTokenFromFirestore(userId: string): Promise<void> {
   try {
-    // Remove from local cache
     const store = await readTokenStore();
     delete store[userId];
     await writeTokenStore(store);
 
-    // Remove from Firestore
+    await updateDoc(doc(db, 'users', userId), {
+      expoPushToken: deleteField(),
+      expoPushTokenUpdatedAt: deleteField(),
+    }).catch((e) => {
+      console.warn('[notifications] clear user expoPushToken error:', e);
+    });
+
     await deleteDoc(doc(db, 'push_tokens', userId));
     await AsyncStorage.removeItem('pushToken');
   } catch (e) {
@@ -126,96 +143,76 @@ export async function removeTokenFromFirestore(userId: string): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 4. getTokensForUsers
-// ---------------------------------------------------------------------------
+function isExpoPushToken(value: unknown): value is string {
+  return typeof value === 'string' && value.includes('PushToken');
+}
 
 export async function getTokensForUsers(userIds: string[]): Promise<string[]> {
-  if (userIds.length === 0) return [];
+  const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (uniqueUserIds.length === 0) return [];
+
   try {
     const tokens: string[] = [];
-    for (let i = 0; i < userIds.length; i += 10) {
-      const batch = userIds.slice(i, i + 10);
-      const q = query(collection(db, 'push_tokens'), where('userId', 'in', batch));
-      const snap = await getDocs(q);
-      snap.docs.forEach((d) => {
-        const data = d.data();
-        if (data.token) tokens.push(data.token);
-      });
+    for (const userId of uniqueUserIds) {
+      const snap = await getDoc(doc(db, 'users', userId));
+      if (!snap.exists()) continue;
+
+      const token = snap.data().expoPushToken;
+      if (isExpoPushToken(token)) {
+        tokens.push(token);
+      }
     }
-    return tokens;
+
+    return Array.from(new Set(tokens));
   } catch (e) {
     console.warn('[notifications] getTokensForUsers error:', e);
     return [];
   }
 }
 
-// ---------------------------------------------------------------------------
-// 5. getTokensForChampionship
-// ---------------------------------------------------------------------------
-
 export async function getTokensForChampionship(championshipId: string): Promise<string[]> {
   try {
+    const userIds = new Set<string>();
+
     const playersQuery = query(
       collection(db, 'players'),
-      where('championshipId', '==', championshipId)
+      where('championshipId', '==', championshipId),
     );
     const playersSnapshot = await getDocs(playersQuery);
-    if (playersSnapshot.empty) return [];
-
-    const userIds = new Set<string>();
-    playersSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.userId) userIds.add(data.userId);
+    playersSnapshot.docs.forEach((playerDoc) => {
+      const data = playerDoc.data();
+      if (typeof data.userId === 'string') userIds.add(data.userId);
     });
 
-    const uniqueUserIds = Array.from(userIds);
-    if (uniqueUserIds.length === 0) return [];
+    const teamsQuery = query(
+      collection(db, 'teams'),
+      where('championshipId', '==', championshipId),
+    );
+    const teamsSnapshot = await getDocs(teamsQuery);
+    teamsSnapshot.docs.forEach((teamDoc) => {
+      const data = teamDoc.data();
+      if (typeof data.captainId === 'string') userIds.add(data.captainId);
+    });
 
-    const tokens: string[] = [];
-    for (let i = 0; i < uniqueUserIds.length; i += 10) {
-      const batchIds = uniqueUserIds.slice(i, i + 10);
-      const tokensQuery = query(
-        collection(db, 'push_tokens'),
-        where('userId', 'in', batchIds)
-      );
-      const tokensSnapshot = await getDocs(tokensQuery);
-      tokensSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.token) tokens.push(data.token);
-      });
-    }
-    return tokens;
+    return getTokensForUsers(Array.from(userIds));
   } catch (e) {
     console.warn('[notifications] getTokensForChampionship error:', e);
     return [];
   }
 }
 
-// ---------------------------------------------------------------------------
-// 6. sendPushNotification (lotes de 100 — limite Expo Push API)
-// ---------------------------------------------------------------------------
-
-type NotificationPayload = {
-  to: string;
-  title: string;
-  body: string;
-  data?: object;
-  sound: 'default';
-  badge: number;
-};
-
 export async function sendPushNotification(
   tokens: string[],
   title: string,
   body: string,
-  data: object = {},
+  data: PushData = {},
 ): Promise<void> {
-  if (tokens.length === 0) return;
+  const uniqueTokens = Array.from(new Set(tokens.filter(isExpoPushToken)));
+  if (uniqueTokens.length === 0) return;
 
   const BATCH_SIZE = 100;
-  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
-    const batch = tokens.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < uniqueTokens.length; i += BATCH_SIZE) {
+    const batch = uniqueTokens.slice(i, i + BATCH_SIZE);
     const messages: NotificationPayload[] = batch.map((to) => ({
       to,
       title,
@@ -226,7 +223,7 @@ export async function sendPushNotification(
     }));
 
     try {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      const res = await fetch(EXPO_PUSH_URL, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -235,16 +232,15 @@ export async function sendPushNotification(
         },
         body: JSON.stringify(messages),
       });
-      if (!res.ok) console.warn('[notifications] Push API HTTP error:', res.status);
+
+      if (!res.ok) {
+        console.warn('[notifications] Push API HTTP error:', res.status);
+      }
     } catch (e) {
       console.warn('[notifications] sendPushNotification error:', e);
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// 7. notifyGoal
-// ---------------------------------------------------------------------------
 
 export async function notifyGoal(
   championshipId: string,
@@ -256,18 +252,15 @@ export async function notifyGoal(
   awayScore: number,
   allUserIds: string[] = [],
 ): Promise<void> {
-  const title = '⚽ GOL!';
+  const title = 'GOL!';
   const body = `${scorerName} marcou para ${teamName}! ${homeTeam} ${homeScore} x ${awayScore} ${awayTeam}`;
+  const data = { type: 'goal', championshipId, homeScore, awayScore };
   const tokens = await getTokensForChampionship(championshipId);
-  await sendPushNotification(tokens, title, body, { type: 'goal', championshipId, homeScore, awayScore });
+  await sendPushNotification(tokens, title, body, data);
   if (allUserIds.length > 0) {
-    await saveInAppNotification(allUserIds, 'goal', title, body, { championshipId, homeScore, awayScore });
+    await saveInAppNotification(allUserIds, 'goal', title, body, data);
   }
 }
-
-// ---------------------------------------------------------------------------
-// 8. notifyMatchStarted
-// ---------------------------------------------------------------------------
 
 export async function notifyMatchStarted(
   championshipId: string,
@@ -276,18 +269,15 @@ export async function notifyMatchStarted(
   matchId: string,
   allUserIds: string[] = [],
 ): Promise<void> {
-  const title = '🏟️ Partida ao vivo!';
-  const body = `${homeTeam} x ${awayTeam} começou agora`;
+  const title = 'Partida ao vivo!';
+  const body = `${homeTeam} x ${awayTeam} comecou agora`;
+  const data = { type: 'match_started', championshipId, matchId };
   const tokens = await getTokensForChampionship(championshipId);
-  await sendPushNotification(tokens, title, body, { type: 'match_started', championshipId, matchId });
+  await sendPushNotification(tokens, title, body, data);
   if (allUserIds.length > 0) {
-    await saveInAppNotification(allUserIds, 'match_started', title, body, { championshipId, matchId });
+    await saveInAppNotification(allUserIds, 'match_started', title, body, data);
   }
 }
-
-// ---------------------------------------------------------------------------
-// 9. notifyMatchFinished
-// ---------------------------------------------------------------------------
 
 export async function notifyMatchFinished(
   championshipId: string,
@@ -298,18 +288,15 @@ export async function notifyMatchFinished(
   matchId: string,
   allUserIds: string[] = [],
 ): Promise<void> {
-  const title = '🔚 Partida encerrada';
+  const title = 'Partida encerrada';
   const body = `${homeTeam} ${homeScore} x ${awayScore} ${awayTeam}`;
+  const data = { type: 'match_finished', championshipId, matchId, homeScore, awayScore };
   const tokens = await getTokensForChampionship(championshipId);
-  await sendPushNotification(tokens, title, body, { type: 'match_finished', championshipId, matchId, homeScore, awayScore });
+  await sendPushNotification(tokens, title, body, data);
   if (allUserIds.length > 0) {
-    await saveInAppNotification(allUserIds, 'match_finished', title, body, { championshipId, matchId, homeScore, awayScore });
+    await saveInAppNotification(allUserIds, 'match_finished', title, body, data);
   }
 }
-
-// ---------------------------------------------------------------------------
-// 10. notifyMatchScheduled — envia para os capitães dos dois times
-// ---------------------------------------------------------------------------
 
 export async function notifyMatchScheduled(
   captainIds: string[],
@@ -329,14 +316,13 @@ export async function notifyMatchScheduled(
   });
   const timeStr = `${scheduledAt.getHours().toString().padStart(2, '0')}h${scheduledAt.getMinutes().toString().padStart(2, '0')}`;
   const locationSuffix = location ? ` em ${location}` : '';
-  const title = '📅 Partida agendada';
-  const body = `${homeTeam} x ${awayTeam} — ${dateStr} às ${timeStr}${locationSuffix}`;
+  const title = 'Partida agendada';
+  const body = `${homeTeam} x ${awayTeam} - ${dateStr} as ${timeStr}${locationSuffix}`;
+  const data = { type: 'match_scheduled', matchId };
 
-  if (tokens.length > 0) {
-    await sendPushNotification(tokens, title, body, { type: 'match_scheduled', matchId });
-  }
+  await sendPushNotification(tokens, title, body, data);
   if (validIds.length > 0) {
-    await saveInAppNotification(validIds, 'match_scheduled', title, body, { matchId });
+    await saveInAppNotification(validIds, 'match_scheduled', title, body, data);
   }
 }
 
@@ -347,12 +333,11 @@ export async function notifyJoinRequest(
 ): Promise<void> {
   const title = 'Novo pedido para entrar no time';
   const body = `${requesterName} quer entrar no ${teamName}`;
+  const data = { type: 'join_request', teamName };
   const tokens = await getTokensForUsers([captainId]);
 
-  if (tokens.length > 0) {
-    await sendPushNotification(tokens, title, body, { type: 'join_request', teamName });
-  }
-  await saveInAppNotification([captainId], 'join_request', title, body, { teamName });
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification([captainId], 'join_request', title, body, data);
 }
 
 export async function notifyJoinRequestResult(
@@ -360,17 +345,16 @@ export async function notifyJoinRequestResult(
   approved: boolean,
   teamName: string,
 ): Promise<void> {
-  const title = approved ? 'Solicitação aprovada' : 'Solicitação recusada';
+  const title = approved ? 'Solicitacao aprovada' : 'Solicitacao recusada';
   const body = approved
     ? `Seu pedido para entrar no ${teamName} foi aprovado`
     : `Seu pedido para entrar no ${teamName} foi recusado`;
   const notificationType = approved ? 'join_request_approved' : 'join_request_rejected';
+  const data = { type: notificationType, teamName };
   const tokens = await getTokensForUsers([athleteId]);
 
-  if (tokens.length > 0) {
-    await sendPushNotification(tokens, title, body, { type: notificationType, teamName });
-  }
-  await saveInAppNotification([athleteId], notificationType, title, body, { teamName });
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification([athleteId], notificationType, title, body, data);
 }
 
 export async function notifyWaitlistSpotAvailable(
@@ -378,50 +362,39 @@ export async function notifyWaitlistSpotAvailable(
   teamName: string,
   inviteCode: string,
 ): Promise<void> {
-  const title = '🎉 Vaga aberta!';
-  const body = `Uma vaga abriu no time ${teamName}! Use o código ${inviteCode} para entrar.`;
+  const title = 'Vaga aberta!';
+  const body = `Uma vaga abriu no time ${teamName}! Use o codigo ${inviteCode} para entrar.`;
+  const data = { type: 'waitlist_spot_available', teamName, inviteCode };
   const tokens = await getTokensForUsers([athleteId]);
 
-  if (tokens.length > 0) {
-    await sendPushNotification(tokens, title, body, { type: 'waitlist_spot_available', teamName, inviteCode });
-  }
-  await saveInAppNotification([athleteId], 'waitlist_spot_available', title, body, { teamName, inviteCode });
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification([athleteId], 'waitlist_spot_available', title, body, data);
 }
-
-// ---------------------------------------------------------------------------
-// 12. notifyTeamApproved — notifica o capitão quando seu time é aprovado
-// ---------------------------------------------------------------------------
 
 export async function notifyTeamApproved(
   captainId: string,
   teamName: string,
   championshipName: string,
 ): Promise<void> {
-  const title = '✅ Time aprovado!';
+  const title = 'Time aprovado!';
   const body = `O time ${teamName} foi aprovado para participar do ${championshipName}`;
+  const data = { type: 'team_approved', teamName, championshipName };
   const tokens = await getTokensForUsers([captainId]);
 
-  if (tokens.length > 0) {
-    await sendPushNotification(tokens, title, body, { type: 'team_approved', teamName, championshipName });
-  }
-  await saveInAppNotification([captainId], 'team_approved', title, body, { teamName, championshipName });
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification([captainId], 'team_approved', title, body, data);
 }
-
-// ---------------------------------------------------------------------------
-// 13. notifyTeamRejected — notifica o capitão quando seu time é rejeitado
-// ---------------------------------------------------------------------------
 
 export async function notifyTeamRejected(
   captainId: string,
   teamName: string,
   championshipName: string,
 ): Promise<void> {
-  const title = '❌ Time não aprovado';
-  const body = `O time ${teamName} não foi aprovado para o ${championshipName}. Entre em contato com o organizador.`;
+  const title = 'Time nao aprovado';
+  const body = `O time ${teamName} nao foi aprovado para o ${championshipName}. Entre em contato com o organizador.`;
+  const data = { type: 'team_rejected', teamName, championshipName };
   const tokens = await getTokensForUsers([captainId]);
 
-  if (tokens.length > 0) {
-    await sendPushNotification(tokens, title, body, { type: 'team_rejected', teamName, championshipName });
-  }
-  await saveInAppNotification([captainId], 'team_rejected', title, body, { teamName, championshipName });
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification([captainId], 'team_rejected', title, body, data);
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ActivityIndicator,
@@ -41,7 +41,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { auth } from '../../services/firebase';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument } from '../../services/index';
 import { processWaitlistOnVacancy } from '../../services/inviteService';
 import { uploadUserPhoto } from '../../services/imageUpload';
 import { colors, gradients, shadows } from '../../theme/colors';

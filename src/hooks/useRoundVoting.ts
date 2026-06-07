@@ -52,10 +52,9 @@ export function useRoundVoting(
 
     const unsubVotes = onSnapshot(votesQuery, (snap) => {
       const fresh = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RoundVote));
-      // Merge into the full votes store (replace this round's slice, keep others)
       const other = useVotingStore
         .getState()
-        .votes.filter((v) => !(v.championshipId === championshipId && v.round === round));
+        .votes.filter((v: RoundVote) => !(v.championshipId === championshipId && v.round === round));
       setVotes([...other, ...fresh]);
       setLoading(false);
     });
@@ -64,7 +63,7 @@ export function useRoundVoting(
       const fresh = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RoundAward));
       const other = useVotingStore
         .getState()
-        .awards.filter((a) => !(a.championshipId === championshipId && a.round === round));
+        .awards.filter((a: RoundAward) => !(a.championshipId === championshipId && a.round === round));
       setAwards([...other, ...fresh]);
     });
 

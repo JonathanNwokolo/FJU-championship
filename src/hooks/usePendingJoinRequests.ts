@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { subscribeToCollection } from '../services/firestore';
+﻿import { useEffect, useState } from 'react';
+import { subscribeToCollection } from '../services/index';
 import { JoinRequest } from '../types';
 
 export function usePendingJoinRequests(teamId?: string) {

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getCollection, getDocument } from '../services/firestore';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { getCollection, getDocument } from '../services/index';
 import { ACHIEVEMENTS } from '../utils/achievementDefinitions';
 import { calculateOverall } from '../utils/playerOverall';
 import { useAchievementStore } from '../stores/achievementStore';

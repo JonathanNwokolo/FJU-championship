@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -41,7 +41,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { getCollection } from '../../services/firestore';
+import { getCollection } from '../../services/index';
 import { Championship, MatchModel, Team, UserRole, Player } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { colors, gradients, shadows } from '../../theme/colors';

@@ -43,12 +43,28 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { calculateStandings } from '../../services/statsService';
-import { updateDocument, setDocument, getDocument, getCollection } from '../../services/firestore';
-import { Player, MatchModel, Team, TeamStanding, PlayerStatus } from '../../types';
+import { updateDocument, setDocument, getDocument, getCollection } from '../../services/index';
+import { respondToRequest } from '../../services/inviteService';
+import { Player, MatchModel, Team, TeamStanding, PlayerStatus, JoinRequest } from '../../types';
 import { colors, shadows } from '../../theme/colors';
-import { POSITION_COLORS, POSITION_LABELS } from '../../utils/constants';
+import { POSITION_COLORS, POSITION_LABELS, TEAM_COLORS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
+import { useTeamWaitlist } from '../../hooks/useTeamWaitlist';
+
+const ORDINALS = ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º', '10º'];
+
+function formatWaitlistDate(createdAt: unknown): string | null {
+  if (!createdAt) return null;
+  let date: Date;
+  if (typeof createdAt === 'object' && typeof (createdAt as { toDate?: () => Date }).toDate === 'function') {
+    date = (createdAt as { toDate: () => Date }).toDate();
+  } else {
+    date = new Date(createdAt as string | number);
+  }
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR');
+}
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList>;
 
@@ -59,6 +75,40 @@ function getInitials(name: string): string {
   const parts = name.trim().split(' ');
   if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '?';
   return ((parts[0][0] ?? '') + (parts[parts.length - 1][0] ?? '')).toUpperCase();
+}
+
+// ── Team Color Picker ────────────────────────────────────────────────────────
+function TeamColorPicker({
+  selected,
+  onSelect,
+  exclude,
+}: {
+  selected: string;
+  onSelect: (color: string) => void;
+  exclude?: string;
+}) {
+  return (
+    <View style={styles.colorPickerRow}>
+      {TEAM_COLORS.map((color) => {
+        const isSelected = color === selected;
+        const isExcluded = color === exclude;
+        return (
+          <TouchableOpacity
+            key={color}
+            onPress={() => !isExcluded && onSelect(color)}
+            disabled={isExcluded}
+            style={[
+              styles.colorDot,
+              { backgroundColor: color },
+              isSelected && styles.colorDotSelected,
+              isExcluded && styles.colorDotExcluded,
+            ]}
+            activeOpacity={0.8}
+          />
+        );
+      })}
+    </View>
+  );
 }
 
 // ── Stat Card Component ──────────────────────────────────────────────────────
@@ -269,11 +319,18 @@ export function CaptainDashboardScreen() {
   );
 
   const { unreadCount: announcementsUnread } = useAnnouncementsBadge(myTeam?.championshipId ?? '');
+  const { waitlist } = useTeamWaitlist(myTeam?.id);
+  const [waitlistActionId, setWaitlistActionId] = useState<string | null>(null);
 
-  const nextMatch = useMemo(
-    () => teamMatches.find((m) => m.status !== 'finalizado'),
-    [teamMatches]
-  );
+  const nextMatch = useMemo(() => {
+    const pendingMatches = teamMatches.filter((m) => m.status !== 'finalizado');
+    const scheduledMatches = pendingMatches
+      .filter((m) => !!m.scheduledAt && !Number.isNaN(new Date(m.scheduledAt).getTime()))
+      .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime());
+    const nextScheduled = scheduledMatches.find((m) => new Date(m.scheduledAt!).getTime() >= Date.now());
+
+    return nextScheduled ?? scheduledMatches[0] ?? pendingMatches.sort((a, b) => a.round - b.round)[0];
+  }, [teamMatches]);
 
   // Pull-to-refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -462,6 +519,48 @@ export function CaptainDashboardScreen() {
     );
   }, [removePlayer]);
 
+  // Waitlist handlers (reaproveita respondToRequest: aprova/rejeita e notifica o atleta)
+  const handleApproveWaitlist = useCallback(async (entry: JoinRequest) => {
+    if (!myTeam) return;
+    setWaitlistActionId(entry.id);
+    try {
+      await respondToRequest(entry.id, true, myTeam.id, entry.requesterId);
+      Toast.show({ type: 'success', text1: `${entry.requesterName} aprovado!` });
+    } catch (e) {
+      console.warn('[CaptainDashboard] approve waitlist failed:', e);
+      Toast.show({ type: 'error', text1: 'Erro ao aprovar' });
+    } finally {
+      setWaitlistActionId(null);
+    }
+  }, [myTeam]);
+
+  const handleRemoveWaitlist = useCallback((entry: JoinRequest) => {
+    if (!myTeam) return;
+    Alert.alert(
+      'Remover da fila',
+      `Remover ${entry.requesterName} da fila de espera?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            setWaitlistActionId(entry.id);
+            try {
+              await respondToRequest(entry.id, false, myTeam.id, entry.requesterId);
+              Toast.show({ type: 'success', text1: 'Removido da fila' });
+            } catch (e) {
+              console.warn('[CaptainDashboard] remove waitlist failed:', e);
+              Toast.show({ type: 'error', text1: 'Erro ao remover' });
+            } finally {
+              setWaitlistActionId(null);
+            }
+          },
+        },
+      ]
+    );
+  }, [myTeam]);
+
   // Player status handlers
   const openPlayerStatusSheet = useCallback((player: Player) => {
     setSelectedPlayer(player);
@@ -531,12 +630,15 @@ export function CaptainDashboardScreen() {
   // Countdown for next match
   const [countdown, setCountdown] = useState('');
   useEffect(() => {
-    if (!nextMatch?.scheduledAt) return;
-    const interval = setInterval(() => {
+    if (!nextMatch?.scheduledAt) {
+      setCountdown('');
+      return;
+    }
+
+    const updateCountdown = () => {
       const diff = new Date(nextMatch.scheduledAt!).getTime() - Date.now();
       if (diff <= 0) {
         setCountdown('Agora!');
-        clearInterval(interval);
         return;
       }
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -545,7 +647,10 @@ export function CaptainDashboardScreen() {
       if (days > 0) setCountdown(`${days}d ${hours}h`);
       else if (hours > 0) setCountdown(`${hours}h ${mins}min`);
       else setCountdown(`${mins} min`);
-    }, 1000);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [nextMatch?.scheduledAt]);
 
@@ -742,6 +847,55 @@ export function CaptainDashboardScreen() {
           </AppCard>
         </View>
 
+        {/* Waitlist Section — só aparece se houver gente na fila */}
+        {waitlist.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.waitlistHeaderRow}>
+              <SectionHeader title="FILA DE ESPERA" />
+              <View style={styles.waitlistCountBadge}>
+                <Text style={styles.waitlistCountText}>{waitlist.length}</Text>
+              </View>
+            </View>
+            {waitlist.map((entry, index) => {
+              const entryDate = formatWaitlistDate(entry.createdAt);
+              const busy = waitlistActionId === entry.id;
+              return (
+                <AppCard key={entry.id} style={styles.waitlistCard}>
+                  <View style={styles.waitlistPositionBadge}>
+                    <Text style={styles.waitlistPositionText}>
+                      {ORDINALS[index] ?? `${index + 1}º`}
+                    </Text>
+                  </View>
+                  <View style={styles.waitlistInfo}>
+                    <Text style={styles.waitlistName} numberOfLines={1}>{entry.requesterName}</Text>
+                    {entryDate && (
+                      <Text style={styles.waitlistDate}>Entrou em {entryDate}</Text>
+                    )}
+                  </View>
+                  <View style={styles.waitlistActions}>
+                    <TouchableOpacity
+                      style={[styles.waitlistChip, styles.waitlistApproveChip]}
+                      onPress={() => handleApproveWaitlist(entry)}
+                      disabled={busy}
+                    >
+                      <Ionicons name="checkmark" size={16} color={colors.success} />
+                      <Text style={[styles.waitlistChipText, { color: colors.success }]}>Aprovar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.waitlistChip, styles.waitlistRemoveChip]}
+                      onPress={() => handleRemoveWaitlist(entry)}
+                      disabled={busy}
+                    >
+                      <Ionicons name="close" size={16} color={colors.danger} />
+                      <Text style={[styles.waitlistChipText, { color: colors.danger }]}>Remover</Text>
+                    </TouchableOpacity>
+                  </View>
+                </AppCard>
+              );
+            })}
+          </View>
+        )}
+
         {/* Convocation Section */}
         <View style={styles.section}>
           <SectionHeader
@@ -823,21 +977,17 @@ export function CaptainDashboardScreen() {
           />
 
           <Text style={styles.sheetLabel}>Cor primária</Text>
-          <BottomSheetTextInput
-            style={styles.sheetInput}
-            value={editPrimaryColor}
-            onChangeText={setEditPrimaryColor}
-            placeholder="#FF0000"
-            placeholderTextColor={colors.textMuted}
+          <TeamColorPicker
+            selected={editPrimaryColor}
+            onSelect={setEditPrimaryColor}
+            exclude={editSecondaryColor}
           />
 
           <Text style={styles.sheetLabel}>Cor secundária</Text>
-          <BottomSheetTextInput
-            style={styles.sheetInput}
-            value={editSecondaryColor}
-            onChangeText={setEditSecondaryColor}
-            placeholder="#FFFFFF"
-            placeholderTextColor={colors.textMuted}
+          <TeamColorPicker
+            selected={editSecondaryColor}
+            onSelect={setEditSecondaryColor}
+            exclude={editPrimaryColor}
           />
 
           <AppButton
@@ -1333,6 +1483,24 @@ const styles = StyleSheet.create({
   sheetBtn: {
     marginTop: 8,
   },
+  colorPickerRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  colorDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  colorDotSelected: {
+    borderColor: colors.accent,
+  },
+  colorDotExcluded: {
+    opacity: 0.25,
+  },
 
   // Player status badges
   playerNameRow: {
@@ -1521,5 +1689,82 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+
+  // Waitlist
+  waitlistHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  waitlistCountBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  waitlistCountText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.bg100,
+  },
+  waitlistCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  waitlistPositionBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.accentGlow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitlistPositionText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+    color: colors.accent,
+  },
+  waitlistInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  waitlistName: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  waitlistDate: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  waitlistActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  waitlistChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  waitlistApproveChip: {
+    backgroundColor: `${colors.success}1A`,
+  },
+  waitlistRemoveChip: {
+    backgroundColor: `${colors.danger}1A`,
+  },
+  waitlistChipText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
   },
 });

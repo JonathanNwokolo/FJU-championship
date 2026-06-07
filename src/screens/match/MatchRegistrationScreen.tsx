@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -33,7 +33,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useAuthStore } from '../../stores/authStore';
 import { MatchEvent, MatchEventType } from '../../types';
-import { addDocument, setDocument, updateDocument, deleteDocument } from '../../services/firestore';
+import { addDocument, setDocument, updateDocument, deleteDocument } from '../../services/index';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import {
   notifyGoal,

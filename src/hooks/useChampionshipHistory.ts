@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { ChampionshipResultData } from '../types';
-import { getCollection, getDocument } from '../services/firestore';
+import { getCollection, getDocument } from '../services/index';
 import { useChampionshipStore } from '../stores/championshipStore';
 import { useMatchStore } from '../stores/matchStore';
 import { useTeamStore } from '../stores/teamStore';

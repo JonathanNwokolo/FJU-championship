@@ -56,26 +56,34 @@ export function listenToNotifications(
     orderBy('createdAt', 'desc'),
   );
 
-  return onSnapshot(q, (snap) => {
-    const notifications: InAppNotification[] = snap.docs.map((d) => {
-      const data = d.data();
-      const createdAt =
-        data.createdAt instanceof Timestamp
-          ? data.createdAt.toDate().toISOString()
-          : data.createdAt ?? new Date().toISOString();
-      return {
-        id: d.id,
-        userId: data.userId,
-        type: data.type,
-        title: data.title,
-        body: data.body,
-        data: data.data,
-        read: data.read ?? false,
-        createdAt,
-      } as InAppNotification;
-    });
-    onChange(notifications);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const notifications: InAppNotification[] = snap.docs.map((d) => {
+        const data = d.data();
+        const createdAt =
+          data.createdAt instanceof Timestamp
+            ? data.createdAt.toDate().toISOString()
+            : data.createdAt ?? new Date().toISOString();
+        return {
+          id: d.id,
+          userId: data.userId,
+          type: data.type,
+          title: data.title,
+          body: data.body,
+          data: data.data,
+          read: data.read ?? false,
+          createdAt,
+        } as InAppNotification;
+      });
+      onChange(notifications);
+    },
+    (error) => {
+      console.warn('[inAppNotifications] listenToNotifications error:', error);
+      // Retorna lista vazia em caso de erro para encerrar o loading
+      onChange([]);
+    },
+  );
 }
 
 export async function markAsRead(notificationId: string): Promise<void> {

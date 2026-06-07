@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors, shadows } from '../../theme/colors';
-import { getDocument } from '../../services/firestore';
+import { getDocument } from '../../services/index';
 import { calculateStandings } from '../../services/statsService';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';

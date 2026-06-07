@@ -6,7 +6,7 @@ export function useLiveMatch(championshipId: string) {
   const [hasLive, setHasLive] = useState(false);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured || !championshipId) return;
 
     const q = query(
       collection(db, 'matches'),

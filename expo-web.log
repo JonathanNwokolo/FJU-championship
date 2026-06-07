@@ -6,10 +6,8 @@ Starting project at C:\Users\Home\Desktop\WORKS\FJU-championship
 Starting Metro Bundler
 
 Waiting on http://localhost:8081
-An update for expo is available: 56.0.8 → ~56.0.9
-4 other packages may need updating. Run npx expo install --check for details.
 Logs for your project will appear below.
-Web Bundled 1667ms index.ts (1525 modules)
+Web Bundled 4363ms index.ts (1581 modules)
 Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
@@ -20,12 +18,27 @@ Web  LOG  Running application "main" with appParams:
 Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-06T03:45:04.120Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:45:04.598Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:45:04.761Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web Bundled 87ms index.ts (1 module)
-Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web Bundled 63ms index.ts (1 module)
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
 Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
@@ -35,84 +48,8 @@ Web  LOG  Running application "main" with appParams:
 Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-06T03:46:58.275Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:46:58.429Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:46:58.514Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  WARN  could not find scrollable ref!
-Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
-Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web Bundled 71ms index.ts (1 module)
-Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-06T03:47:47.501Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:47:48.105Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:47:48.299Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web Bundled 67ms index.ts (1 module)
-Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes isAndroid Bundled 13919ms index.ts (2033 modules)
-er will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-06T03:50:33.171Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:50:33.851Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:50:34.086Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web Bundled 75ms index.ts (1 module)
-Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-06T03:50:37.167Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:50:37.345Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:50:37.436Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web Bundled 91ms index.ts (1 module)
-Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
-Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
-Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
-Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
-Web  LOG  Running application "main" with appParams:
- {"hydrate": undefined, "rootTag": "#root"} 
-Development-level warnings: ON.
-Performance optimizations: OFF.
-Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  LOG  [notifications] Permission denied
-Web  ERROR  [2026-06-06T03:58:53.263Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:58:53.758Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  ERROR  [2026-06-06T03:58:53.933Z]  @firebase/firestore: Firestore (12.14.0): Uncaught Error in snapshot listener: FirebaseError: [code=permission-denied]: Missing or insufficient permissions.
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
-Android Bundled 10724ms index.ts (2033 modules)
-Android Bundled 80ms index.ts (1 module)
-Android Bundled 110ms index.ts (1 module)
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.

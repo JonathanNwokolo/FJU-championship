@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -37,7 +37,7 @@ import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { generateRoundRobin, generateBracketFixtures } from '../../utils/roundRobin';
-import { setDocument, updateDocument } from '../../services/firestore';
+import { setDocument, updateDocument } from '../../services/index';
 import { MatchModel, Team } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 

@@ -478,11 +478,12 @@ async function rebuildAllTimeRankings(): Promise<void> {
       participations: teamParticipationMap[t.name]?.size ?? t.titles,
     }));
 
+  // IDs sem prefixo 'top_' para bater com useAllTimeRankings (category → docId)
   await Promise.all([
-    upsertDocument('all_time_rankings', 'top_scorers', { players: topScorers }),
-    upsertDocument('all_time_rankings', 'top_titles', { players: topTitles }),
-    upsertDocument('all_time_rankings', 'top_matches', { players: topMatches }),
-    upsertDocument('all_time_rankings', 'top_mvps', { players: topMvps }),
-    upsertDocument('all_time_rankings', 'top_teams', { teams: topTeams }),
+    upsertDocument('all_time_rankings', 'scorers', { players: topScorers }),
+    upsertDocument('all_time_rankings', 'titles', { players: topTitles }),
+    upsertDocument('all_time_rankings', 'matches', { players: topMatches }),
+    upsertDocument('all_time_rankings', 'mvps', { players: topMvps }),
+    upsertDocument('all_time_rankings', 'teams', { teams: topTeams }),
   ]);
 }

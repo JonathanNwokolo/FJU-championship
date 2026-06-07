@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+﻿import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -22,7 +22,7 @@ import { SearchBar } from '../../components/SearchBar';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { addDocument, deleteDocument } from '../../services/firestore';
+import { addDocument, deleteDocument } from '../../services/index';
 import { respondToRequest, processWaitlistOnVacancy } from '../../services/inviteService';
 import { usePendingJoinRequests } from '../../hooks/usePendingJoinRequests';
 import { colors } from '../../theme/colors';

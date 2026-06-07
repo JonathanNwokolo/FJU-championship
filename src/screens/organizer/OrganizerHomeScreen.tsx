@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -16,7 +16,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useMatchStore } from '../../stores/matchStore';
-import { getCollection } from '../../services/firestore';
+import { getCollection } from '../../services/index';
 import { Championship, ChampionshipFormat, ChampionshipStatus, Team, MatchModel, Player } from '../../types';
 import { OrganizerStackParamList } from '../../navigation/OrganizerStackNavigator';
 import { TAB_NAMES } from '../../navigation/constants';

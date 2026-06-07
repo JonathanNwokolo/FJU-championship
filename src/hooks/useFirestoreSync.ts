@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { subscribeToCollection, subscribeToDocument } from '../services/firestore';
+﻿import { useEffect } from 'react';
+import { subscribeToCollection, subscribeToDocument } from '../services/index';
 import { useAuthStore } from '../stores/authStore';
 import { useChampionshipStore } from '../stores/championshipStore';
 import { useTeamStore } from '../stores/teamStore';

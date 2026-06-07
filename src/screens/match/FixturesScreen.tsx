@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated as RNAnimated,
   FlatList,
   Pressable,
@@ -10,13 +9,16 @@ import {
   Text,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Font from 'expo-font';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { MatchCard } from '../../components/MatchCard';
+import {
+  ScheduleMatchBottomSheet,
+  ScheduleMatchBottomSheetRef,
+} from '../../components/ScheduleMatchBottomSheet';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
@@ -26,11 +28,24 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { getCollection } from '../../services/firestore';
+import { getCollection } from '../../services/index';
 import { registerForPushNotifications } from '../../services/notificationService';
 import { isRoundComplete } from '../../services/votingService';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
 import { getBracketRoundLabel } from '../../utils/roundRobin';
+
+type BracketColumn = {
+  key: string;
+  label: string;
+  round: number;
+  matches: MatchModel[];
+};
+
+function getStatusLabel(status: MatchModel['status']): string {
+  if (status === 'finalizado') return 'Finalizado';
+  if (status === 'ao_vivo') return 'Ao vivo';
+  return 'Agendado';
+}
 
 export function FixturesScreen() {
   const navigation = useNavigation<NavigationProp<FixturesStackParamList>>();
@@ -57,6 +72,51 @@ export function FixturesScreen() {
   const format = activeChampionship?.format ?? 'pontos_corridos';
   const isKnockout = format === 'mata_mata';
   const isGroupsAndKnockout = format === 'grupos_e_mata_mata';
+  const bracketMatches = useMemo(
+    () =>
+      champMatches
+        .filter((match) => match.bracketRound && match.bracketRound !== 'grupo')
+        .sort((a, b) => {
+          if (a.round !== b.round) return a.round - b.round;
+          return (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0);
+        }),
+    [champMatches],
+  );
+  const shouldShowBracket =
+    (isKnockout || isGroupsAndKnockout) && bracketMatches.length > 0;
+  const bracketColumns = useMemo<BracketColumn[]>(() => {
+    const byRound = new Map<number, MatchModel[]>();
+    bracketMatches.forEach((match) => {
+      const group = byRound.get(match.round) ?? [];
+      group.push(match);
+      byRound.set(match.round, group);
+    });
+
+    return Array.from(byRound.entries())
+      .sort(([roundA], [roundB]) => roundA - roundB)
+      .map(([round, roundMatches]) => {
+        const firstMatch = roundMatches[0];
+        const label = firstMatch.bracketRound
+          ? getBracketRoundLabel(firstMatch.bracketRound)
+          : `Rodada ${round}`;
+
+        return {
+          key: `${round}-${label}`,
+          label,
+          round,
+          matches: roundMatches.sort(
+            (a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0),
+          ),
+        };
+      });
+  }, [bracketMatches]);
+  const championTeam = useMemo(() => {
+    const finalMatch = bracketMatches.find(
+      (match) => match.bracketRound === 'final' && match.status === 'finalizado' && match.winnerId,
+    );
+    if (!finalMatch?.winnerId) return undefined;
+    return teams.find((team) => team.id === finalMatch.winnerId);
+  }, [bracketMatches, teams]);
 
   // Para mata-mata, obter as fases únicas do bracket
   const getBracketPhases = (): { round: number; label: string; bracketRound?: BracketRound }[] => {
@@ -83,6 +143,7 @@ export function FixturesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const roundScrollRef = useRef<ScrollView>(null);
+  const scheduleSheetRef = useRef<ScheduleMatchBottomSheetRef>(null);
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
 
   const currentRound = activeChampionship?.currentRound ?? 1;
@@ -137,32 +198,110 @@ export function FixturesScreen() {
   }, [navigation]);
 
   useEffect(() => {
-    (async () => {
-      const asked = await AsyncStorage.getItem('notifications_permission_asked');
-      if (asked || !user || !activeChampionship) return;
-
-      Alert.alert(
-        'Notificações de partidas',
-        'Quer receber notificações de gols e resultados em tempo real?',
-        [
-          {
-            text: 'Agora não',
-            style: 'cancel',
-            onPress: () => AsyncStorage.setItem('notifications_permission_asked', 'denied'),
-          },
-          {
-            text: 'Sim, quero!',
-            onPress: async () => {
-              await AsyncStorage.setItem('notifications_permission_asked', 'granted');
-              await registerForPushNotifications(user.id);
-            },
-          },
-        ],
-      );
-    })();
-  }, []);
+    if (!user?.id) return;
+    registerForPushNotifications(user.id);
+  }, [user?.id]);
 
   const getTeam = (teamId: string) => teams.find((t) => t.id === teamId);
+
+  const renderBracketTeam = (match: MatchModel, teamId: string, label: 'A' | 'B') => {
+    const team = teamId ? getTeam(teamId) : undefined;
+    const isWinner = !!teamId && match.status === 'finalizado' && match.winnerId === teamId;
+
+    return (
+      <View style={[styles.bracketTeamRow, isWinner && styles.bracketTeamWinner]}>
+        <Text
+          style={[
+            styles.bracketTeamName,
+            !team && styles.bracketTeamUnknown,
+            isWinner && styles.bracketTeamNameWinner,
+          ]}
+          numberOfLines={1}
+        >
+          {team?.name ?? '?'}
+        </Text>
+        {match.status === 'finalizado' ? (
+          <Text style={[styles.bracketScore, isWinner && styles.bracketScoreWinner]}>
+            {label === 'A' ? match.homeScore ?? '-' : match.awayScore ?? '-'}
+          </Text>
+        ) : null}
+      </View>
+    );
+  };
+
+  const renderBracket = () => {
+    if (!shouldShowBracket) return null;
+
+    return (
+      <View style={styles.bracketWrap}>
+        <View style={styles.bracketHeader}>
+          <Text style={styles.bracketTitle}>Árvore do mata-mata</Text>
+          <Text style={styles.bracketSubtitle}>Chaveamento</Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.bracketScrollContent}
+        >
+          {bracketColumns.map((column) => (
+            <View key={column.key} style={styles.bracketColumn}>
+              <Text style={styles.bracketColumnTitle}>{column.label}</Text>
+              <View style={styles.bracketColumnMatches}>
+                {column.matches.map((match) => (
+                  <Pressable
+                    key={match.id}
+                    onPress={() => handleMatchPress(match)}
+                    style={({ pressed }) => [
+                      styles.bracketMatchCard,
+                      pressed && styles.bracketMatchCardPressed,
+                    ]}
+                  >
+                    <View style={styles.bracketStatusRow}>
+                      <View
+                        style={[
+                          styles.bracketStatusDot,
+                          match.status === 'ao_vivo' && styles.bracketStatusDotLive,
+                          match.status === 'finalizado' && styles.bracketStatusDotFinished,
+                        ]}
+                      />
+                      <Text style={styles.bracketStatusText}>{getStatusLabel(match.status)}</Text>
+                    </View>
+                    {renderBracketTeam(match, match.homeTeamId, 'A')}
+                    {renderBracketTeam(match, match.awayTeamId, 'B')}
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {championTeam ? (
+            <View style={styles.championColumn}>
+              <Text style={styles.bracketColumnTitle}>Campeão</Text>
+              <View style={styles.championCard}>
+                <Ionicons name="trophy" size={18} color={colors.accent} />
+                <Text style={styles.championName} numberOfLines={2}>
+                  {championTeam.name}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const handleOpenSchedule = useCallback((match: MatchModel) => {
+    scheduleSheetRef.current?.open(
+      match,
+      getTeam(match.homeTeamId),
+      getTeam(match.awayTeamId),
+    );
+  }, [teams]);
+
+  const handleMatchScheduled = useCallback((matchId: string, updates: Partial<MatchModel>) => {
+    useMatchStore.getState().updateMatch(matchId, updates);
+  }, []);
 
   const onRefresh = useCallback(async () => {
     if (!activeChampionship?.id) {
@@ -308,6 +447,8 @@ export function FixturesScreen() {
         </Pressable>
       )}
 
+      {renderBracket()}
+
       <Animated.View
         key={selectedRound}
         entering={FadeIn.duration(180)}
@@ -357,6 +498,8 @@ export function FixturesScreen() {
                   players={players}
                   userTeamId={userTeamId}
                   canRegister={isOrganizer && match.status === 'agendado'}
+                  canSchedule={isOrganizer && match.status === 'agendado'}
+                  onSchedulePress={() => handleOpenSchedule(match)}
                   onPress={isPressable ? () => handleMatchPress(match) : undefined}
                 />
               </Animated.View>
@@ -365,6 +508,11 @@ export function FixturesScreen() {
         />
       </Animated.View>
 
+      <ScheduleMatchBottomSheet
+        ref={scheduleSheetRef}
+        userId={user?.id ?? ''}
+        onScheduled={handleMatchScheduled}
+      />
     </View>
   );
 }
@@ -432,6 +580,139 @@ const styles = StyleSheet.create({
   },
   listWrap: {
     flex: 1,
+  },
+  bracketWrap: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg100,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  bracketHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  bracketTitle: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  bracketSubtitle: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  bracketScrollContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  bracketColumn: {
+    width: 164,
+  },
+  championColumn: {
+    width: 132,
+  },
+  bracketColumnTitle: {
+    marginBottom: 8,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  bracketColumnMatches: {
+    gap: 10,
+  },
+  bracketMatchCard: {
+    minHeight: 112,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg200,
+    padding: 10,
+    gap: 8,
+  },
+  bracketMatchCardPressed: {
+    opacity: 0.88,
+  },
+  bracketStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bracketStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.textMuted,
+  },
+  bracketStatusDotLive: {
+    backgroundColor: colors.neon,
+  },
+  bracketStatusDotFinished: {
+    backgroundColor: colors.success,
+  },
+  bracketStatusText: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 10,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  bracketTeamRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    borderRadius: 8,
+    backgroundColor: colors.bg300,
+    paddingHorizontal: 8,
+  },
+  bracketTeamWinner: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+  },
+  bracketTeamName: {
+    flex: 1,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 12,
+    color: colors.textPrimary,
+  },
+  bracketTeamUnknown: {
+    color: colors.textMuted,
+  },
+  bracketTeamNameWinner: {
+    color: colors.accent,
+  },
+  bracketScore: {
+    minWidth: 18,
+    textAlign: 'right',
+    fontFamily: 'Barlow-Black',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  bracketScoreWinner: {
+    color: colors.accent,
+  },
+  championCard: {
+    minHeight: 112,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+    padding: 12,
+  },
+  championName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+    color: colors.accent,
+    textAlign: 'center',
   },
   listContent: {
     paddingTop: 16,

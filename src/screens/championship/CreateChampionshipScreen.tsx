@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import { useChampionshipStore } from '../../stores/championshipStore';
 import { Championship, ChampionshipFormat } from '../../types';
 import { colors } from '../../theme/colors';
 import { generateInviteCode } from '../../utils/generateInviteCode';
-import { setDocument } from '../../services/firestore';
+import { setDocument } from '../../services/index';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'CreateChampionship'>;

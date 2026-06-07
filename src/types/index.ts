@@ -239,6 +239,16 @@ export interface PlayerScorer {
   goals: number;
 }
 
+export interface PlayerDisciplineRanking {
+  playerId: string;
+  playerName: string;
+  teamId: string;
+  teamName: string;
+  teamColor: string;
+  yellowCards: number;
+  redCards: number;
+}
+
 export interface SuspendedPlayer {
   playerId: string;
   playerName: string;

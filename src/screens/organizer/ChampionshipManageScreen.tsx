@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -34,7 +34,7 @@ import {
 } from '../../types';
 import { OrganizerStackParamList } from '../../navigation/OrganizerStackNavigator';
 import { TAB_NAMES } from '../../navigation/constants';
-import { updateDocument, deleteDocument } from '../../services/firestore';
+import { updateDocument, deleteDocument } from '../../services/index';
 import { startChampionship, MIN_TEAMS_TO_START } from '../../services/fixturesService';
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';

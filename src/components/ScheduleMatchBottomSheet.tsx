@@ -20,7 +20,8 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { updateDocument } from '../services/firestore';
+import Toast from 'react-native-toast-message';
+import { updateDocument } from '../services/index';
 import { notifyMatchScheduled } from '../services/notificationService';
 import { colors } from '../theme/colors';
 import { MatchModel, Team } from '../types';
@@ -32,10 +33,11 @@ export interface ScheduleMatchBottomSheetRef {
 
 interface Props {
   userId: string;
+  onScheduled?: (matchId: string, updates: Partial<MatchModel>) => void;
 }
 
 export const ScheduleMatchBottomSheet = forwardRef<ScheduleMatchBottomSheetRef, Props>(
-  ({ userId }, ref) => {
+  ({ userId, onScheduled }, ref) => {
     const sheetRef = useRef<BottomSheet>(null);
     const snapPoints = useMemo(() => ['60%', '80%'], []);
 
@@ -98,12 +100,13 @@ export const ScheduleMatchBottomSheet = forwardRef<ScheduleMatchBottomSheetRef, 
     const handleConfirm = async () => {
       if (!match) return;
       setLoading(true);
+      const updates: Partial<MatchModel> = {
+        scheduledAt: selectedDate.toISOString(),
+        location: location.trim() || null,
+        scheduledBy: userId,
+      };
       try {
-        await updateDocument('matches', match.id, {
-          scheduledAt: selectedDate.toISOString(),
-          location: location.trim() || null,
-          scheduledBy: userId,
-        });
+        await updateDocument('matches', match.id, updates);
 
         const captainIds = [homeTeam?.captainId, awayTeam?.captainId].filter(Boolean) as string[];
         await notifyMatchScheduled(
@@ -115,9 +118,12 @@ export const ScheduleMatchBottomSheet = forwardRef<ScheduleMatchBottomSheetRef, 
           match.id,
         );
 
+        onScheduled?.(match.id, updates);
+        Toast.show({ type: 'success', text1: 'Partida agendada!' });
         handleClose();
       } catch (e) {
         console.warn('[ScheduleMatchBottomSheet] confirm error:', e);
+        Toast.show({ type: 'error', text1: 'Erro ao agendar partida' });
       } finally {
         setLoading(false);
       }

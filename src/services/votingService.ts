@@ -88,10 +88,10 @@ export async function submitVote(
     createdAt: new Date().toISOString(),
   };
 
+  const vote: RoundVote = { id: docId, ...voteData };
+
   // Persiste no Firestore como fonte de verdade
   await upsertDocument('round_votes', docId, voteData);
-
-  const vote: RoundVote = { id: docId, ...voteData };
 
   // Atualiza cache local
   useVotingStore.getState().addVote(vote);
@@ -105,12 +105,13 @@ export async function getVoteResults(
   championshipId: string,
   round: number,
 ): Promise<{ playerId: string; votes: number }[]> {
+  const tally: Record<string, number> = {};
+
   const firestoreVotes = await getCollection<RoundVote>('round_votes', [
     { field: 'championshipId', operator: '==', value: championshipId },
     { field: 'round', operator: '==', value: round },
   ]);
 
-  const tally: Record<string, number> = {};
   for (const v of firestoreVotes) {
     tally[v.candidatePlayerId] = (tally[v.candidatePlayerId] ?? 0) + 1;
   }

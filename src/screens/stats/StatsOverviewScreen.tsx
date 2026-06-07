@@ -3,13 +3,15 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { AppCard } from '../../components/AppCard';
+import { EmptyState } from '../../components/EmptyState';
 import { SectionHeader } from '../../components/SectionHeader';
+import { TeamLogo } from '../../components/TeamLogo';
 import { TAB_NAMES } from '../../navigation/constants';
 import { useStats } from '../../hooks/useStats';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { colors } from '../../theme/colors';
-import { SuspendedPlayer } from '../../types';
+import { PlayerDisciplineRanking, SuspendedPlayer, Team } from '../../types';
 
 type NavProp = NavigationProp<Record<string, object | undefined>>;
 
@@ -62,12 +64,56 @@ function SuspendedRow({
   );
 }
 
+function DisciplineRow({
+  item,
+  team,
+  onPress,
+}: {
+  item: PlayerDisciplineRanking;
+  team?: Team;
+  onPress: () => void;
+}) {
+  return (
+    <AppCard style={styles.disciplineCard} onPress={onPress}>
+      <View style={styles.disciplineMain}>
+        {team ? (
+          <TeamLogo team={team} size={36} />
+        ) : (
+          <View style={[styles.disciplineFallbackLogo, { backgroundColor: `${item.teamColor}22` }]}>
+            <Text style={[styles.disciplineFallbackText, { color: item.teamColor }]}>
+              {(item.teamName[0] ?? '?').toUpperCase()}
+            </Text>
+          </View>
+        )}
+        <View style={styles.disciplineCopy}>
+          <Text style={styles.disciplineName} numberOfLines={1}>{item.playerName}</Text>
+          <Text style={styles.disciplineTeam} numberOfLines={1}>
+            {item.teamName || 'Time nao informado'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.disciplineStats}>
+        <View style={[styles.cardBadge, styles.yellowBadge]}>
+          <Text style={styles.cardBadgeLabel}>A</Text>
+          <Text style={styles.cardBadgeValue}>{item.yellowCards}</Text>
+        </View>
+        <View style={[styles.cardBadge, styles.redBadge]}>
+          <Text style={styles.cardBadgeLabel}>V</Text>
+          <Text style={styles.cardBadgeValue}>{item.redCards}</Text>
+        </View>
+      </View>
+    </AppCard>
+  );
+}
+
 export function StatsOverviewScreen() {
   const navigation = useNavigation<NavProp>();
   const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
-  const players = useTeamStore((s) => s.players);
+  const { players, teams } = useTeamStore();
   const {
     standings,
+    disciplineRanking,
     bestAttack,
     bestDefense,
     roundMVP,
@@ -115,6 +161,30 @@ export function StatsOverviewScreen() {
             <Text style={styles.roundLeaderPoints}>{roundMVP?.points ?? 0} pts</Text>
           </View>
         </AppCard>
+
+        <View style={styles.disciplineSection}>
+          <SectionHeader title="DISCIPLINA" />
+          {disciplineRanking.length > 0 ? (
+            <View style={styles.disciplineList}>
+              {disciplineRanking.map((player) => (
+                <DisciplineRow
+                  key={player.playerId}
+                  item={player}
+                  team={teams.find((team) => team.id === player.teamId)}
+                  onPress={() => openAthlete(player.playerId)}
+                />
+              ))}
+            </View>
+          ) : (
+            <AppCard style={styles.disciplineEmptyCard}>
+              <EmptyState
+                icon="shield-outline"
+                title="Nenhum cartao registrado"
+                description="Os rankings de disciplina aparecem aqui quando amarelos ou vermelhos forem lancados nas partidas."
+              />
+            </AppCard>
+          )}
+        </View>
 
         {suspendedPlayers.length > 0 && (
           <View style={styles.suspendedSection}>
@@ -214,6 +284,90 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Black',
     fontSize: 28,
     color: colors.accent,
+  },
+  disciplineSection: {
+    width: '100%',
+    gap: 10,
+  },
+  disciplineList: {
+    gap: 10,
+  },
+  disciplineCard: {
+    minHeight: 72,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  disciplineMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  disciplineFallbackLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disciplineFallbackText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+  },
+  disciplineCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  disciplineName: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  disciplineTeam: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  disciplineStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardBadge: {
+    minWidth: 44,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  yellowBadge: {
+    backgroundColor: 'rgba(245,166,35,0.12)',
+    borderColor: 'rgba(245,166,35,0.3)',
+  },
+  redBadge: {
+    backgroundColor: 'rgba(255,59,71,0.12)',
+    borderColor: 'rgba(255,59,71,0.3)',
+  },
+  cardBadgeLabel: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
+  cardBadgeValue: {
+    marginTop: 1,
+    fontFamily: 'Barlow-Black',
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  disciplineEmptyCard: {
+    minHeight: 190,
+    justifyContent: 'center',
   },
   suspendedSection: {
     width: '100%',

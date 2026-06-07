@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { subscribeToDocument } from '../services/firestore';
+﻿import { useEffect, useState } from 'react';
+import { subscribeToDocument } from '../services/index';
 import { CareerStats } from '../types';
 
 export function useCareerStats(userId: string | null | undefined) {

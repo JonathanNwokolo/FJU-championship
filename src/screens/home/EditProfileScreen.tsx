@@ -25,10 +25,12 @@ import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
 import { colors } from '../../theme/colors';
 import { POSITION_OPTIONS, POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
 import { uploadUserPhoto, uploadPlayerPhoto } from '../../services/imageUpload';
-import { updateDocument } from '../../services/firestore';
+import { updateDocument } from '../../services/index';
+import { leaveTeam, LeaveTeamResult } from '../../services/inviteService';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { PlayerPosition } from '../../types';
 
@@ -45,7 +47,8 @@ export function EditProfileScreen() {
   const navigation = useNavigation<NavProp>();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
-  const { players, updatePlayer } = useTeamStore();
+  const { teams, players, updatePlayer } = useTeamStore();
+  const championships = useChampionshipStore((s) => s.championships);
 
   // Find the player record for this user
   const myPlayer = useMemo(
@@ -54,6 +57,20 @@ export function EditProfileScreen() {
   );
 
   const isAthlete = user?.role === 'atleta';
+  const currentTeam = useMemo(
+    () => teams.find((team) => team.id === myPlayer?.teamId),
+    [teams, myPlayer?.teamId],
+  );
+  const currentChampionship = useMemo(
+    () => championships.find((championship) => championship.id === (myPlayer?.championshipId ?? currentTeam?.championshipId)),
+    [championships, currentTeam?.championshipId, myPlayer?.championshipId],
+  );
+  const canLeaveTeam =
+    isAthlete &&
+    !!myPlayer?.teamId &&
+    myPlayer.status !== 'sem_time' &&
+    !!currentTeam &&
+    currentChampionship?.status !== 'finalizado';
 
   // Form state
   const [name, setName] = useState(user?.name ?? '');
@@ -64,6 +81,7 @@ export function EditProfileScreen() {
 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [leavingTeam, setLeavingTeam] = useState(false);
 
   const hasChanges = useMemo(() => {
     const nameChanged = name.trim() !== (user?.name ?? '');
@@ -186,6 +204,84 @@ export function EditProfileScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const getLeaveTeamMessage = (result: Exclude<LeaveTeamResult, 'success'>) => {
+    const messages: Record<Exclude<LeaveTeamResult, 'success'>, { text1: string; text2?: string }> = {
+      not_authenticated: {
+        text1: 'Sessão expirada',
+        text2: 'Entre novamente para sair do time.',
+      },
+      not_found: {
+        text1: 'Vínculo não encontrado',
+        text2: 'Atualize o app e tente novamente.',
+      },
+      not_allowed: {
+        text1: 'Não foi possível sair do time',
+        text2: 'Apenas atletas podem sair do próprio time por aqui.',
+      },
+      championship_finished: {
+        text1: 'Campeonato finalizado',
+        text2: 'Não é possível sair de time em campeonato finalizado.',
+      },
+      blocked_only_player_pending_matches: {
+        text1: 'Saída bloqueada',
+        text2: 'Você é o único atleta aprovado do time e ainda existem partidas pendentes.',
+      },
+    };
+    return messages[result];
+  };
+
+  const confirmLeaveTeam = () => {
+    if (!user || !myPlayer?.teamId || !myPlayer.championshipId || !currentTeam) return;
+
+    Alert.alert(
+      'Sair do time',
+      `Tem certeza que deseja sair de ${currentTeam.name}? Você precisará de um novo convite para entrar novamente.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair do time',
+          style: 'destructive',
+          onPress: async () => {
+            setLeavingTeam(true);
+            try {
+              const result = await leaveTeam(myPlayer.id, myPlayer.teamId!, myPlayer.championshipId!);
+
+              if (result !== 'success') {
+                const message = getLeaveTeamMessage(result);
+                Toast.show({ type: 'error', ...message, visibilityTime: 3200 });
+                return;
+              }
+
+              updatePlayer(myPlayer.id, {
+                teamId: null,
+                status: 'sem_time',
+                leftAt: new Date().toISOString(),
+              });
+              setUser({ ...user, teamId: null });
+              Toast.show({
+                type: 'success',
+                text1: 'Você saiu do time',
+                text2: 'Use um novo convite para entrar em outro time.',
+                visibilityTime: 2600,
+              });
+              navigation.goBack();
+            } catch (error) {
+              console.warn('[EditProfileScreen] leaveTeam failed:', error);
+              Toast.show({
+                type: 'error',
+                text1: 'Erro ao sair do time',
+                text2: 'Tente novamente em instantes.',
+                visibilityTime: 3000,
+              });
+            } finally {
+              setLeavingTeam(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -317,6 +413,23 @@ export function EditProfileScreen() {
                   maxLength={2}
                 />
               </View>
+
+              {canLeaveTeam && (
+                <View style={styles.leaveTeamSection}>
+                  <Text style={styles.leaveTeamTitle}>Vínculo com o time</Text>
+                  <Text style={styles.leaveTeamText}>
+                    Você está no {currentTeam?.name}. Ao sair, precisará de um novo convite para entrar novamente.
+                  </Text>
+                  <AppButton
+                    title={leavingTeam ? 'Saindo...' : 'Sair do time'}
+                    variant="danger"
+                    onPress={confirmLeaveTeam}
+                    loading={leavingTeam}
+                    disabled={saving || leavingTeam}
+                    fullWidth
+                  />
+                </View>
+              )}
             </>
           )}
         </ScrollView>
@@ -465,5 +578,24 @@ const styles = StyleSheet.create({
   positionOptionTextSelected: {
     color: colors.accent,
     fontFamily: 'Barlow-SemiBold',
+  },
+  leaveTeamSection: {
+    gap: 10,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    backgroundColor: `${colors.danger}12`,
+  },
+  leaveTeamTitle: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  leaveTeamText: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });

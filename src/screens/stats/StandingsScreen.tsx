@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -25,7 +25,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { getCollection } from '../../services/firestore';
+import { getCollection } from '../../services/index';
 import { colors, shadows } from '../../theme/colors';
 import { MatchModel, Player, Team, TeamStanding } from '../../types';
 

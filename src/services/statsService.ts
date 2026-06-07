@@ -6,6 +6,7 @@ import {
   ChampionshipRules,
   TeamStanding,
   PlayerScorer,
+  PlayerDisciplineRanking,
   SuspendedPlayer,
 } from '../types';
 
@@ -163,6 +164,57 @@ export function calculateTopScorers(
   }
 
   return scorers.sort((a, b) => b.goals - a.goals);
+}
+
+export function calculatePlayerDisciplineRanking(
+  events: MatchEvent[],
+  players: Player[],
+  teams: Team[],
+): PlayerDisciplineRanking[] {
+  const cardMap: Record<string, { yellowCards: number; redCards: number; teamId: string }> = {};
+
+  for (const event of events) {
+    if (event.type !== 'cartao_amarelo' && event.type !== 'cartao_vermelho') continue;
+
+    const current = cardMap[event.playerId] ?? {
+      yellowCards: 0,
+      redCards: 0,
+      teamId: event.teamId,
+    };
+
+    if (event.type === 'cartao_amarelo') current.yellowCards += 1;
+    if (event.type === 'cartao_vermelho') current.redCards += 1;
+    current.teamId = current.teamId || event.teamId;
+    cardMap[event.playerId] = current;
+  }
+
+  const ranking: PlayerDisciplineRanking[] = [];
+
+  for (const [playerId, cards] of Object.entries(cardMap)) {
+    if (cards.yellowCards + cards.redCards === 0) continue;
+
+    const player = players.find((item) => item.id === playerId);
+    if (!player) continue;
+
+    const teamId = cards.teamId || player.teamId || '';
+    const team = teams.find((item) => item.id === teamId);
+
+    ranking.push({
+      playerId,
+      playerName: player.name,
+      teamId,
+      teamName: team?.name ?? '',
+      teamColor: team?.primaryColor ?? '#888',
+      yellowCards: cards.yellowCards,
+      redCards: cards.redCards,
+    });
+  }
+
+  return ranking.sort((a, b) => {
+    if (b.redCards !== a.redCards) return b.redCards - a.redCards;
+    if (b.yellowCards !== a.yellowCards) return b.yellowCards - a.yellowCards;
+    return a.playerName.localeCompare(b.playerName);
+  });
 }
 
 // ─── Highlights ───────────────────────────────────────────────────────────────
