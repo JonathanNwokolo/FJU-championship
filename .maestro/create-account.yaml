@@ -1,0 +1,8 @@
+appId: com.fjutribodejuda.championship
+---
+- stopApp
+- launchApp:
+    clearState: true
+- assertVisible: "Criar conta"
+- tapOn: "Criar conta"
+- assertVisible: "Criar conta"

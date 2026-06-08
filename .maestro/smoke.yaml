@@ -1,0 +1,9 @@
+appId: com.fjutribodejuda.championship
+---
+- stopApp
+- launchApp:
+    clearState: true
+- assertVisible: "ENTRAR"
+- assertVisible: "Email"
+- assertVisible: "Senha"
+- assertVisible: "Criar conta"

@@ -1,0 +1,15 @@
+appId: com.fjutribodejuda.championship
+---
+- stopApp
+- launchApp:
+    clearState: true
+- assertVisible: "Email"
+- tapOn: "Email"
+- inputText: "teste@email.com"
+- hideKeyboard
+- assertVisible: "Senha"
+- tapOn: "Senha"
+- inputText: "123456"
+- hideKeyboard
+- assertVisible: "ENTRAR"
+- tapOn: "ENTRAR"

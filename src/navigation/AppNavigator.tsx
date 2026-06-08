@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
-import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
+import type * as NotificationsType from 'expo-notifications';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useFirestoreSync } from '../hooks/useFirestoreSync';
@@ -11,7 +12,15 @@ import { registerForPushNotifications } from '../services/notificationService';
 import { colors } from '../theme/colors';
 import { TAB_NAMES } from './constants';
 
-if (Platform.OS !== 'web') {
+// Conditional require prevents DevicePushTokenAutoRegistration.fx from running
+// its module-level addPushTokenListener call in Expo Go (throws on Android SDK 53+).
+const isExpoGo = isRunningInExpoGo();
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Notifications = isExpoGo
+  ? (null as unknown as typeof NotificationsType)
+  : (require('expo-notifications') as typeof NotificationsType);
+
+if (Platform.OS !== 'web' && !isExpoGo) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -128,7 +137,7 @@ export function AppNavigator() {
   }, [isOnboarded, navigateFromNotification, user]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== 'web' && !isExpoGo) {
       const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
         console.log('[notifications] Received in foreground:', notification.request.content.title);
       });

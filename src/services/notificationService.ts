@@ -1,8 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsType from 'expo-notifications';
 import { Platform } from 'react-native';
+
+// Conditional require prevents DevicePushTokenAutoRegistration.fx from running
+// its module-level addPushTokenListener call in Expo Go (throws on Android SDK 53+).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Notifications = isRunningInExpoGo()
+  ? (null as unknown as typeof NotificationsType)
+  : (require('expo-notifications') as typeof NotificationsType);
 import {
   collection,
   deleteDoc,
@@ -57,7 +64,7 @@ async function writeTokenStore(store: Record<string, TokenRecord>): Promise<void
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (!userId) return null;
   if (Platform.OS === 'web') return null;
-  if (Constants.appOwnership === 'expo') return null;
+  if (isRunningInExpoGo()) return null;
   if (!Device.isDevice) return null;
 
   try {
