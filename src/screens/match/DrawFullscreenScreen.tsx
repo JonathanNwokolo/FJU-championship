@@ -34,10 +34,13 @@ import * as Haptics from 'expo-haptics';
 import { colors } from '../../theme/colors';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
-import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { generateRoundRobin, generateBracketFixtures } from '../../utils/roundRobin';
-import { setDocument, updateDocument } from '../../services/index';
+import {
+  MATCHES_ALREADY_GENERATED_ERROR,
+  MIN_TEAMS_TO_START,
+  commitFixtures,
+} from '../../services/fixturesService';
 import { MatchModel, Team } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
@@ -297,8 +300,6 @@ export function DrawFullscreenScreen() {
 
   const storeTeams = useTeamStore((s) => s.teams);
   const championships = useChampionshipStore((s) => s.championships);
-  const addMatches = useMatchStore((s) => s.addMatches);
-  const updateChampionship = useChampionshipStore((s) => s.updateChampionship);
   const user = useAuthStore((s) => s.user);
 
   const championship = championships.find((c) => c.id === championshipId);
@@ -329,6 +330,7 @@ export function DrawFullscreenScreen() {
   const confettiRight = useRef<any>(null);
   const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const groupsAlertShown = useRef(false);
+  const submittingRef = useRef(false);
 
   // Oculta status bar enquanto a tela estiver aberta
   useEffect(() => {
@@ -385,6 +387,16 @@ export function DrawFullscreenScreen() {
       return;
     }
 
+    // AUD-02: não inicia a animação/sorteio sem o mínimo de times aprovados.
+    if (approvedTeams.length < MIN_TEAMS_TO_START) {
+      Alert.alert(
+        'Times insuficientes',
+        'É necessário pelo menos 2 times aprovados para realizar o sorteio.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+      return;
+    }
+
     const shuffled = fisherYates(approvedTeams);
     setShuffledTeams(shuffled);
 
@@ -426,46 +438,60 @@ export function DrawFullscreenScreen() {
   };
 
   const handleConfirm = async () => {
-    if (!canManageChampionship) {
+    if (submittingRef.current || loading) {
+      return;
+    }
+
+    if (!canManageChampionship || !championship) {
       Alert.alert('Acesso restrito', 'Apenas o organizador deste campeonato pode iniciar a tabela.');
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
-    try {
-      // For bracket formats use the pre-generated MatchModel list; for round-robin build from pairs
-      const matchModels = isBracket
-        ? bracketMatches
-        : buildMatchModels(rounds, championshipId);
-      const totalRounds = isBracket
-        ? Math.max(...matchModels.map((m) => m.round), 1)
-        : rounds.length;
-      const champUpdate = { status: 'em_andamento', currentRound: 1, totalRounds };
 
-      await Promise.all(matchModels.map((m) => setDocument('matches', m.id, m)));
-      await updateDocument('championships', championshipId, champUpdate);
+    // For bracket formats use the pre-generated MatchModel list; for round-robin build from pairs.
+    // A persistência (e a proteção atômica contra sorteio duplicado) vive 100% no service:
+    // commitFixtures grava as partidas e marca o campeonato dentro de uma única transação.
+    const matchModels = isBracket ? bracketMatches : buildMatchModels(rounds, championshipId);
+    const result = await commitFixtures(championship, matchModels);
 
-      addMatches(matchModels);
-      updateChampionship(championshipId, champUpdate as any);
+    if (!result.success) {
+      if (result.error === MATCHES_ALREADY_GENERATED_ERROR) {
+        Alert.alert(
+          'Tabela já gerada',
+          'Este campeonato já possui partidas geradas. O sorteio não pode ser refeito.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                StatusBar.setHidden(false, 'fade');
+                navigation.goBack();
+              },
+            },
+          ],
+        );
+        return;
+      }
 
-      setPhase('confirmed');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      confettiLeft.current?.shoot();
-      confettiCenter.current?.shoot();
-      confettiRight.current?.shoot();
-
-      const t = setTimeout(() => {
-        StatusBar.setHidden(false, 'fade');
-        (navigation.getParent() as any)?.navigate('Confrontos');
-      }, 2500);
-      pendingTimers.current.push(t);
-    } catch (err) {
-      console.warn('[DrawFullscreen] handleConfirm failed:', err);
-      Alert.alert('Erro', 'Não foi possível gerar os confrontos. Verifique sua conexão e tente novamente.');
-    } finally {
+      submittingRef.current = false;
       setLoading(false);
+      Alert.alert('Erro', 'Não foi possível gerar os confrontos. Verifique sua conexão e tente novamente.');
+      return;
     }
+
+    setPhase('confirmed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    confettiLeft.current?.shoot();
+    confettiCenter.current?.shoot();
+    confettiRight.current?.shoot();
+
+    const t = setTimeout(() => {
+      StatusBar.setHidden(false, 'fade');
+      (navigation.getParent() as any)?.navigate('Confrontos');
+    }, 2500);
+    pendingTimers.current.push(t);
   };
 
   const handleExit = () => {

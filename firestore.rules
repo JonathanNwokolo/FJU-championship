@@ -34,7 +34,10 @@ service cloud.firestore {
     // ── /users ───────────────────────────────────────────────────────────────
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      // BE-01: cada usuário só lê o PRÓPRIO documento. Email e demais dados pessoais
+      // deixam de ficar expostos a terceiros. Tokens de push NÃO vivem mais aqui —
+      // ficam em /push_tokens (lido pelo dono ou por um organizador para fan-out).
+      allow read: if isSignedIn() && uid() == userId;
       // Each user may write their own doc; organizer can update any
       allow write: if isSignedIn() && (uid() == userId || isOrganizer());
     }
@@ -70,22 +73,96 @@ service cloud.firestore {
     }
 
     // ── /players ─────────────────────────────────────────────────────────────
+    // BE-02: Validações fortalecidas para impedir bypass direto via SDK.
+    // ⚠️ PARCIAL: Limite de elenco (maxPlayers) e "usuário já em outro time"
+    // requerem COUNT/query, impossíveis nas rules. Recomenda-se Cloud Function
+    // para garantia total. As validações abaixo cobrem o máximo possível.
 
     match /players/{playerId} {
       allow read: if isSignedIn();
-      // A player doc may be created by the player themselves (joining via code),
-      // by the captain of the target team, or by the championship organizer.
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == uid() ||
+
+      // Helper: verifica se o time existe, está aprovado e pertence ao campeonato informado
+      function isValidTeamForPlayer() {
+        let team = get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data;
+        return team != null &&
+          team.status == 'aprovado' &&
+          team.championshipId == request.resource.data.championshipId;
+      }
+
+      // Helper: verifica se o campeonato aceita inscrições
+      function isChampionshipOpen() {
+        let champ = get(/databases/$(database)/documents/championships/$(request.resource.data.championshipId)).data;
+        return champ != null &&
+          champ.status == 'inscricoes_abertas' &&
+          (champ.registrationsClosed == null || champ.registrationsClosed == false);
+      }
+
+      // Helper: valida campos obrigatórios e status inicial permitido
+      function hasValidPlayerData() {
+        let d = request.resource.data;
+        return d.teamId is string && d.teamId.size() > 0 &&
+          d.championshipId is string && d.championshipId.size() > 0 &&
+          d.name is string && d.name.size() > 0 &&
+          // Status só pode ser 'ativo' na criação (fluxo legítimo)
+          // 'suspenso', 'lesionado', 'sem_time', 'removido' não são estados iniciais válidos
+          (d.status == null || d.status == 'ativo');
+      }
+
+      // Criação: atleta via código, capitão ou organizador
+      // - Atleta criando próprio registro: valida time aprovado e campeonato aberto
+      // - Capitão/organizador: pode criar livremente (já são confiáveis)
+      allow create: if isSignedIn() && hasValidPlayerData() && (
+        // Atleta criando próprio registro (joinByCode)
+        (
+          request.resource.data.userId == uid() &&
+          isValidTeamForPlayer() &&
+          isChampionshipOpen()
+        ) ||
+        // Capitão adicionando ao próprio time (guestPlayer ou aprovação)
         isTeamCaptain(request.resource.data.teamId) ||
+        // Organizador do campeonato
         isChampionshipOrganizer(request.resource.data.championshipId)
       );
-      // Update: the player themselves, their captain, or the championship organizer
+
+      // Helper: verifica se é capitão ou organizador (para updates privilegiados)
+      function isPrivilegedForPlayer() {
+        return isTeamCaptain(resource.data.teamId) ||
+          isChampionshipOrganizer(resource.data.championshipId);
+      }
+
+      // Helper: atleta não pode se auto-aprovar (mudar status de inativo para ativo)
+      function isNotSelfApproval() {
+        let oldStatus = resource.data.status;
+        let newStatus = request.resource.data.status;
+        // Se status não mudou, ok
+        // Se estava ativo e continua ativo, ok
+        // Se estava inativo (sem_time, removido) e tenta mudar para ativo, BLOQUEADO
+        return newStatus == oldStatus ||
+          oldStatus == 'ativo' ||
+          oldStatus == 'suspenso' ||
+          oldStatus == 'lesionado' ||
+          newStatus != 'ativo';
+      }
+
+      // Helper: atleta não pode mudar teamId ou championshipId
+      function isNotChangingTeamOrChampionship() {
+        return request.resource.data.teamId == resource.data.teamId &&
+          request.resource.data.championshipId == resource.data.championshipId;
+      }
+
+      // Update: atleta próprio (restrito), capitão ou organizador (completo)
       allow update: if isSignedIn() && (
-        resource.data.userId == uid() ||
-        isTeamCaptain(resource.data.teamId) ||
-        isChampionshipOrganizer(resource.data.championshipId)
+        // Atleta atualizando próprio registro: restrições extras
+        (
+          resource.data.userId == uid() &&
+          isNotSelfApproval() &&
+          isNotChangingTeamOrChampionship()
+        ) ||
+        // Capitão ou organizador: acesso completo
+        isPrivilegedForPlayer()
       );
+
+      // Delete: atleta próprio, capitão ou organizador
       allow delete: if isSignedIn() && (
         resource.data.userId == uid() ||
         isTeamCaptain(resource.data.teamId) ||
@@ -162,9 +239,20 @@ service cloud.firestore {
 
     match /round_votes/{voteId} {
       allow read: if isSignedIn();
-      // Vote doc ID = championshipId_round_voterId — only the voter creates it
+      // Vote doc ID = championshipId_round_voterId — only the voter creates it.
+      // Hardened (AUD-07): enforce ownership, well-formed payload and create-only
+      // (no overwrite of an existing vote).
+      // ⚠️ PARCIAL: "rodada aberta", "candidato existe" e "candidato de outro time"
+      // NÃO são validáveis de forma barata/confiável aqui (exigiriam múltiplos get()
+      // cruzados e o ID do voto não carrega o time do votante). Essas regras são
+      // revalidadas no votingService.submitVote (contexto confiável). Garantia total
+      // contra bypass direto exigiria uma Cloud Function / backend confiável.
       allow create: if isSignedIn() &&
         request.resource.data.voterId == uid() &&
+        request.resource.data.championshipId is string &&
+        request.resource.data.round is int &&
+        request.resource.data.candidatePlayerId is string &&
+        request.resource.data.candidatePlayerId.size() > 0 &&
         !exists(/databases/$(database)/documents/round_votes/$(voteId));
       // Votes are immutable
       allow update, delete: if false;

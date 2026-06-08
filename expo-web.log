@@ -53,3 +53,28 @@ Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificatio
 The above error occurred in the <AppNavigator> component.
 
 React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web Bundled 94ms index.ts (1 module)
+Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
+Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  "textShadow*" style props are deprecated. Use "textShadow".
+Web  LOG  Running application "main" with appParams:
+ {"hydrate": undefined, "rootTag": "#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
+
+The above error occurred in the <AppNavigator> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.

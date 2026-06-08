@@ -123,7 +123,7 @@ export function JoinTeamScreen() {
         return;
       }
 
-      const messages: Record<'not_found' | 'already_member' | 'closed' | 'already_in_championship', { text1: string; text2?: string }> = {
+      const messages: Record<'not_found' | 'already_member' | 'closed' | 'already_in_championship' | 'championship_closed', { text1: string; text2?: string }> = {
         not_found: {
           text1: 'Código não encontrado',
           text2: 'Confira com o capitão e tente novamente.',
@@ -138,6 +138,10 @@ export function JoinTeamScreen() {
         closed: {
           text1: 'Inscrições fechadas',
           text2: 'O capitão fechou temporariamente as entradas.',
+        },
+        championship_closed: {
+          text1: 'Inscrições encerradas',
+          text2: 'As inscrições para este campeonato estão encerradas.',
         },
       };
 

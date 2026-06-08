@@ -22,8 +22,13 @@ import { SearchBar } from '../../components/SearchBar';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { addDocument, deleteDocument } from '../../services/index';
-import { respondToRequest, processWaitlistOnVacancy } from '../../services/inviteService';
+import { addDocument } from '../../services/index';
+import {
+  respondToRequest,
+  processWaitlistOnVacancy,
+  removePlayerFromRoster,
+  recomputeApprovedCount,
+} from '../../services/inviteService';
 import { usePendingJoinRequests } from '../../hooks/usePendingJoinRequests';
 import { colors } from '../../theme/colors';
 import { Player, PlayerPosition } from '../../types';
@@ -45,7 +50,18 @@ export function ManageRosterScreen({ route, navigation }: Props) {
 
   const team = teams.find((item) => item.id === teamId);
   const championship = championships.find((item) => item.id === team?.championshipId);
-  const roster = useMemo(() => players.filter((item) => item.teamId === teamId), [players, teamId]);
+  // Elenco ATIVO: oculta atletas removidos (status='removido' mantém o doc só para
+  // preservar histórico/artilharia — AUD-04) e os que saíram do time ('sem_time').
+  const roster = useMemo(
+    () =>
+      players.filter(
+        (item) =>
+          item.teamId === teamId &&
+          item.status !== 'removido' &&
+          item.status !== 'sem_time',
+      ),
+    [players, teamId],
+  );
 
   const [activeTab, setActiveTab] = useState<TabKey>('roster');
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,7 +91,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
   const handleAddPlayer = async () => {
     const trimmedName = newName.trim();
     const parsedNumber = Number(newNumber);
-    const rosterSize = players.filter((player) => player.teamId === teamId).length;
+    const rosterSize = roster.length;
     const maxPlayers = team.maxPlayers ?? 15;
     if (rosterSize >= maxPlayers) {
       Alert.alert('Time lotado', `Time lotado (${rosterSize}/${maxPlayers} jogadores)`);
@@ -110,6 +126,8 @@ export function ManageRosterScreen({ route, navigation }: Props) {
     try {
       await addDocument('players', player);
       addPlayerLocal(player);
+      // Mantém a contagem de vagas (AUD-06) consistente após adição manual.
+      recomputeApprovedCount(teamId).catch(() => {});
       setNewName('');
       setNewPosition('meia');
       setNewNumber('');
@@ -129,10 +147,16 @@ export function ManageRosterScreen({ route, navigation }: Props) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteDocument('players', player.id);
+            // AUD-04: preserva o atleta (soft delete) se houver histórico; só apaga
+            // de fato quando não há nenhum match_event vinculado.
+            const mode = await removePlayerFromRoster(player);
             removePlayerLocal(player.id);
             processWaitlistOnVacancy(teamId).catch(() => {});
-            Toast.show({ type: 'success', text1: 'Atleta removido', visibilityTime: 1800 });
+            Toast.show({
+              type: 'success',
+              text1: mode === 'soft' ? 'Atleta removido (histórico preservado)' : 'Atleta removido',
+              visibilityTime: 1800,
+            });
           } catch (error) {
             console.warn('[ManageRoster] remove player failed:', error);
             Toast.show({ type: 'error', text1: 'Não foi possível remover', visibilityTime: 2200 });
@@ -153,7 +177,11 @@ export function ManageRosterScreen({ route, navigation }: Props) {
       });
     } catch (error) {
       console.warn('[ManageRoster] respondToRequest failed:', error);
-      Toast.show({ type: 'error', text1: 'Não foi possível responder agora', visibilityTime: 2200 });
+      Toast.show({
+        type: 'error',
+        text1: error instanceof Error ? error.message : 'Não foi possível responder agora',
+        visibilityTime: 2200,
+      });
     } finally {
       setRespondingId(null);
     }

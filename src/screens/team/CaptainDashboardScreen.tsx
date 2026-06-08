@@ -44,7 +44,7 @@ import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { calculateStandings } from '../../services/statsService';
 import { updateDocument, setDocument, getDocument, getCollection } from '../../services/index';
-import { respondToRequest } from '../../services/inviteService';
+import { respondToRequest, removePlayerFromRoster } from '../../services/inviteService';
 import { Player, MatchModel, Team, TeamStanding, PlayerStatus, JoinRequest } from '../../types';
 import { colors, shadows } from '../../theme/colors';
 import { POSITION_COLORS, POSITION_LABELS, TEAM_COLORS } from '../../utils/constants';
@@ -300,8 +300,15 @@ export function CaptainDashboardScreen() {
     [myTeam, championships]
   );
 
+  // Elenco ATIVO: oculta atletas removidos (AUD-04) e os que saíram do time.
   const roster = useMemo(
-    () => myTeam ? players.filter((p) => p.teamId === myTeam.id) : [],
+    () =>
+      myTeam
+        ? players.filter(
+            (p) =>
+              p.teamId === myTeam.id && p.status !== 'removido' && p.status !== 'sem_time',
+          )
+        : [],
     [myTeam, players]
   );
 
@@ -504,12 +511,13 @@ export function CaptainDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await updateDocument('players', player.id, { teamId: null, status: 'sem_time', leftAt: new Date().toISOString() });
-              if (player.userId) {
-                await updateDocument('users', player.userId, { teamId: null });
-              }
+              // AUD-04: soft delete quando há histórico; remoção física só sem histórico.
+              const mode = await removePlayerFromRoster(player);
               removePlayer(player.id);
-              Toast.show({ type: 'success', text1: 'Jogador removido' });
+              Toast.show({
+                type: 'success',
+                text1: mode === 'soft' ? 'Jogador removido (histórico preservado)' : 'Jogador removido',
+              });
             } catch (e) {
               Toast.show({ type: 'error', text1: 'Erro ao remover' });
             }
@@ -528,7 +536,7 @@ export function CaptainDashboardScreen() {
       Toast.show({ type: 'success', text1: `${entry.requesterName} aprovado!` });
     } catch (e) {
       console.warn('[CaptainDashboard] approve waitlist failed:', e);
-      Toast.show({ type: 'error', text1: 'Erro ao aprovar' });
+      Toast.show({ type: 'error', text1: e instanceof Error ? e.message : 'Erro ao aprovar' });
     } finally {
       setWaitlistActionId(null);
     }

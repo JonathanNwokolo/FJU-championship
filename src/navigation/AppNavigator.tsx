@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../stores/authStore';
@@ -11,15 +11,17 @@ import { registerForPushNotifications } from '../services/notificationService';
 import { colors } from '../theme/colors';
 import { TAB_NAMES } from './constants';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 type NotificationData = {
   type?: string;
@@ -126,23 +128,25 @@ export function AppNavigator() {
   }, [isOnboarded, navigateFromNotification, user]);
 
   useEffect(() => {
-    const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('[notifications] Received in foreground:', notification.request.content.title);
-    });
+    if (Platform.OS !== 'web') {
+      const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
+        console.log('[notifications] Received in foreground:', notification.request.content.title);
+      });
 
-    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-      navigateFromNotification(response.notification.request.content.data as NotificationData);
-    });
+      const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+        navigateFromNotification(response.notification.request.content.data as NotificationData);
+      });
 
-    const lastResponse = Notifications.getLastNotificationResponse();
-    if (lastResponse?.notification) {
-      pendingNotificationRef.current = lastResponse.notification.request.content.data as NotificationData;
+      const lastResponse = Notifications.getLastNotificationResponse();
+      if (lastResponse?.notification) {
+        pendingNotificationRef.current = lastResponse.notification.request.content.data as NotificationData;
+      }
+
+      return () => {
+        notificationListener.remove();
+        responseListener.remove();
+      };
     }
-
-    return () => {
-      notificationListener.remove();
-      responseListener.remove();
-    };
   }, [navigateFromNotification]);
 
   useEffect(() => {

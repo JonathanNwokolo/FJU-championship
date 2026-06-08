@@ -44,6 +44,13 @@ export interface Championship {
   registrationSettings?: ChampionshipRegistrationSettings;
   registrationsClosed?: boolean;
   finishedAt?: string;
+  // QA-01: sentinela atômica do sorteio. Marcada como true dentro da runTransaction
+  // que gera as partidas (ver fixturesService.commitFixtures) para impedir que dois
+  // clientes simultâneos gerem tabelas duplicadas. Campeonatos legados (sem este
+  // campo) são protegidos pela checagem de status != 'inscricoes_abertas'.
+  fixturesGenerated?: boolean;
+  // Auditoria: serverTimestamp gravado junto com fixturesGenerated. Write-only.
+  drawCompletedAt?: string;
   season?: string;
   edition?: number;
   isOfficial?: boolean;
@@ -75,10 +82,19 @@ export interface Team {
   createdAt: string;
   logoUrl?: string;
   logoPreset?: string;
+  // Contagem denormalizada de atletas ativos no elenco. Mantida atomicamente nas
+  // aprovações/remoções para permitir checagem de capacidade segura dentro de uma
+  // runTransaction (Firestore não permite COUNT dentro de transação). Quando ausente
+  // em times legados, é inicializada a partir da contagem real do elenco.
+  approvedPlayersCount?: number;
 }
 
 export type PlayerPosition = 'goleiro' | 'zagueiro' | 'lateral' | 'volante' | 'meia' | 'atacante';
-export type PlayerStatus = 'ativo' | 'suspenso' | 'lesionado' | 'sem_time';
+// 'removido' = atleta tirado do elenco mas que tem histórico (gols/cartões) e por
+// isso NÃO pode ser apagado fisicamente. Mantém teamId/championshipId para que a
+// artilharia, disciplina e o histórico final continuem corretos; é apenas filtrado
+// das listas de elenco "ativo".
+export type PlayerStatus = 'ativo' | 'suspenso' | 'lesionado' | 'sem_time' | 'removido';
 
 export interface Player {
   id: string;
@@ -170,6 +186,12 @@ export interface MatchEvent {
   userId?: string;
   minute: number;
   createdAt?: string;
+  // Snapshots gravados no momento do evento. Garantem que artilharia, disciplina e
+  // histórico final não dependam do documento do player/team continuar existindo
+  // (ex.: atleta removido). Eventos antigos podem não ter estes campos — nesse caso
+  // o cálculo faz fallback para o player/team atual.
+  playerName?: string;
+  teamName?: string;
 }
 
 export interface PlayerHistoryEntry {

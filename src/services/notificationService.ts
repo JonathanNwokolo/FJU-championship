@@ -1,18 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import {
   collection,
   deleteDoc,
-  deleteField,
   doc,
   getDoc,
   getDocs,
   query,
   serverTimestamp,
   setDoc,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -57,6 +56,9 @@ async function writeTokenStore(store: Record<string, TokenRecord>): Promise<void
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
   if (!userId) return null;
+  if (Platform.OS === 'web') return null;
+  if (Constants.appOwnership === 'expo') return null;
+  if (!Device.isDevice) return null;
 
   try {
     if (Platform.OS === 'android') {
@@ -104,15 +106,7 @@ export async function saveTokenToFirestore(userId: string, token: string): Promi
     store[userId] = { token, updatedAt: Date.now() };
     await writeTokenStore(store);
 
-    await setDoc(
-      doc(db, 'users', userId),
-      {
-        expoPushToken: token,
-        expoPushTokenUpdatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
+    // BE-01: o token vive APENAS em /push_tokens (coleção protegida), nunca em /users.
     await setDoc(
       doc(db, 'push_tokens', userId),
       { userId, token, platform: Platform.OS, updatedAt: serverTimestamp() },
@@ -129,13 +123,7 @@ export async function removeTokenFromFirestore(userId: string): Promise<void> {
     delete store[userId];
     await writeTokenStore(store);
 
-    await updateDoc(doc(db, 'users', userId), {
-      expoPushToken: deleteField(),
-      expoPushTokenUpdatedAt: deleteField(),
-    }).catch((e) => {
-      console.warn('[notifications] clear user expoPushToken error:', e);
-    });
-
+    // BE-01: token só existe em /push_tokens — basta removê-lo de lá.
     await deleteDoc(doc(db, 'push_tokens', userId));
     await AsyncStorage.removeItem('pushToken');
   } catch (e) {
@@ -154,10 +142,11 @@ export async function getTokensForUsers(userIds: string[]): Promise<string[]> {
   try {
     const tokens: string[] = [];
     for (const userId of uniqueUserIds) {
-      const snap = await getDoc(doc(db, 'users', userId));
+      // BE-01: tokens são lidos de /push_tokens (protegido), não mais de /users.
+      const snap = await getDoc(doc(db, 'push_tokens', userId));
       if (!snap.exists()) continue;
 
-      const token = snap.data().expoPushToken;
+      const token = snap.data().token;
       if (isExpoPushToken(token)) {
         tokens.push(token);
       }

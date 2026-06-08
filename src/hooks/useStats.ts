@@ -67,8 +67,8 @@ export function useStats(championshipId: string) {
   );
 
   const topScorers = useMemo(
-    () => calculateTopScorers(events, champPlayers, champTeams),
-    [events, champPlayers, champTeams],
+    () => calculateTopScorers(champEvents, champPlayers, champTeams),
+    [champEvents, champPlayers, champTeams],
   );
 
   const disciplineRanking = useMemo(

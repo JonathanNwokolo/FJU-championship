@@ -1487,7 +1487,9 @@ export function ChampionshipDashboardScreen() {
                 <TeamAdminCard
                   key={team.id}
                   team={team}
-                  players={players.filter((p) => p.teamId === team.id)}
+                  players={players.filter(
+                    (p) => p.teamId === team.id && p.status !== 'removido' && p.status !== 'sem_time',
+                  )}
                   canManage={isOrganizer}
                   onApprove={handleApprove}
                   onReject={handleReject}

@@ -93,7 +93,15 @@ export function useAthleteProfile(userId?: string, championshipId?: string) {
       setLoading(true);
 
       try {
-        const userDoc = await getDocument<AppUser>('users', userId);
+        // BE-01: /users agora é privado ao dono. Ler o doc de OUTRO usuário falha por
+        // permissão — não é fatal: nome/foto exibidos têm fallback no player (coleção
+        // pública). Para o próprio perfil a leitura continua permitida normalmente.
+        let userDoc: AppUser | null = null;
+        try {
+          userDoc = await getDocument<AppUser>('users', userId);
+        } catch {
+          userDoc = null;
+        }
         const playerDoc =
           players.find((item) => item.userId === userId) ??
           (await getCollection<Player>('players', [{ field: 'userId', operator: '==', value: userId }]))[0] ??

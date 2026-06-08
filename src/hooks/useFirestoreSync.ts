@@ -137,11 +137,23 @@ export function useFirestoreSync() {
       { field: 'championshipId', operator: '==' as const, value: selectedChampionshipId },
     ];
 
+    // AUD-08: limites elevados para suportar campeonatos reais sem esconder dados
+    // silenciosamente. São apenas tetos de SEGURANÇA (evitam leitura ilimitada),
+    // muito acima do volume de um campeonato normal:
+    //   - SAFE_PLAYERS: ~32 times × 15 atletas ≈ 480 → 500 com folga.
+    //   - SAFE_MATCHES: pontos corridos com 32 times = 31 rodadas × 16 jogos = 496;
+    //     mata-mata/grupos ficam bem abaixo → 1000 com folga.
+    //   - SAFE_EVENTS: ~1000 partidas × ~2 eventos relevantes → 2000 com folga.
+    // Times não têm limite (poucos documentos por campeonato).
+    const SAFE_PLAYERS = 500;
+    const SAFE_MATCHES = 1000;
+    const SAFE_EVENTS = 2000;
+
     const unsubs = [
       subscribeToCollection<Team>('teams', champFilter, setTeams),
-      subscribeToCollection<Player>('players', champFilter, setPlayers, undefined, 100),
-      subscribeToCollection<MatchModel>('matches', champFilter, setMatches, undefined, 200),
-      subscribeToCollection<MatchEvent>('match_events', champFilter, setEvents, undefined, 500),
+      subscribeToCollection<Player>('players', champFilter, setPlayers, undefined, SAFE_PLAYERS),
+      subscribeToCollection<MatchModel>('matches', champFilter, setMatches, undefined, SAFE_MATCHES),
+      subscribeToCollection<MatchEvent>('match_events', champFilter, setEvents, undefined, SAFE_EVENTS),
     ];
 
     // Cleanup: cancel every listener when the selected championship changes.

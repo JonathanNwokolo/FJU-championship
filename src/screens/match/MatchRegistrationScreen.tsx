@@ -32,8 +32,10 @@ import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useAuthStore } from '../../stores/authStore';
-import { MatchEvent, MatchEventType } from '../../types';
-import { addDocument, setDocument, updateDocument, deleteDocument } from '../../services/index';
+import { Championship, MatchEvent, MatchEventType, MatchModel } from '../../types';
+import { addDocument, updateDocument, deleteDocument } from '../../services/index';
+import { db } from '../../services/firebase';
+import { collection, doc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import {
   notifyGoal,
@@ -47,7 +49,7 @@ import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
 import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
 import { useVotingStore } from '../../stores/votingStore';
-import { processKnockoutResult, generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
+import { generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
 
 type RouteT = RouteProp<FixturesStackParamList, 'MatchRegistration'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
@@ -65,6 +67,26 @@ const TYPE_DEFS: Array<{ value: MatchEventType; label: string; color: string }> 
   { value: 'cartao_amarelo', label: '🟨 Amarelo', color: colors.warning },
   { value: 'cartao_vermelho', label: '🟥 Vermelho', color: colors.danger },
 ];
+
+type GroupKnockoutPlan = {
+  knockoutMatches: MatchModel[];
+  championshipUpdate: Pick<
+    Championship,
+    'groupStageComplete' | 'knockoutStartRound' | 'totalRounds'
+  >;
+  groupMatchIds: string[];
+};
+
+type FinalizeTransactionResult = {
+  suspendedPlayerIds: string[];
+  reactivatedPlayerIds: string[];
+  nextCurrentRound: number | null;
+  nextMatchIdToUpdate: string | null;
+  nextMatchUpdate: Partial<MatchModel> | null;
+  knockoutFinalReached: boolean;
+  groupKnockoutMatches: MatchModel[];
+  groupChampionshipUpdate: GroupKnockoutPlan['championshipUpdate'] | null;
+};
 
 function EventTypePill({ type }: { type: MatchEventType }) {
   const background =
@@ -99,6 +121,10 @@ export function MatchRegistrationScreen() {
   const [penaltyAway, setPenaltyAway] = useState('');
   const [pendingFinalScores, setPendingFinalScores] = useState<{ home: number; away: number } | null>(null);
   const [finalizing, setFinalizing] = useState(false);
+  // FE-01: estados de loading para evitar double-submit em ações críticas
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [removingEventId, setRemovingEventId] = useState<string | null>(null);
+  const [startingMatch, setStartingMatch] = useState(false);
 
   const match = matches.find((m) => m.id === matchId);
   const matchEvents = events
@@ -163,9 +189,17 @@ export function MatchRegistrationScreen() {
     [match, events, finishedMatches, yellowLimit],
   );
 
-  // Filter players to only show active, non-suspended players
+  // Filter players to only show active, non-suspended players.
+  // Atletas removidos (AUD-04) mantêm teamId para preservar histórico, mas NÃO
+  // podem receber novos eventos — por isso são excluídos do seletor.
   const bsPlayers = bsTeamId
-    ? players.filter((p) => p.teamId === bsTeamId && !checkSuspended(p))
+    ? players.filter(
+        (p) =>
+          p.teamId === bsTeamId &&
+          p.status !== 'removido' &&
+          p.status !== 'sem_time' &&
+          !checkSuspended(p),
+      )
     : [];
 
   const suspendedWarning = useMemo(
@@ -195,7 +229,8 @@ export function MatchRegistrationScreen() {
   };
 
   const handleAddEvent = async () => {
-    if (!canManageMatch) return;
+    // FE-01: bloqueia double-submit
+    if (!canManageMatch || addingEvent) return;
     const minute = parseInt(bsMinute, 10);
     if (!bsTeamId || !bsPlayerId || !minute || !match) return;
     if (minute < 1 || minute > 120) {
@@ -204,33 +239,58 @@ export function MatchRegistrationScreen() {
     }
 
     bottomSheetRef.current?.close();
+    setAddingEvent(true);
 
     try {
       const createdAt = new Date().toISOString();
+      // AUD-04: grava snapshot do nome do atleta/time no próprio evento, para que a
+      // artilharia, disciplina e o histórico não dependam do documento do player/team
+      // continuar existindo (ex.: atleta removido depois).
+      const playerSnapshot = players.find((p) => p.id === bsPlayerId);
+      const teamSnapshot = teams.find((t) => t.id === bsTeamId);
       const eventData = {
         matchId,
         championshipId: match.championshipId,
         type: bsType,
         teamId: bsTeamId,
         playerId: bsPlayerId,
+        playerName: playerSnapshot?.name ?? '',
+        teamName: teamSnapshot?.name ?? '',
         minute,
         createdAt,
       };
-      const firestoreId = await addDocument('match_events', eventData);
-      const event: MatchEvent = { id: firestoreId, matchId, championshipId: match.championshipId, type: bsType, teamId: bsTeamId, playerId: bsPlayerId, minute, createdAt };
-      addEvent(event);
 
-      if (bsType === 'gol') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-
+      // FE-01: para GOLS no modo ao vivo, usamos batch atômico para evento + placar
       if (isLive && bsType === 'gol') {
         const newHome = liveHomeScore + (bsTeamId === match.homeTeamId ? 1 : 0);
         const newAway = liveAwayScore + (bsTeamId === match.awayTeamId ? 1 : 0);
+        const eventRef = doc(collection(db, 'match_events'));
+        const batch = writeBatch(db);
+
+        batch.set(eventRef, {
+          ...eventData,
+          createdAt: serverTimestamp(),
+        });
+        batch.update(doc(db, 'matches', matchId), { homeScore: newHome, awayScore: newAway });
+
+        // FE-01: evento + placar confirmam juntos antes de refletir no store local.
+        await batch.commit();
+
+        const event: MatchEvent = {
+          id: eventRef.id,
+          matchId,
+          championshipId: match.championshipId,
+          type: bsType,
+          teamId: bsTeamId,
+          playerId: bsPlayerId,
+          playerName: eventData.playerName,
+          teamName: eventData.teamName,
+          minute,
+          createdAt,
+        };
+        addEvent(event);
         updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
-        updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway }).catch(console.warn);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
         const scorer = players.find((p) => p.id === bsPlayerId);
         const scorerTeam = teams.find((t) => t.id === bsTeamId);
@@ -245,29 +305,83 @@ export function MatchRegistrationScreen() {
             newAway,
           ).catch(() => {});
         }
+      } else {
+        // Eventos não-gol ou partida não ao vivo
+        const firestoreId = await addDocument('match_events', eventData);
+        const event: MatchEvent = {
+          id: firestoreId,
+          matchId,
+          championshipId: match.championshipId,
+          type: bsType,
+          teamId: bsTeamId,
+          playerId: bsPlayerId,
+          playerName: eventData.playerName,
+          teamName: eventData.teamName,
+          minute,
+          createdAt,
+        };
+        addEvent(event);
+
+        if (bsType === 'gol') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        } else {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
       }
     } catch (err) {
       console.warn('[MatchRegistration] addEvent error:', err);
-      Toast.show({ type: 'error', text1: 'Erro ao registrar evento', visibilityTime: 2500 });
+      Alert.alert(
+        'Erro ao registrar evento',
+        bsType === 'gol'
+          ? 'Falha ao registrar o gol. Verifique a conexão e tente novamente.'
+          : 'Falha ao registrar o evento. Verifique a conexão e tente novamente.',
+      );
+    } finally {
+      setAddingEvent(false);
     }
   };
 
   const handleRemoveEvent = (eventId: string) => {
-    if (!canManageMatch) return;
+    // FE-01: bloqueia se já está removendo outro evento
+    if (!canManageMatch || removingEventId) return;
     Alert.alert('Remover evento', 'Remover este evento da partida?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Remover',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
           const removing = matchEvents.find((e) => e.id === eventId);
-          removeEvent(eventId);
-          deleteDocument('match_events', eventId).catch(console.warn);
-          if (isLive && removing?.type === 'gol' && match) {
-            const newHome = Math.max(0, liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0));
-            const newAway = Math.max(0, liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0));
-            updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
-            updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway }).catch(console.warn);
+          if (!removing) return;
+
+          setRemovingEventId(eventId);
+          try {
+            // FE-01: para GOLS no modo ao vivo, aguarda confirmação do Firestore
+            if (isLive && removing.type === 'gol' && match) {
+              const newHome = Math.max(0, liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0));
+              const newAway = Math.max(0, liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0));
+              const batch = writeBatch(db);
+
+              batch.delete(doc(db, 'match_events', eventId));
+              batch.update(doc(db, 'matches', matchId), { homeScore: newHome, awayScore: newAway });
+
+              await batch.commit();
+
+              removeEvent(eventId);
+              updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
+            } else {
+              await deleteDocument('match_events', eventId);
+              removeEvent(eventId);
+            }
+          } catch (err) {
+            console.warn('[MatchRegistration] removeEvent error:', err);
+            Alert.alert(
+              'Erro ao remover evento',
+              removing.type === 'gol'
+                ? 'Falha ao remover o gol. Verifique a conexão e tente novamente.'
+                : 'Falha ao remover o evento. Verifique a conexão e tente novamente.',
+            );
+          } finally {
+            setRemovingEventId(null);
           }
         },
       },
@@ -299,22 +413,35 @@ export function MatchRegistrationScreen() {
     isBsMinuteValid;
 
   const handleStartLive = () => {
-    if (!canManageMatch) return;
+    // FE-01: bloqueia se já está iniciando
+    if (!canManageMatch || startingMatch) return;
     Alert.alert('Iniciar Partida', 'Iniciar a partida no modo ao vivo?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Iniciar',
-        onPress: () => {
-          startMatch(matchId);
-          updateDocument('matches', matchId, { status: 'ao_vivo', homeScore: 0, awayScore: 0 }).catch(console.warn);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          if (match && homeTeam && awayTeam) {
-            notifyMatchStarted(
-              match.championshipId,
-              homeTeam.name,
-              awayTeam.name,
-              matchId,
-            ).catch(() => {});
+        onPress: async () => {
+          setStartingMatch(true);
+          try {
+            // FE-01: aguarda confirmação do Firestore ANTES de atualizar estado local
+            await updateDocument('matches', matchId, { status: 'ao_vivo', homeScore: 0, awayScore: 0 });
+            startMatch(matchId);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (match && homeTeam && awayTeam) {
+              notifyMatchStarted(
+                match.championshipId,
+                homeTeam.name,
+                awayTeam.name,
+                matchId,
+              ).catch(() => {});
+            }
+          } catch (err) {
+            console.warn('[MatchRegistration] startMatch error:', err);
+            Alert.alert(
+              'Erro ao iniciar partida',
+              'Falha ao iniciar a partida. Verifique a conexão e tente novamente.',
+            );
+          } finally {
+            setStartingMatch(false);
           }
         },
       },
@@ -354,13 +481,10 @@ export function MatchRegistrationScreen() {
     }
   };
 
-  const handleFinalize = () => {
-    if (!canManageMatch || !canFinalize) return;
-
+  // Continuação da finalização (pênaltis no mata-mata, vencedor e confirmação).
+  const proceedFinalize = (finalHome: number, finalAway: number) => {
     const championship = championships.find((c) => c.id === match?.championshipId);
     const isKnockout = championship?.format === 'mata_mata' || match?.bracketRound;
-    const finalHome = isLive ? liveHomeScore : homeScoreNum!;
-    const finalAway = isLive ? liveAwayScore : awayScoreNum!;
     const isTie = finalHome === finalAway;
 
     // No mata-mata, empate requer pênaltis — abre modal cross-platform
@@ -387,6 +511,32 @@ export function MatchRegistrationScreen() {
     ]);
   };
 
+  const handleFinalize = () => {
+    if (!canManageMatch || !canFinalize) return;
+
+    const finalHome = isLive ? liveHomeScore : homeScoreNum!;
+    const finalAway = isLive ? liveAwayScore : awayScoreNum!;
+
+    // AUD-03: no placar manual, se o placar informado divergir dos gols registrados
+    // em match_events, exige confirmação explícita (a artilharia usa apenas os eventos).
+    // No modo ao vivo o placar É derivado dos eventos, então nunca diverge.
+    if (!isLive && (homeGoalsRegistered !== finalHome || awayGoalsRegistered !== finalAway)) {
+      Alert.alert(
+        'Placar diferente dos gols registrados',
+        `O placar informado (${finalHome}x${finalAway}) não corresponde aos gols registrados ` +
+          `(${homeGoalsRegistered}x${awayGoalsRegistered}). Deseja finalizar mesmo assim? ` +
+          `A artilharia usará apenas os gols registrados.`,
+        [
+          { text: 'Corrigir eventos', style: 'cancel' },
+          { text: 'Finalizar assim mesmo', onPress: () => proceedFinalize(finalHome, finalAway) },
+        ],
+      );
+      return;
+    }
+
+    proceedFinalize(finalHome, finalAway);
+  };
+
   const finalizeMatch = async (
     finalHome: number,
     finalAway: number,
@@ -397,140 +547,59 @@ export function MatchRegistrationScreen() {
     if (!canManageMatch || finalizing) return;
     setFinalizing(true);
     try {
-    const finishedAt = new Date().toISOString();
-    const championship = championships.find((c) => c.id === match?.championshipId);
-    const isKnockout = championship?.format === 'mata_mata' || match?.bracketRound;
-
-    const updatedMatchData: any = {
-      homeScore: finalHome,
-      awayScore: finalAway,
-      status: 'finalizado',
-      finishedAt,
-    };
-
-    if (winnerId) {
-      updatedMatchData.winnerId = winnerId;
-    }
-    if (homePenalty !== null) {
-      updatedMatchData.homePenaltyScore = homePenalty;
-      updatedMatchData.awayPenaltyScore = awayPenalty;
-    }
-
-    const updatedMatch = {
-      ...match!,
-      ...updatedMatchData,
-      status: 'finalizado' as const,
-    };
-
-    updateMatch(matchId, updatedMatchData);
-    updateDocument('matches', matchId, updatedMatchData).catch(console.warn);
-
-    // Auto-suspender jogadores com cartão vermelho (se a regra do campeonato permitir)
-    if (match && redCardSuspend) {
-      const nextRound = match.round + 1;
-      const redCardPlayerIds = matchEvents
-        .filter((e) => e.type === 'cartao_vermelho')
-        .map((e) => e.playerId);
-      for (const pid of redCardPlayerIds) {
-        updateDocument('players', pid, { status: 'suspenso', suspendedRound: nextRound }).catch(console.warn);
-        useTeamStore.getState().updatePlayer(pid, { status: 'suspenso', suspendedRound: nextRound });
+      if (!match) {
+        throw new Error('Partida não encontrada.');
       }
-    }
-
-    // Reativar jogadores suspensos na rodada que acabou de terminar
-    if (match) {
-      const finishedRound = match.round;
-      const suspendedInRound = players.filter(
-        (p) => p.suspendedRound === finishedRound && p.status === 'suspenso',
-      );
-      for (const p of suspendedInRound) {
-        updateDocument('players', p.id, { status: 'ativo', suspendedRound: null }).catch(console.warn);
-        useTeamStore.getState().updatePlayer(p.id, { status: 'ativo', suspendedRound: undefined });
-      }
-    }
-
-    // Verificar se toda a rodada foi concluída e avançar currentRound
-    if (match && championship) {
-      const champId = match.championshipId;
-      const roundNum = match.round;
-      // Build the updated matches list locally (updatedMatch already applied)
-      const allChampMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
-      const roundMatches = allChampMatches.filter(
-        (m) => m.championshipId === champId && m.round === roundNum,
-      );
-      const roundComplete = roundMatches.length > 0 && roundMatches.every((m) => m.status === 'finalizado');
-
-      if (roundComplete && championship.currentRound === roundNum) {
-        const nextCurrentRound = roundNum + 1;
-        updateChampionship(champId, { currentRound: nextCurrentRound });
-        updateDocument('championships', champId, { currentRound: nextCurrentRound }).catch(console.warn);
-      }
-    }
-
-    // Processar avanço no mata-mata
-    if (isKnockout && winnerId && match?.nextMatchId) {
-      const { updatedNextMatch, isFinal } = processKnockoutResult(
-        matches,
-        updatedMatch,
-        winnerId,
-      );
-
-      if (updatedNextMatch) {
-        // Escrever APENAS o campo que mudou para evitar race condition com o outro match do par
-        const bracketPos = updatedMatch.bracketPosition ?? 0;
-        const nextMatchUpdate = bracketPos % 2 === 0
-          ? { homeTeamId: winnerId }
-          : { awayTeamId: winnerId };
-        updateMatch(updatedNextMatch.id, nextMatchUpdate);
-        updateDocument('matches', updatedNextMatch.id, nextMatchUpdate).catch(console.warn);
+      const championship = championships.find((c) => c.id === match.championshipId);
+      if (!championship) {
+        throw new Error('Campeonato não encontrado.');
       }
 
-      if (isFinal) {
-        // Campeonato finalizado — chama rotina completa (histórico, career stats, rankings)
-        try {
-          await finishChampionship(match.championshipId);
-        } catch (e) {
-          console.warn('[MatchRegistration] finishChampionship failed:', e);
+      const finishedAt = new Date().toISOString();
+      const isKnockout = championship.format === 'mata_mata' || !!match.bracketRound;
+
+      const updatedMatchData: Partial<MatchModel> = {
+        homeScore: finalHome,
+        awayScore: finalAway,
+        status: 'finalizado',
+        finishedAt,
+      };
+
+      if (winnerId) {
+        updatedMatchData.winnerId = winnerId;
+      }
+      if (homePenalty !== null) {
+        updatedMatchData.homePenaltyScore = homePenalty;
+        updatedMatchData.awayPenaltyScore = awayPenalty;
+      }
+
+      const updatedMatch: MatchModel = {
+        ...match,
+        ...updatedMatchData,
+        status: 'finalizado',
+      };
+
+      const buildGroupKnockoutPlan = (): GroupKnockoutPlan | null => {
+        if (
+          championship.format !== 'grupos_e_mata_mata' ||
+          championship.groupStageComplete ||
+          !match.groupId ||
+          !championship.groups
+        ) {
+          return null;
         }
-        updateChampionship(match.championshipId, { status: 'finalizado' });
-        Toast.show({
-          type: 'success',
-          text1: '🏆 Campeonato Finalizado!',
-          text2: `${teams.find((t) => t.id === winnerId)?.name} é o campeão!`,
-          visibilityTime: 4000,
-        });
-      }
-    } else if (isKnockout && winnerId && !match?.nextMatchId) {
-      // Era a final (não tem nextMatchId) — chama rotina completa
-      try {
-        await finishChampionship(match!.championshipId);
-      } catch (e) {
-        console.warn('[MatchRegistration] finishChampionship failed:', e);
-      }
-      updateChampionship(match!.championshipId, { status: 'finalizado' });
-      Toast.show({
-        type: 'success',
-        text1: '🏆 Campeonato Finalizado!',
-        text2: `${teams.find((t) => t.id === winnerId)?.name} é o campeão!`,
-        visibilityTime: 4000,
-      });
-    }
 
-    // Verificar se é grupos + mata-mata e se a fase de grupos acabou
-    if (
-      championship?.format === 'grupos_e_mata_mata' &&
-      !championship.groupStageComplete &&
-      match?.groupId
-    ) {
-      const champMatches = matches.filter((m) => m.championshipId === championship.id);
-      const updatedChampMatches = champMatches.map((m) =>
-        m.id === matchId ? updatedMatch : m,
-      );
-      const groupMatches = updatedChampMatches.filter((m) => m.groupId);
-      const allGroupMatchesFinished = groupMatches.every((m) => m.status === 'finalizado');
+        const champMatches = matches.filter((m) => m.championshipId === championship.id);
+        const updatedChampMatches = champMatches.map((m) =>
+          m.id === matchId ? updatedMatch : m,
+        );
+        const groupMatches = updatedChampMatches.filter((m) => m.groupId);
+        const allGroupMatchesFinished = groupMatches.every((m) => m.status === 'finalizado');
 
-      if (allGroupMatchesFinished && championship.groups) {
-        // Calcular classificados e gerar bracket
+        if (!allGroupMatchesFinished) {
+          return null;
+        }
+
         const groups = championship.groups as Record<string, { id: string; name: string }[]>;
         const classifiedTeams = getGroupClassified(
           updatedChampMatches,
@@ -540,39 +609,237 @@ export function MatchRegistrationScreen() {
               teamList.map((t) => teams.find((team) => team.id === t.id)!).filter(Boolean),
             ]),
           ),
-          2, // 2 classificados por grupo
+          2,
         );
-
-        // Gerar bracket com os classificados
-        const knockoutMatches = generateBracketFixtures(
-          classifiedTeams as any,
-          championship.id,
-        );
-
-        // Ajustar round numbers para continuarem após a fase de grupos
+        const knockoutMatches = generateBracketFixtures(classifiedTeams as any, championship.id);
         const maxGroupRound = Math.max(...groupMatches.map((m) => m.round), 0);
+
         knockoutMatches.forEach((m) => {
           m.round = m.round + maxGroupRound;
         });
 
-        // Adicionar partidas do mata-mata
-        const { addMatches } = useMatchStore.getState();
-        addMatches(knockoutMatches);
+        return {
+          knockoutMatches,
+          championshipUpdate: {
+            groupStageComplete: true,
+            knockoutStartRound: maxGroupRound + 1,
+            totalRounds: maxGroupRound + Math.ceil(Math.log2(classifiedTeams.length)),
+          },
+          groupMatchIds: Array.from(new Set([...groupMatches.map((m) => m.id), matchId])),
+        };
+      };
 
-        // Salvar no Firestore com os mesmos IDs para manter referências (nextMatchId, etc.)
-        knockoutMatches.forEach((km) => setDocument('matches', km.id, km).catch(console.warn));
+      const groupKnockoutPlan = buildGroupKnockoutPlan();
+      const transactionResult = await runTransaction<FinalizeTransactionResult>(
+        db,
+        async (transaction) => {
+          const matchRef = doc(db, 'matches', matchId);
+          const championshipRef = doc(db, 'championships', championship.id);
+          const roundMatchIds = Array.from(
+            new Set([
+              ...matches
+                .filter((m) => m.championshipId === championship.id && m.round === match.round)
+                .map((m) => m.id),
+              matchId,
+            ]),
+          );
+          const roundMatchRefs = roundMatchIds.map((id) => doc(db, 'matches', id));
+          const groupMatchRefs =
+            groupKnockoutPlan?.groupMatchIds.map((id) => doc(db, 'matches', id)) ?? [];
 
-        // Atualizar campeonato
-        updateChampionship(championship.id, {
-          groupStageComplete: true,
-          knockoutStartRound: maxGroupRound + 1,
-          totalRounds: maxGroupRound + Math.ceil(Math.log2(classifiedTeams.length)),
-        });
-        updateDocument('championships', championship.id, {
-          groupStageComplete: true,
-          knockoutStartRound: maxGroupRound + 1,
-          totalRounds: maxGroupRound + Math.ceil(Math.log2(classifiedTeams.length)),
-        }).catch(console.warn);
+          let nextMatchUpdate: Partial<MatchModel> | null = null;
+          let nextMatchIdToUpdate: string | null = null;
+          let knockoutFinalReached = false;
+
+          if (isKnockout && winnerId && match.nextMatchId) {
+            const bracketPos = match.bracketPosition ?? 0;
+            nextMatchUpdate = bracketPos % 2 === 0
+              ? { homeTeamId: winnerId }
+              : { awayTeamId: winnerId };
+            nextMatchIdToUpdate = match.nextMatchId;
+          } else if (isKnockout && winnerId && !match.nextMatchId) {
+            knockoutFinalReached = true;
+          }
+
+          const nextMatchRef = nextMatchIdToUpdate
+            ? doc(db, 'matches', nextMatchIdToUpdate)
+            : null;
+
+          const matchSnap = await transaction.get(matchRef);
+          const championshipSnap = await transaction.get(championshipRef);
+          const nextMatchSnap = nextMatchRef ? await transaction.get(nextMatchRef) : null;
+          const roundMatchSnaps = await Promise.all(
+            roundMatchRefs.map((ref) => transaction.get(ref)),
+          );
+          const groupMatchSnaps = await Promise.all(
+            groupMatchRefs.map((ref) => transaction.get(ref)),
+          );
+
+          if (!matchSnap.exists()) {
+            throw new Error('Partida não encontrada.');
+          }
+          if (!championshipSnap.exists()) {
+            throw new Error('Campeonato não encontrado.');
+          }
+
+          const persistedMatch = { id: matchSnap.id, ...matchSnap.data() } as MatchModel;
+          const persistedChampionship = {
+            id: championshipSnap.id,
+            ...championshipSnap.data(),
+          } as Championship;
+
+          if (persistedMatch.status === 'finalizado') {
+            throw new Error('Esta partida já foi finalizada.');
+          }
+          if (persistedChampionship.status === 'finalizado') {
+            throw new Error('Este campeonato já foi finalizado.');
+          }
+
+          if (nextMatchRef && nextMatchUpdate) {
+            if (!nextMatchSnap?.exists()) {
+              throw new Error('Próxima partida do mata-mata não encontrada.');
+            }
+
+            const nextMatch = {
+              id: nextMatchSnap.id,
+              ...nextMatchSnap.data(),
+            } as MatchModel;
+            const slot = nextMatchUpdate.homeTeamId != null ? 'homeTeamId' : 'awayTeamId';
+            const existingSlotTeam = nextMatch[slot];
+
+            if (existingSlotTeam && existingSlotTeam !== winnerId) {
+              throw new Error('A próxima partida já recebeu outro vencedor.');
+            }
+          }
+
+          const suspendedPlayerIds: string[] = [];
+          const reactivatedPlayerIds: string[] = [];
+          const championshipUpdate: Partial<Championship> = {};
+
+          transaction.update(matchRef, updatedMatchData);
+
+          if (redCardSuspend) {
+            const nextRound = match.round + 1;
+            const redCardPlayerIds = Array.from(
+              new Set(
+                matchEvents
+                  .filter((e) => e.type === 'cartao_vermelho')
+                  .map((e) => e.playerId),
+              ),
+            );
+
+            for (const pid of redCardPlayerIds) {
+              transaction.update(doc(db, 'players', pid), {
+                status: 'suspenso',
+                suspendedRound: nextRound,
+              });
+              suspendedPlayerIds.push(pid);
+            }
+          }
+
+          const suspendedInRound = players.filter(
+            (p) => p.suspendedRound === match.round && p.status === 'suspenso',
+          );
+
+          for (const p of suspendedInRound) {
+            transaction.update(doc(db, 'players', p.id), {
+              status: 'ativo',
+              suspendedRound: null,
+            });
+            reactivatedPlayerIds.push(p.id);
+          }
+
+          let nextCurrentRound: number | null = null;
+          const persistedRoundMatches = roundMatchSnaps
+            .filter((snap) => snap.exists())
+            .map((snap) => ({ id: snap.id, ...snap.data() }) as MatchModel);
+          const roundMatchesAfterUpdate = persistedRoundMatches.map((m) =>
+            m.id === matchId ? { ...m, ...updatedMatchData, status: 'finalizado' as const } : m,
+          );
+          const roundComplete =
+            roundMatchesAfterUpdate.length > 0 &&
+            roundMatchesAfterUpdate.every((m) => m.status === 'finalizado');
+
+          if (roundComplete && persistedChampionship.currentRound === match.round) {
+            nextCurrentRound = match.round + 1;
+            championshipUpdate.currentRound = nextCurrentRound;
+          }
+
+          if (nextMatchRef && nextMatchUpdate) {
+            transaction.update(nextMatchRef, nextMatchUpdate);
+          }
+
+          let groupKnockoutMatches: MatchModel[] = [];
+          let groupChampionshipUpdate: GroupKnockoutPlan['championshipUpdate'] | null = null;
+
+          if (groupKnockoutPlan && !persistedChampionship.groupStageComplete) {
+            const persistedGroupMatches = groupMatchSnaps
+              .filter((snap) => snap.exists())
+              .map((snap) => ({ id: snap.id, ...snap.data() }) as MatchModel);
+            const groupMatchesAfterUpdate = persistedGroupMatches.map((m) =>
+              m.id === matchId ? { ...m, ...updatedMatchData, status: 'finalizado' as const } : m,
+            );
+            const allGroupMatchesFinished = groupMatchesAfterUpdate.every(
+              (m) => m.status === 'finalizado',
+            );
+
+            if (allGroupMatchesFinished) {
+              for (const km of groupKnockoutPlan.knockoutMatches) {
+                transaction.set(doc(db, 'matches', km.id), {
+                  ...km,
+                  createdAt: finishedAt,
+                });
+              }
+              Object.assign(championshipUpdate, groupKnockoutPlan.championshipUpdate);
+              groupKnockoutMatches = groupKnockoutPlan.knockoutMatches;
+              groupChampionshipUpdate = groupKnockoutPlan.championshipUpdate;
+            }
+          }
+
+          if (Object.keys(championshipUpdate).length > 0) {
+            transaction.update(championshipRef, championshipUpdate);
+          }
+
+          return {
+            suspendedPlayerIds,
+            reactivatedPlayerIds,
+            nextCurrentRound,
+            nextMatchIdToUpdate,
+            nextMatchUpdate,
+            knockoutFinalReached,
+            groupKnockoutMatches,
+            groupChampionshipUpdate,
+          };
+        },
+      );
+
+      updateMatch(matchId, updatedMatchData);
+
+      if (redCardSuspend) {
+        const nextRound = match.round + 1;
+        for (const pid of transactionResult.suspendedPlayerIds) {
+          useTeamStore.getState().updatePlayer(pid, { status: 'suspenso', suspendedRound: nextRound });
+        }
+      }
+
+      for (const pid of transactionResult.reactivatedPlayerIds) {
+        useTeamStore.getState().updatePlayer(pid, { status: 'ativo', suspendedRound: undefined });
+      }
+
+      if (transactionResult.nextCurrentRound != null) {
+        updateChampionship(match.championshipId, { currentRound: transactionResult.nextCurrentRound });
+      }
+
+      if (transactionResult.nextMatchIdToUpdate && transactionResult.nextMatchUpdate) {
+        updateMatch(transactionResult.nextMatchIdToUpdate, transactionResult.nextMatchUpdate);
+      }
+
+      if (
+        transactionResult.groupKnockoutMatches.length > 0 &&
+        transactionResult.groupChampionshipUpdate
+      ) {
+        useMatchStore.getState().addMatches(transactionResult.groupKnockoutMatches);
+        updateChampionship(championship.id, transactionResult.groupChampionshipUpdate);
 
         Toast.show({
           type: 'success',
@@ -581,37 +848,64 @@ export function MatchRegistrationScreen() {
           visibilityTime: 3500,
         });
       }
-    }
 
-    const updatedMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
+      if (transactionResult.knockoutFinalReached) {
+        try {
+          const result = await finishChampionship(match.championshipId, {
+            skipPendingMatchesCheck: true,
+          });
+          if (result.success) {
+            updateChampionship(match.championshipId, { status: 'finalizado' });
+            Toast.show({
+              type: 'success',
+              text1: '🏆 Campeonato Finalizado!',
+              text2: `${teams.find((t) => t.id === winnerId)?.name} é o campeão!`,
+              visibilityTime: 4000,
+            });
+          } else {
+            console.warn('[MatchRegistration] finishChampionship failed:', result.error);
+          }
+        } catch (e) {
+          console.warn('[MatchRegistration] finishChampionship failed:', e);
+        }
+      }
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const updatedMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
 
-    if (match && homeTeam && awayTeam) {
-      notifyMatchFinished(
-        match.championshipId,
-        homeTeam.name,
-        awayTeam.name,
-        finalHome,
-        finalAway,
-        matchId,
-      ).catch(() => {});
-    }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    runAchievementChecks(events, updatedMatches).catch(() => {});
+      if (homeTeam && awayTeam) {
+        notifyMatchFinished(
+          match.championshipId,
+          homeTeam.name,
+          awayTeam.name,
+          finalHome,
+          finalAway,
+          matchId,
+        ).catch(() => {});
+      }
 
-    if (isLive) {
-      navigation.replace('MatchSummary', { matchId });
-    } else {
-      const penaltyText = homePenalty !== null ? ` (${homePenalty}-${awayPenalty} pen.)` : '';
-      Toast.show({
-        type: 'success',
-        text1: 'Partida finalizada!',
-        text2: `${finalHome} × ${finalAway}${penaltyText}`,
-        visibilityTime: 2500,
-      });
-      navigation.goBack();
-    }
+      runAchievementChecks(events, updatedMatches).catch(() => {});
+
+      if (isLive) {
+        navigation.replace('MatchSummary', { matchId });
+      } else {
+        const penaltyText = homePenalty !== null ? ` (${homePenalty}-${awayPenalty} pen.)` : '';
+        Toast.show({
+          type: 'success',
+          text1: 'Partida finalizada!',
+          text2: `${finalHome} × ${finalAway}${penaltyText}`,
+          visibilityTime: 2500,
+        });
+        navigation.goBack();
+      }
+    } catch (err) {
+      // BE-04: Em caso de falha, mostrar erro claro e NÃO navegar
+      console.error('[MatchRegistration] finalizeMatch error:', err);
+      Alert.alert(
+        'Erro ao finalizar partida',
+        'Não foi possível finalizar a partida. Verifique a conexão e tente novamente.',
+      );
     } finally {
       setFinalizing(false);
     }
@@ -839,8 +1133,15 @@ export function MatchRegistrationScreen() {
                           <Text style={styles.eventTeam}>{team?.name ?? '—'}</Text>
                         </View>
                         {canManageMatch && (
-                          <TouchableOpacity onPress={() => handleRemoveEvent(event.id)}>
-                            <Ionicons name="close" size={18} color={colors.textMuted} />
+                          <TouchableOpacity
+                            onPress={() => handleRemoveEvent(event.id)}
+                            disabled={removingEventId === event.id}
+                          >
+                            {removingEventId === event.id ? (
+                              <Text style={{ fontSize: 12, color: colors.textMuted }}>...</Text>
+                            ) : (
+                              <Ionicons name="close" size={18} color={colors.textMuted} />
+                            )}
                           </TouchableOpacity>
                         )}
                       </View>
@@ -852,7 +1153,12 @@ export function MatchRegistrationScreen() {
           )}
 
           {canManageMatch && (
-            <TouchableOpacity style={styles.addButton} onPress={openBottomSheet} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={[styles.addButton, addingEvent && { opacity: 0.5 }]}
+              onPress={openBottomSheet}
+              activeOpacity={0.8}
+              disabled={addingEvent}
+            >
               <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
               <Text style={styles.addButtonText}>Adicionar evento</Text>
             </TouchableOpacity>
@@ -866,7 +1172,13 @@ export function MatchRegistrationScreen() {
         <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
           <Text style={styles.bottomInfo}>{matchEvents.length} eventos registrados</Text>
           {match.status === 'agendado' ? (
-            <AppButton title="INICIAR PARTIDA" onPress={handleStartLive} fullWidth />
+            <AppButton
+              title="INICIAR PARTIDA"
+              onPress={handleStartLive}
+              disabled={startingMatch}
+              loading={startingMatch}
+              fullWidth
+            />
           ) : (
             <AppButton
               title="FINALIZAR PARTIDA"
@@ -975,9 +1287,10 @@ export function MatchRegistrationScreen() {
           />
 
           <AppButton
-            title="REGISTRAR EVENTO"
+            title={addingEvent ? "REGISTRANDO..." : "REGISTRAR EVENTO"}
             onPress={handleAddEvent}
-            disabled={!canAddBsEvent}
+            disabled={!canAddBsEvent || addingEvent}
+            loading={addingEvent}
             fullWidth
             style={bsStyles.submitButton}
           />

@@ -1,6 +1,7 @@
 import { MatchEvent, MatchModel, Player, RoundVote, RoundAward } from '../types';
 import { useVotingStore } from '../stores/votingStore';
-import { upsertDocument, getCollection } from './firestore';
+import { upsertDocument, getCollection, getDocument } from './firestore';
+import { auth } from './firebase';
 
 // ---------------------------------------------------------------------------
 // 1. getCandidatesForRound
@@ -73,9 +74,52 @@ export async function submitVote(
   voterId: string,
   candidatePlayerId: string,
 ): Promise<void> {
+  // AUD-07: revalida TODAS as regras no service (o cliente não é confiável).
+
+  // 0. Autenticação: o voto precisa ser do próprio usuário autenticado.
+  if (!auth.currentUser || auth.currentUser.uid !== voterId) {
+    throw new Error('Você precisa estar autenticado para votar.');
+  }
+
+  // 1. A rodada precisa existir e estar com a votação ABERTA:
+  //    - todas as partidas da rodada finalizadas, e
+  //    - votação ainda não encerrada (sem RoundAward para a rodada).
+  const champMatches = await getCollection<MatchModel>('matches', [
+    { field: 'championshipId', operator: '==', value: championshipId },
+  ]);
+  const roundMatches = champMatches.filter((m) => m.round === round);
+  if (roundMatches.length === 0 || !roundMatches.every((m) => m.status === 'finalizado')) {
+    throw new Error('A votação desta rodada ainda não está disponível.');
+  }
+
+  const existingAwards = await getCollection<RoundAward>('round_awards', [
+    { field: 'championshipId', operator: '==', value: championshipId },
+    { field: 'round', operator: '==', value: round },
+  ]);
+  if (existingAwards.length > 0) {
+    throw new Error('A votação desta rodada já foi encerrada.');
+  }
+
+  // 2. O usuário ainda não pode ter votado nesta rodada.
   const alreadyVoted = await hasVoted(championshipId, round, voterId);
   if (alreadyVoted) {
     throw new Error('Você já votou nesta rodada');
+  }
+
+  // 3. O candidato precisa existir e pertencer a este campeonato.
+  const candidate = await getDocument<Player>('players', candidatePlayerId);
+  if (!candidate || candidate.championshipId !== championshipId) {
+    throw new Error('Candidato inválido.');
+  }
+
+  // 4. O candidato não pode ser do mesmo time do votante (quando o votante tem time).
+  const voterPlayers = await getCollection<Player>('players', [
+    { field: 'championshipId', operator: '==', value: championshipId },
+    { field: 'userId', operator: '==', value: voterId },
+  ]);
+  const voterTeamId = voterPlayers.find((p) => !!p.teamId)?.teamId ?? null;
+  if (voterTeamId && candidate.teamId === voterTeamId) {
+    throw new Error('Você não pode votar em um jogador do seu próprio time.');
   }
 
   // ID determinístico previne voto duplo em race condition cross-device

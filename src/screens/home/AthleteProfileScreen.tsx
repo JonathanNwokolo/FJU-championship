@@ -42,7 +42,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { auth } from '../../services/firebase';
 import { updateDocument } from '../../services/index';
-import { processWaitlistOnVacancy } from '../../services/inviteService';
+import { leaveTeam, LeaveTeamResult } from '../../services/inviteService';
 import { uploadUserPhoto } from '../../services/imageUpload';
 import { colors, gradients, shadows } from '../../theme/colors';
 import { POSITION_LABELS, POSITION_OPTIONS } from '../../utils/constants';
@@ -120,6 +120,32 @@ function CareerStatCard({
       <Text style={styles.careerStatLabel}>{label}</Text>
     </View>
   );
+}
+
+function getLeaveTeamMessage(result: Exclude<LeaveTeamResult, 'success'>) {
+  const messages: Record<Exclude<LeaveTeamResult, 'success'>, { text1: string; text2?: string }> = {
+    not_authenticated: {
+      text1: 'Sessão expirada',
+      text2: 'Entre novamente para sair do time.',
+    },
+    not_found: {
+      text1: 'Vínculo não encontrado',
+      text2: 'Atualize o app e tente novamente.',
+    },
+    not_allowed: {
+      text1: 'Não foi possível sair do time',
+      text2: 'Apenas atletas podem sair do próprio time por aqui.',
+    },
+    championship_finished: {
+      text1: 'Campeonato finalizado',
+      text2: 'Não é possível sair de time em campeonato finalizado.',
+    },
+    blocked_only_player_pending_matches: {
+      text1: 'Saída bloqueada',
+      text2: 'Você é o único atleta aprovado do time e ainda existem partidas pendentes.',
+    },
+  };
+  return messages[result];
 }
 
 export function AthleteProfileScreen({ route, navigation }: Props) {
@@ -354,32 +380,38 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
   };
 
   const championships = useChampionshipStore((s) => s.championships);
-  const removePlayer = useTeamStore((s) => s.removePlayer);
   const currentChampionship = championships.find((c) => c.id === activeChampionshipId);
   const isChampionshipInProgress = currentChampionship?.status === 'em_andamento';
-  const canLeaveTeam = isOwnProfile && team && player && (player.status === 'ativo' || !player.status);
+  const isAthlete = authUser?.role === 'atleta';
+  const isTeamCaptain = !!authUser?.id && team?.captainId === authUser.id;
+  const canLeaveTeam =
+    isOwnProfile &&
+    isAthlete &&
+    !!team &&
+    !!player?.teamId &&
+    (player.status === 'ativo' || !player.status) &&
+    !isTeamCaptain &&
+    currentChampionship?.status !== 'finalizado';
 
   const handleLeaveTeam = () => {
     if (!team || !player || !authUser) return;
 
     const confirmLeave = async () => {
       try {
-        // Update player status
-        await updateDocument('players', player.id, {
+        const result = await leaveTeam(player.id, team.id, player.championshipId ?? team.championshipId);
+
+        if (result !== 'success') {
+          const message = getLeaveTeamMessage(result);
+          Toast.show({ type: 'error', ...message, visibilityTime: 3200 });
+          return;
+        }
+
+        updatePlayer(player.id, {
+          teamId: null,
           status: 'sem_time',
           leftAt: new Date().toISOString(),
-          teamId: null,
         });
-
-        // Update user
-        await updateDocument('users', authUser.id, { teamId: null });
-
-        // Notificar fila de espera sobre a vaga aberta
-        processWaitlistOnVacancy(team.id).catch(() => {});
-
-        // Update local state
-        removePlayer(player.id);
-        setUser({ ...authUser, teamId: undefined });
+        setUser({ ...authUser, teamId: null });
 
         Toast.show({
           type: 'success',

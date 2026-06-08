@@ -142,24 +142,36 @@ export function calculateTopScorers(
   players: Player[],
   teams: Team[],
 ): PlayerScorer[] {
-  const goalMap: Record<string, number> = {};
+  // AUD-04: a artilharia é dirigida pelos EVENTOS (não pela existência do player).
+  // Acumula gols por playerId e guarda um snapshot de nome/time vindo do próprio
+  // evento, usado como fallback quando o documento do player/team não existe mais
+  // (ex.: atleta removido). IMPORTANTE: `events` deve já vir filtrado pelo campeonato.
+  const goalMap: Record<
+    string,
+    { goals: number; snapName?: string; snapTeamId?: string; snapTeamName?: string }
+  > = {};
   for (const e of events) {
     if (e.type !== 'gol') continue;
-    goalMap[e.playerId] = (goalMap[e.playerId] ?? 0) + 1;
+    const cur = goalMap[e.playerId] ?? { goals: 0 };
+    cur.goals += 1;
+    if (!cur.snapName && e.playerName) cur.snapName = e.playerName;
+    if (!cur.snapTeamId && e.teamId) cur.snapTeamId = e.teamId;
+    if (!cur.snapTeamName && e.teamName) cur.snapTeamName = e.teamName;
+    goalMap[e.playerId] = cur;
   }
 
   const scorers: PlayerScorer[] = [];
-  for (const [playerId, goals] of Object.entries(goalMap)) {
+  for (const [playerId, info] of Object.entries(goalMap)) {
     const player = players.find((p) => p.id === playerId);
-    if (!player) continue;
-    const team = teams.find((t) => t.id === player.teamId);
+    const teamId = player?.teamId ?? info.snapTeamId ?? '';
+    const team = teams.find((t) => t.id === teamId);
     scorers.push({
       playerId,
-      playerName: player.name,
-      teamId: player.teamId ?? '',
-      teamName: team?.name ?? '',
+      playerName: player?.name ?? info.snapName ?? 'Jogador',
+      teamId,
+      teamName: team?.name ?? info.snapTeamName ?? '',
       teamColor: team?.primaryColor ?? '#888',
-      goals,
+      goals: info.goals,
     });
   }
 
@@ -171,7 +183,13 @@ export function calculatePlayerDisciplineRanking(
   players: Player[],
   teams: Team[],
 ): PlayerDisciplineRanking[] {
-  const cardMap: Record<string, { yellowCards: number; redCards: number; teamId: string }> = {};
+  // AUD-04: ranking de cartões dirigido pelos EVENTOS, com snapshot de nome/time
+  // como fallback quando o documento do player não existe mais (atleta removido).
+  // `events` deve já vir filtrado pelo campeonato.
+  const cardMap: Record<
+    string,
+    { yellowCards: number; redCards: number; teamId: string; snapName?: string; snapTeamName?: string }
+  > = {};
 
   for (const event of events) {
     if (event.type !== 'cartao_amarelo' && event.type !== 'cartao_vermelho') continue;
@@ -185,6 +203,8 @@ export function calculatePlayerDisciplineRanking(
     if (event.type === 'cartao_amarelo') current.yellowCards += 1;
     if (event.type === 'cartao_vermelho') current.redCards += 1;
     current.teamId = current.teamId || event.teamId;
+    if (!current.snapName && event.playerName) current.snapName = event.playerName;
+    if (!current.snapTeamName && event.teamName) current.snapTeamName = event.teamName;
     cardMap[event.playerId] = current;
   }
 
@@ -194,16 +214,14 @@ export function calculatePlayerDisciplineRanking(
     if (cards.yellowCards + cards.redCards === 0) continue;
 
     const player = players.find((item) => item.id === playerId);
-    if (!player) continue;
-
-    const teamId = cards.teamId || player.teamId || '';
+    const teamId = cards.teamId || player?.teamId || '';
     const team = teams.find((item) => item.id === teamId);
 
     ranking.push({
       playerId,
-      playerName: player.name,
+      playerName: player?.name ?? cards.snapName ?? 'Jogador',
       teamId,
-      teamName: team?.name ?? '',
+      teamName: team?.name ?? cards.snapTeamName ?? '',
       teamColor: team?.primaryColor ?? '#888',
       yellowCards: cards.yellowCards,
       redCards: cards.redCards,

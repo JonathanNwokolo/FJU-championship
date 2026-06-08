@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,13 +13,12 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import { sendPasswordResetEmail } from 'firebase/auth';
-import { FontAwesome } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { AppButton } from '../../components/AppButton';
 import { AppTextField } from '../../components/AppTextField';
 import { useAuthStore } from '../../stores/authStore';
-import { colors, shadows } from '../../theme/colors';
+import { colors } from '../../theme/colors';
 import { auth } from '../../services/firebase';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { AuthBackground } from './AuthBackground';
@@ -96,15 +96,12 @@ export function LoginScreen({ navigation }: Props) {
           contentContainerStyle={styles.content}
         >
           <View style={styles.top}>
-            <Animated.View entering={FadeInDown.duration(450)}>
-              <View style={styles.logoCircle}>
-                <FontAwesome name="trophy" size={48} color={colors.accent} />
-              </View>
-            </Animated.View>
-
-            <Animated.View entering={FadeIn.delay(150).duration(450)} style={styles.brand}>
-              <Text style={styles.title}>FJU</Text>
-              <Text style={styles.subtitle}>CHAMPIONSHIP</Text>
+            <Animated.View entering={FadeInDown.duration(450)} style={styles.logoContainer}>
+              <Image
+                source={require('../../../assets/fjuchamp.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </Animated.View>
           </View>
 
@@ -183,33 +180,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoCircle: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+  logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bg300,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    ...shadows.shadowGlow,
+    marginTop: 32,
+    marginBottom: 24,
   },
-  brand: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  title: {
-    fontFamily: 'Barlow-Black',
-    fontSize: 42,
-    letterSpacing: -1,
-    color: colors.textPrimary,
-  },
-  subtitle: {
-    marginTop: 2,
-    fontFamily: 'Barlow-Medium',
-    fontSize: 12,
-    letterSpacing: 6,
-    color: colors.accent,
+  logo: {
+    width: 240,
+    height: 240,
   },
   form: {
     gap: 16,

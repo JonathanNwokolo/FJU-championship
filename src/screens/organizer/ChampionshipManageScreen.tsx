@@ -218,6 +218,18 @@ export function ChampionshipManageScreen() {
 
   const handleFinishChampionship = () => {
     if (!isOwner) return;
+    // AUD-01: bloqueia finalização enquanto houver partidas agendadas/ao vivo com
+    // confronto definido (mata-mata de rodadas futuras sem times ainda não contam).
+    const pendingMatches = champMatches.filter(
+      (m) => m.status !== 'finalizado' && !!m.homeTeamId && !!m.awayTeamId,
+    );
+    if (pendingMatches.length > 0) {
+      Alert.alert(
+        'Partidas em aberto',
+        `Existem ${pendingMatches.length} partidas ainda não finalizadas. Encerre todas as partidas antes de finalizar o campeonato.`,
+      );
+      return;
+    }
     Alert.alert(
       '⚠️ Finalizar campeonato',
       'Esta ação é irreversível. A classificação final será registrada e os participantes notificados.',

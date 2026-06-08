@@ -65,8 +65,27 @@ function getFinalizedKnockoutFinal(matches: MatchModel[]): MatchModel | null {
     })[0] ?? null;
 }
 
+/**
+ * AUD-01: uma partida está "pendente" se ainda não foi finalizada E já tem os dois
+ * times definidos (partidas de mata-mata de rodadas futuras, sem confronto definido,
+ * não contam). Cobre agendadas e ao vivo.
+ */
+function getPendingMatches(matches: MatchModel[]): MatchModel[] {
+  return matches.filter(
+    (m) => m.status !== 'finalizado' && !!m.homeTeamId && !!m.awayTeamId,
+  );
+}
+
+export interface FinishChampionshipOptions {
+  // Pula a checagem de partidas pendentes. Usado APENAS no encerramento automático
+  // do mata-mata (ao finalizar a partida final), onde a conclusão é garantida por
+  // ter chegado à final e o write da própria final pode ainda estar propagando.
+  skipPendingMatchesCheck?: boolean;
+}
+
 export async function finishChampionship(
   championshipId: string,
+  options: FinishChampionshipOptions = {},
 ): Promise<FinishChampionshipResult> {
   try {
     // 0. Idempotency guard: if this championship was already finished, return the
@@ -105,6 +124,18 @@ export async function finishChampionship(
     const championship = championships[0];
     if (!championship) {
       return { success: false, error: 'Campeonato não encontrado' };
+    }
+
+    // AUD-01: bloqueia finalização com partidas ainda em aberto (também quando o
+    // service é chamado diretamente), exceto no encerramento automático do mata-mata.
+    if (!options.skipPendingMatchesCheck) {
+      const pending = getPendingMatches(matches);
+      if (pending.length > 0) {
+        return {
+          success: false,
+          error: `Existem ${pending.length} partidas ainda não finalizadas. Encerre todas as partidas antes de finalizar o campeonato.`,
+        };
+      }
     }
 
     const matchIds = new Set(matches.map((m) => m.id));
@@ -179,8 +210,9 @@ export async function finishChampionship(
       winnerTeamColor: winnerTeam?.primaryColor,
       runnerUpId: runnerUpTeam?.id ?? '',
       runnerUpName: runnerUpTeam?.name ?? '',
-      topScorerId: topScorerPlayer?.id ?? '',
-      topScorerName: topScorerPlayer?.name ?? '',
+      // AUD-04: usa o snapshot do evento como fallback caso o doc do player não exista.
+      topScorerId: topScorerPlayer?.id ?? topScorer?.playerId ?? '',
+      topScorerName: topScorerPlayer?.name ?? topScorer?.playerName ?? '',
       topScorerGoals: topScorer?.goals ?? 0,
       bestDefenseId: bestDefenseTeam?.id ?? '',
       bestDefenseName: bestDefenseTeam?.name ?? '',

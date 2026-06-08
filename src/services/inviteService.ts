@@ -3,18 +3,64 @@ import {
   collection,
   doc,
   getDocs,
+  increment,
   query,
   runTransaction,
   serverTimestamp,
   where,
 } from 'firebase/firestore';
-import { addDocument, getCollection, getDocument, updateDocument } from './firestore';
+import { addDocument, deleteDocument, getCollection, getDocument, updateDocument } from './firestore';
 import { auth, db } from './firebase';
 import { notifyJoinRequest, notifyJoinRequestResult } from './notificationService';
-import { JoinRequest, Player, Team, TeamInvite } from '../types';
+import { Championship, JoinRequest, MatchEvent, Player, Team, TeamInvite } from '../types';
 
 const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEFAULT_MAX_PLAYERS = 15;
+
+// Status que NÃO ocupam vaga no elenco ativo.
+const INACTIVE_STATUSES: Array<Player['status']> = ['sem_time', 'removido'];
+
+function isActiveRosterPlayer(player: Player): boolean {
+  return !INACTIVE_STATUSES.includes(player.status);
+}
+
+/** Conta atletas que efetivamente ocupam vaga (exclui removidos/sem time). */
+function countActivePlayers(players: Player[], teamId: string): number {
+  return players.filter((p) => p.teamId === teamId && isActiveRosterPlayer(p)).length;
+}
+
+/**
+ * Recalcula e grava approvedPlayersCount do time a partir do elenco real.
+ * Auto-corrige qualquer drift e deve ser chamado após adições/remoções fora do
+ * fluxo transacional de aprovação (ex.: atleta avulso adicionado pelo capitão).
+ */
+export async function recomputeApprovedCount(teamId: string): Promise<void> {
+  const roster = await getCollection<Player>('players', [
+    { field: 'teamId', operator: '==', value: teamId },
+  ]);
+  await updateDocument('teams', teamId, {
+    approvedPlayersCount: countActivePlayers(roster, teamId),
+  });
+}
+
+/**
+ * AUD-05: regra única de "inscrições abertas" para um campeonato.
+ * Bloqueia entrada quando o campeonato já começou, foi finalizado, teve as
+ * inscrições encerradas manualmente ou o prazo (registrationDeadline) já passou.
+ */
+async function isChampionshipOpenForRegistration(championshipId: string): Promise<boolean> {
+  const championship = await getDocument<Championship>('championships', championshipId);
+  if (!championship) return false;
+  if (championship.status === 'em_andamento' || championship.status === 'finalizado') return false;
+  if (championship.registrationsClosed === true) return false;
+  if (
+    championship.registrationDeadline &&
+    new Date(championship.registrationDeadline).getTime() < Date.now()
+  ) {
+    return false;
+  }
+  return true;
+}
 
 function randomCode() {
   return Array.from({ length: 6 }, () =>
@@ -32,7 +78,7 @@ function nextAvailableNumber(players: Player[]) {
 }
 
 function hasActiveTeam(player: Player) {
-  return !!player.teamId && player.status !== 'sem_time';
+  return !!player.teamId && isActiveRosterPlayer(player);
 }
 
 export async function generateInviteCode(): Promise<string> {
@@ -87,7 +133,7 @@ export async function joinByCode(
   code: string,
   userId: string,
   userName: string,
-): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed' | 'already_in_championship' | 'team_not_approved'> {
+): Promise<'success' | 'not_found' | 'full' | 'already_member' | 'closed' | 'already_in_championship' | 'team_not_approved' | 'championship_closed'> {
   const normalizedCode = code.trim().toUpperCase();
 
   const teams = await getCollection<Team>('teams', [
@@ -99,11 +145,16 @@ export async function joinByCode(
   if (team.status !== 'aprovado') return 'team_not_approved';
   if (team.registrationOpen === false) return 'closed';
 
+  // AUD-05: inscrições só são permitidas com o campeonato aberto e dentro do prazo.
+  if (!(await isChampionshipOpenForRegistration(team.championshipId))) {
+    return 'championship_closed';
+  }
+
   const teamPlayers = await getCollection<Player>('players', [
     { field: 'teamId', operator: '==', value: team.id },
   ]);
 
-  if (teamPlayers.some((player) => player.userId === userId)) {
+  if (teamPlayers.some((player) => player.userId === userId && isActiveRosterPlayer(player))) {
     return 'already_member';
   }
 
@@ -117,7 +168,7 @@ export async function joinByCode(
   }
 
   const maxPlayers = team.maxPlayers ?? DEFAULT_MAX_PLAYERS;
-  if (teamPlayers.length >= maxPlayers) {
+  if (countActivePlayers(teamPlayers, team.id) >= maxPlayers) {
     return 'full';
   }
 
@@ -129,6 +180,7 @@ export async function joinByCode(
     name: userName,
     position: 'meia',
     number: playerNumber,
+    status: 'ativo',
   };
 
   await addDocument('players', playerData);
@@ -136,6 +188,8 @@ export async function joinByCode(
     teamId: team.id,
     championshipId: team.championshipId,
   });
+  // Mantém a contagem denormalizada de vagas (AUD-06) em sincronia.
+  await updateDocument('teams', team.id, { approvedPlayersCount: increment(1) });
 
   const invites = await getCollection<TeamInvite>('team_invites', [
     { field: 'inviteCode', operator: '==', value: normalizedCode },
@@ -177,8 +231,10 @@ export async function requestToJoin(
   const roster = await getCollection<Player>('players', [
     { field: 'teamId', operator: '==', value: teamId },
   ]);
-  if (roster.some((player) => player.userId === requesterId)) return 'already_member';
-  if (roster.length >= (team.maxPlayers ?? DEFAULT_MAX_PLAYERS)) return 'full';
+  if (roster.some((player) => player.userId === requesterId && isActiveRosterPlayer(player))) {
+    return 'already_member';
+  }
+  if (countActivePlayers(roster, teamId) >= (team.maxPlayers ?? DEFAULT_MAX_PLAYERS)) return 'full';
 
   // Verificar se o usuário já está em outro time do mesmo campeonato
   const userPlayersInChampionship = await getCollection<Player>('players', [
@@ -208,6 +264,62 @@ export async function requestToJoin(
   return 'success';
 }
 
+/**
+ * AUD-06: aprovação de atleta dentro de uma runTransaction.
+ * Lê o time (e escreve nele), revalidando a capacidade do elenco no momento da
+ * ação. Como a transação lê E escreve o MESMO documento do time, duas aprovações
+ * simultâneas são serializadas pelo Firestore — a segunda re-executa e enxerga a
+ * contagem já incrementada, nunca ultrapassando maxPlayers.
+ */
+async function approveJoinRequest(
+  teamId: string,
+  requesterId: string,
+  requesterName: string,
+  requesterPhotoUrl: string,
+): Promise<'success' | 'full' | 'already_member' | 'team_not_found'> {
+  // Pré-carrega o elenco fora da transação: serve para numeração da camisa e como
+  // fallback de contagem quando approvedPlayersCount ainda não existe (times legados).
+  const rosterSnapshot = await getDocs(
+    query(collection(db, 'players'), where('teamId', '==', teamId)),
+  );
+  const roster = rosterSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Player);
+
+  return runTransaction(db, async (transaction) => {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await transaction.get(teamRef);
+    if (!teamSnap.exists()) return 'team_not_found';
+    const team = { id: teamSnap.id, ...teamSnap.data() } as Team;
+
+    if (roster.some((p) => p.userId === requesterId && isActiveRosterPlayer(p))) {
+      return 'already_member';
+    }
+
+    const maxPlayers = team.maxPlayers ?? DEFAULT_MAX_PLAYERS;
+    const currentCount = team.approvedPlayersCount ?? countActivePlayers(roster, teamId);
+    if (currentCount >= maxPlayers) return 'full';
+
+    const newPlayerRef = doc(collection(db, 'players'));
+    transaction.set(newPlayerRef, {
+      teamId,
+      championshipId: team.championshipId,
+      userId: requesterId,
+      name: requesterName,
+      position: 'meia',
+      number: nextAvailableNumber(roster),
+      photoUrl: requesterPhotoUrl ?? '',
+      status: 'ativo',
+      joinedAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    transaction.update(teamRef, {
+      approvedPlayersCount: currentCount + 1,
+      pendingRequests: (team.pendingRequests ?? []).filter((id) => id !== requesterId),
+    });
+
+    return 'success';
+  });
+}
+
 export async function respondToRequest(
   requestId: string,
   approved: boolean,
@@ -222,45 +334,90 @@ export async function respondToRequest(
   const request = requests.find((item) => item.id === requestId) ?? requests[0];
   if (!request) return;
 
+  if (approved) {
+    const result = await approveJoinRequest(
+      teamId,
+      requesterId,
+      request.requesterName,
+      request.requesterPhotoUrl,
+    );
+    if (result === 'full') {
+      throw new Error('Elenco já está completo.');
+    }
+    if (result === 'team_not_found') {
+      throw new Error('Time não encontrado.');
+    }
+
+    // 'success' ou 'already_member': confirma a solicitação e vincula o usuário.
+    await updateDocument('join_requests', requestId, {
+      status: 'approved',
+      respondedAt: new Date().toISOString(),
+    });
+    // Limpeza idempotente de pendingRequests (a transação já remove no caso success).
+    const team = await getDocument<Team>('teams', teamId);
+    if (team) {
+      await updateDocument('teams', teamId, {
+        pendingRequests: (team.pendingRequests ?? []).filter((id) => id !== requesterId),
+      });
+    }
+    await updateDocument('users', requesterId, {
+      teamId,
+      championshipId: request.championshipId,
+    });
+    await notifyJoinRequestResult(requesterId, true, request.teamName);
+    return;
+  }
+
+  // ── Recusa (fluxo inalterado) ───────────────────────────────────────────────
   await updateDocument('join_requests', requestId, {
-    status: approved ? 'approved' : 'rejected',
+    status: 'rejected',
     respondedAt: new Date().toISOString(),
   });
 
   const team = await getDocument<Team>('teams', teamId);
-
   if (team) {
     await updateDocument('teams', teamId, {
       pendingRequests: (team.pendingRequests ?? []).filter((id) => id !== requesterId),
     });
   }
 
-  if (approved && team) {
-    const teamPlayers = await getCollection<Player>('players', [
-      { field: 'teamId', operator: '==', value: teamId },
-    ]);
-    if (!teamPlayers.some((player) => player.userId === requesterId)) {
-      await addDocument('players', {
-        teamId,
-        championshipId: team.championshipId,
-        userId: requesterId,
-        name: request.requesterName,
-        position: 'meia',
-        number: nextAvailableNumber(teamPlayers),
-        photoUrl: request.requesterPhotoUrl,
-      });
-    }
-    await updateDocument('users', requesterId, {
-      teamId,
-      championshipId: team.championshipId,
+  await notifyJoinRequestResult(requesterId, false, request.teamName);
+}
+
+/**
+ * AUD-04: remoção de atleta segura para o histórico.
+ * Se o atleta tem qualquer match_event (gol, cartão, assistência), NÃO apaga o
+ * documento — apenas marca status='removido' (preservando teamId/championshipId
+ * para artilharia, disciplina e histórico final). Sem histórico, remove de fato.
+ * Em ambos os casos mantém a contagem de vagas do time consistente.
+ *
+ * Retorna 'soft' (preservado) ou 'hard' (removido fisicamente).
+ */
+export async function removePlayerFromRoster(player: Player): Promise<'soft' | 'hard'> {
+  const events = await getCollection<MatchEvent>('match_events', [
+    { field: 'playerId', operator: '==', value: player.id },
+  ]);
+  const hasHistory = events.length > 0;
+
+  if (hasHistory) {
+    await updateDocument('players', player.id, {
+      status: 'removido',
+      leftAt: new Date().toISOString(),
     });
+  } else {
+    await deleteDocument('players', player.id);
   }
 
-  await notifyJoinRequestResult(
-    requesterId,
-    approved,
-    request.teamName,
-  );
+  if (player.userId) {
+    await updateDocument('users', player.userId, { teamId: null });
+  }
+
+  // Recalcula a contagem autoritativa de vagas após a remoção (auto-corrige drift).
+  if (player.teamId) {
+    await recomputeApprovedCount(player.teamId);
+  }
+
+  return hasHistory ? 'soft' : 'hard';
 }
 
 export async function shareInviteViaWhatsApp(
@@ -353,7 +510,7 @@ export async function processWaitlistOnVacancy(teamId: string): Promise<void> {
   ]);
 
   const maxPlayers = team.maxPlayers ?? DEFAULT_MAX_PLAYERS;
-  if (roster.length >= maxPlayers) return;
+  if (countActivePlayers(roster, teamId) >= maxPlayers) return;
 
   // Get first person in waitlist
   const waitlist = await getCollection<JoinRequest>('join_requests', [
@@ -444,7 +601,7 @@ export async function leaveTeam(
     const activeRoster = rosterSnaps
       .filter((snap) => snap.exists())
       .map((snap) => ({ id: snap.id, ...snap.data() }) as Player)
-      .filter((rosterPlayer) => rosterPlayer.teamId === teamId && rosterPlayer.status !== 'sem_time');
+      .filter((rosterPlayer) => rosterPlayer.teamId === teamId && isActiveRosterPlayer(rosterPlayer));
 
     const matchSnaps = await Promise.all(
       matchSnapshot.docs.map((matchDoc) => transaction.get(matchDoc.ref)),
@@ -469,6 +626,13 @@ export async function leaveTeam(
       status: 'sem_time',
       leftAt: serverTimestamp(),
     });
+
+    // Mantém a contagem de vagas (AUD-06) consistente ao sair do time.
+    const newApprovedCount =
+      team.approvedPlayersCount != null
+        ? Math.max(0, team.approvedPlayersCount - 1)
+        : Math.max(0, activeRoster.length - 1);
+    transaction.update(teamRef, { approvedPlayersCount: newApprovedCount });
 
     transaction.update(userRef, {
       teamId: null,
