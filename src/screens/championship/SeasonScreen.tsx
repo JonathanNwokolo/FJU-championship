@@ -173,10 +173,14 @@ export function SeasonScreen() {
     [champEvents],
   );
 
+  // "ELENCO COMPLETO" mostra o elenco ATUAL: sem_time/removido ficam fora da
+  // lista, mas continuam nas estatísticas/destaques (champPlayers + eventos).
   const sortedPlayers = useMemo(
     () =>
-      [...champPlayers].sort((a, b) => (goalsByPlayer[b.id] ?? 0) - (goalsByPlayer[a.id] ?? 0)),
-    [champPlayers, goalsByPlayer],
+      [...activeChampPlayers].sort(
+        (a, b) => (goalsByPlayer[b.id] ?? 0) - (goalsByPlayer[a.id] ?? 0),
+      ),
+    [activeChampPlayers, goalsByPlayer],
   );
 
   useEffect(() => {

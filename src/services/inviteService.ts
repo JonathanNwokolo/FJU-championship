@@ -272,38 +272,43 @@ export async function requestToJoin(
 }
 
 /**
- * AUD-06: aprovação de atleta dentro de uma runTransaction.
- * Lê o time (e escreve nele), revalidando a capacidade do elenco no momento da
- * ação. Como a transação lê E escreve o MESMO documento do time, duas aprovações
- * simultâneas são serializadas pelo Firestore — a segunda re-executa e enxerga a
- * contagem já incrementada, nunca ultrapassando maxPlayers.
+ * AUD-06 + P1: aprovação de atleta dentro de uma runTransaction.
+ * A capacidade é SEMPRE calculada a partir do elenco real em /players
+ * (ativo/suspenso/lesionado ocupam vaga; sem_time/removido não).
+ * team.approvedPlayersCount NÃO é fonte de verdade: leaveTeam não pode
+ * atualizá-lo (rules proíbem o atleta de escrever em /teams), então o contador
+ * pode continuar "cheio" mesmo havendo vaga real. Como a transação lê E escreve
+ * o MESMO documento do time, duas aprovações simultâneas são serializadas pelo
+ * Firestore — no retry o elenco é recarregado e enxerga o atleta já aprovado.
+ * Ao aprovar, approvedPlayersCount é regravado a partir do elenco real
+ * (mantido apenas como cache denormalizado, auto-corrigido a cada aprovação).
  */
-async function approveJoinRequest(
+export async function approveJoinRequest(
   teamId: string,
   requesterId: string,
   requesterName: string,
   requesterPhotoUrl: string,
 ): Promise<'success' | 'full' | 'already_member' | 'team_not_found'> {
-  // Pré-carrega o elenco fora da transação: serve para numeração da camisa e como
-  // fallback de contagem quando approvedPlayersCount ainda não existe (times legados).
-  const rosterSnapshot = await getDocs(
-    query(collection(db, 'players'), where('teamId', '==', teamId)),
-  );
-  const roster = rosterSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Player);
-
   return runTransaction(db, async (transaction) => {
     const teamRef = doc(db, 'teams', teamId);
     const teamSnap = await transaction.get(teamRef);
     if (!teamSnap.exists()) return 'team_not_found';
     const team = { id: teamSnap.id, ...teamSnap.data() } as Team;
 
+    // Elenco real lido DENTRO do callback: se a transação fizer retry por
+    // contenção no doc do time, a query é refeita e vê o player recém-criado.
+    const rosterSnapshot = await getDocs(
+      query(collection(db, 'players'), where('teamId', '==', teamId)),
+    );
+    const roster = rosterSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Player);
+
     if (roster.some((p) => p.userId === requesterId && isActiveRosterPlayer(p))) {
       return 'already_member';
     }
 
     const maxPlayers = team.maxPlayers ?? DEFAULT_MAX_PLAYERS;
-    const currentCount = team.approvedPlayersCount ?? countActivePlayers(roster, teamId);
-    if (currentCount >= maxPlayers) return 'full';
+    const activeCount = countActivePlayers(roster, teamId);
+    if (activeCount >= maxPlayers) return 'full';
 
     const newPlayerRef = doc(collection(db, 'players'));
     transaction.set(newPlayerRef, {
@@ -319,7 +324,7 @@ async function approveJoinRequest(
       createdAt: serverTimestamp(),
     });
     transaction.update(teamRef, {
-      approvedPlayersCount: currentCount + 1,
+      approvedPlayersCount: activeCount + 1,
       pendingRequests: (team.pendingRequests ?? []).filter((id) => id !== requesterId),
     });
 

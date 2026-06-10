@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { AvailableChampionshipsScreen } from '../screens/team/AvailableChampionshipsScreen';
 import { MatchSummaryScreen } from '../screens/match/MatchSummaryScreen';
+import { SeasonScreen } from '../screens/championship/SeasonScreen';
 import { useChampionshipStore } from '../stores/championshipStore';
 import { useMatchStore } from '../stores/matchStore';
 import { useTeamStore } from '../stores/teamStore';
@@ -105,6 +106,29 @@ describe('screens', () => {
     expect(await screen.findByText('Jogador Alpha')).toBeTruthy();
     expect(await screen.findByText("10'")).toBeTruthy();
   });
+
+  it('SeasonScreen: ELENCO COMPLETO lista apenas elenco ativo (sem sem_time/removido)', async () => {
+    mockRouteParams = { championshipId: 'champ-1' };
+    useChampionshipStore.setState({
+      championships: [championship('champ-1', 'Copa FJU', 'finalizado')],
+    });
+    useTeamStore.setState({
+      teams: [team('home', 'Alpha')],
+      players: [
+        player('p1', 'Atleta Ativo', 'home', 'ativo'),
+        player('p2', 'Atleta Que Saiu', 'home', 'sem_time'),
+        player('p3', 'Atleta Removido', 'home', 'removido'),
+      ],
+    });
+    useMatchStore.setState({ matches: [], events: [] });
+
+    await render(<SeasonScreen />);
+
+    expect(await screen.findByText('ELENCO COMPLETO')).toBeTruthy();
+    expect(await screen.findByText('Atleta Ativo')).toBeTruthy();
+    expect(screen.queryByText('Atleta Que Saiu')).toBeNull();
+    expect(screen.queryByText('Atleta Removido')).toBeNull();
+  });
 });
 
 function championship(
@@ -160,7 +184,7 @@ function match(): MatchModel {
   };
 }
 
-function player(id: string, name: string, teamId: string): Player {
+function player(id: string, name: string, teamId: string, status?: Player['status']): Player {
   return {
     id,
     name,
@@ -168,6 +192,7 @@ function player(id: string, name: string, teamId: string): Player {
     championshipId: 'champ-1',
     position: 'atacante',
     number: 9,
+    status,
   };
 }
 

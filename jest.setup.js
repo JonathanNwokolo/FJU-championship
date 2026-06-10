@@ -79,6 +79,8 @@ jest.mock('react-native-reanimated', () => {
     useSharedValue: (value) => ({ value }),
     withSpring: (value) => value,
     withTiming: (value) => value,
+    withRepeat: (value) => value,
+    withSequence: (...values) => values[values.length - 1],
     interpolateColor: (_value, _input, output) => output[0],
     runOnJS: (fn) => fn,
   };
