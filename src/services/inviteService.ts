@@ -3,7 +3,6 @@ import {
   collection,
   doc,
   getDocs,
-  increment,
   query,
   runTransaction,
   serverTimestamp,
@@ -13,6 +12,7 @@ import { addDocument, deleteDocument, getCollection, getDocument, updateDocument
 import { auth, db } from './firebase';
 import { notifyJoinRequest, notifyJoinRequestResult } from './notificationService';
 import { Championship, JoinRequest, MatchEvent, Player, Team, TeamInvite } from '../types';
+import { isTeamCaptain } from '../utils/teamRules';
 
 const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEFAULT_MAX_PLAYERS = 15;
@@ -188,8 +188,9 @@ export async function joinByCode(
     teamId: team.id,
     championshipId: team.championshipId,
   });
-  // Mantém a contagem denormalizada de vagas (AUD-06) em sincronia.
-  await updateDocument('teams', team.id, { approvedPlayersCount: increment(1) });
+  // NÃO atualizar teams.approvedPlayersCount aqui: o atleta não tem permissão de
+  // update em /teams (rules). A contagem é recalculada pelo capitão/organizador
+  // via recomputeApprovedCount, e a capacidade é validada acima pelo elenco real.
 
   const invites = await getCollection<TeamInvite>('team_invites', [
     { field: 'inviteCode', operator: '==', value: normalizedCode },
@@ -213,7 +214,17 @@ export async function requestToJoin(
   teamId: string,
   requesterId: string,
   requesterName: string,
-): Promise<'success' | 'already_pending' | 'team_not_found' | 'closed' | 'already_member' | 'full' | 'already_in_championship'> {
+): Promise<
+  | 'success'
+  | 'already_pending'
+  | 'team_not_found'
+  | 'closed'
+  | 'already_member'
+  | 'full'
+  | 'already_in_championship'
+  | 'team_not_approved'
+  | 'championship_closed'
+> {
   const pending = await getCollection<JoinRequest>('join_requests', [
     { field: 'teamId', operator: '==', value: teamId },
     { field: 'requesterId', operator: '==', value: requesterId },
@@ -226,7 +237,11 @@ export async function requestToJoin(
 
   const team = await getDocument<Team>('teams', teamId);
   if (!team) return 'team_not_found';
+  if (team.status !== 'aprovado') return 'team_not_approved';
   if (team.registrationOpen === false) return 'closed';
+  if (!(await isChampionshipOpenForRegistration(team.championshipId))) {
+    return 'championship_closed';
+  }
 
   const roster = await getCollection<Player>('players', [
     { field: 'teamId', operator: '==', value: teamId },
@@ -258,8 +273,8 @@ export async function requestToJoin(
     respondedAt: null,
   });
 
-  const updatedPendingRequests = Array.from(new Set([...(team.pendingRequests ?? []), requesterId]));
-  await updateDocument('teams', teamId, { pendingRequests: updatedPendingRequests });
+  // NÃO atualizar teams.pendingRequests: o atleta não tem permissão de update em
+  // /teams (rules). O capitão enxerga os pedidos via query em /join_requests.
   await notifyJoinRequest(team.captainId, team.name, requesterName);
   return 'success';
 }
@@ -360,10 +375,8 @@ export async function respondToRequest(
         pendingRequests: (team.pendingRequests ?? []).filter((id) => id !== requesterId),
       });
     }
-    await updateDocument('users', requesterId, {
-      teamId,
-      championshipId: request.championshipId,
-    });
+    // NÃO escrever em /users/{requesterId}: o capitão não é dono desse documento
+    // (rules). A associação do atleta é descoberta via /players (useFirestoreSync).
     await notifyJoinRequestResult(requesterId, true, request.teamName);
     return;
   }
@@ -408,9 +421,8 @@ export async function removePlayerFromRoster(player: Player): Promise<'soft' | '
     await deleteDocument('players', player.id);
   }
 
-  if (player.userId) {
-    await updateDocument('users', player.userId, { teamId: null });
-  }
+  // NÃO escrever em /users/{player.userId}: o capitão não é dono desse documento
+  // (rules). O update em /players acima é suficiente para o sync.
 
   // Recalcula a contagem autoritativa de vagas após a remoção (auto-corrige drift).
   if (player.teamId) {
@@ -462,6 +474,8 @@ export async function joinWaitlist(
 
     const team = await getDocument<Team>('teams', teamId);
     if (!team) return 'error';
+    if (team.status !== 'aprovado') return 'error';
+    if (!(await isChampionshipOpenForRegistration(team.championshipId))) return 'error';
 
     const userData = await getDocument<{ photoUrl?: string }>('users', requesterId);
 
@@ -587,7 +601,7 @@ export async function leaveTeam(
       return 'not_allowed';
     }
 
-    if (team.captainId === userId) {
+    if (isTeamCaptain(userId, team)) {
       return 'not_allowed';
     }
 
@@ -621,18 +635,17 @@ export async function leaveTeam(
       return 'blocked_only_player_pending_matches';
     }
 
+    // Apenas status: as rules de /players proíbem o atleta mudar o próprio teamId
+    // (isNotChangingTeamOrChampionship). 'sem_time' já tira o atleta do elenco
+    // ativo em todas as contagens/telas (isActiveRosterPlayer).
     transaction.update(playerRef, {
-      teamId: null,
       status: 'sem_time',
       leftAt: serverTimestamp(),
     });
 
-    // Mantém a contagem de vagas (AUD-06) consistente ao sair do time.
-    const newApprovedCount =
-      team.approvedPlayersCount != null
-        ? Math.max(0, team.approvedPlayersCount - 1)
-        : Math.max(0, activeRoster.length - 1);
-    transaction.update(teamRef, { approvedPlayersCount: newApprovedCount });
+    // NÃO atualizar teams.approvedPlayersCount: o atleta não tem permissão de
+    // update em /teams (rules). O capitão/organizador recalcula via
+    // recomputeApprovedCount quando mexe no elenco.
 
     transaction.update(userRef, {
       teamId: null,

@@ -18,6 +18,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { colors } from '../../theme/colors';
 import { AuthBackground } from './AuthBackground';
+import { validateSignUpForm } from '../../utils/authRules';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
@@ -31,12 +32,17 @@ export function RegisterScreen({ navigation }: Props) {
   const signUp = useAuthStore((s) => s.signUp);
 
   const handleRegister = async () => {
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setError('Preencha todos os campos');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('As senhas precisam ser iguais');
+    const { valid, errors } = validateSignUpForm({ name, email, password, confirmPassword });
+    if (!valid) {
+      if (errors.email === 'email_invalido') {
+        setError('Email inválido');
+      } else if (errors.password === 'senha_curta') {
+        setError('A senha deve ter pelo menos 6 caracteres');
+      } else if (errors.confirmPassword === 'senhas_diferentes') {
+        setError('As senhas precisam ser iguais');
+      } else {
+        setError('Preencha todos os campos');
+      }
       return;
     }
 

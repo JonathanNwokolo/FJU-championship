@@ -188,11 +188,14 @@ export function AnnouncementsScreen() {
 
     setSaving(true);
     try {
+      // Capitão real é quem está como captainId do time, mesmo que o role salvo
+      // em /users ainda seja 'atleta' — o comunicado deve registrar 'capitao'.
+      const isCaptain = effectiveTeam?.captainId === user.id;
       await createAnnouncement({
         championshipId,
         authorId: user.id,
         authorName: user.name ?? 'Usuário',
-        authorRole: user.role,
+        authorRole: isCaptain ? 'capitao' : user.role,
         title: title.trim(),
         body: body.trim(),
         targetAudience: audience,
@@ -206,7 +209,7 @@ export function AnnouncementsScreen() {
     } finally {
       setSaving(false);
     }
-  }, [title, body, audience, selectedTeamId, urgent, user, championshipId]);
+  }, [title, body, audience, selectedTeamId, urgent, user, championshipId, effectiveTeam]);
 
   const renderBackdrop = useCallback(
     (props: any) => (

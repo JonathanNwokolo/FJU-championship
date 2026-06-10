@@ -47,6 +47,7 @@ import { uploadUserPhoto } from '../../services/imageUpload';
 import { colors, gradients, shadows } from '../../theme/colors';
 import { POSITION_LABELS, POSITION_OPTIONS } from '../../utils/constants';
 import { getCardGradient } from '../../utils/playerOverall';
+import { isPlayerActive } from '../../utils/teamRules';
 import { PlayerPosition } from '../../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'AthleteProfile'>;
@@ -389,7 +390,7 @@ export function AthleteProfileScreen({ route, navigation }: Props) {
     isAthlete &&
     !!team &&
     !!player?.teamId &&
-    (player.status === 'ativo' || !player.status) &&
+    isPlayerActive(player) &&
     !isTeamCaptain &&
     currentChampionship?.status !== 'finalizado';
 

@@ -20,6 +20,7 @@ import { AppButton } from '../../components/AppButton';
 import { EmptyState } from '../../components/EmptyState';
 import { SearchBar } from '../../components/SearchBar';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { addDocument } from '../../services/index';
@@ -33,6 +34,7 @@ import { usePendingJoinRequests } from '../../hooks/usePendingJoinRequests';
 import { colors } from '../../theme/colors';
 import { Player, PlayerPosition } from '../../types';
 import { POSITION_LABELS } from '../../utils/constants';
+import { canCaptainManageTeam } from '../../utils/permissionRules';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ManageRoster'>;
 type TabKey = 'roster' | 'requests';
@@ -41,6 +43,7 @@ const POSITIONS: PlayerPosition[] = ['goleiro', 'zagueiro', 'lateral', 'volante'
 
 export function ManageRosterScreen({ route, navigation }: Props) {
   const { teamId } = route.params;
+  const user = useAuthStore((s) => s.user);
   const teams = useTeamStore((s) => s.teams);
   const players = useTeamStore((s) => s.players);
   const addPlayerLocal = useTeamStore((s) => s.addPlayer);
@@ -50,6 +53,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
 
   const team = teams.find((item) => item.id === teamId);
   const championship = championships.find((item) => item.id === team?.championshipId);
+  const canManageRoster = !!team && canCaptainManageTeam(user, team);
   // Elenco ATIVO: oculta atletas removidos (status='removido' mantém o doc só para
   // preservar histórico/artilharia — AUD-04) e os que saíram do time ('sem_time').
   const roster = useMemo(
@@ -88,7 +92,20 @@ export function ManageRosterScreen({ route, navigation }: Props) {
     );
   }
 
+  if (!canManageRoster) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <EmptyState
+          icon="🔒"
+          title="Acesso restrito"
+          description="Apenas o capitão deste time pode gerenciar o elenco."
+        />
+      </SafeAreaView>
+    );
+  }
+
   const handleAddPlayer = async () => {
+    if (!canManageRoster) return;
     const trimmedName = newName.trim();
     const parsedNumber = Number(newNumber);
     const rosterSize = roster.length;
@@ -140,6 +157,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
   };
 
   const handleRemovePlayer = (player: Player) => {
+    if (!canManageRoster) return;
     Alert.alert('Remover atleta', `Deseja remover ${player.name} do time?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -167,6 +185,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
   };
 
   const handleRespond = async (requestId: string, approved: boolean, requesterId: string) => {
+    if (!canManageRoster) return;
     setRespondingId(requestId);
     try {
       await respondToRequest(requestId, approved, teamId, requesterId);

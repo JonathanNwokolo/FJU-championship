@@ -13,15 +13,18 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { shareInviteViaWhatsApp, regenerateTeamInvite } from '../../services/inviteService';
 import { colors } from '../../theme/colors';
+import { canCaptainManageTeam } from '../../utils/permissionRules';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'InviteShare'>;
 
 export function InviteShareScreen({ route }: Props) {
   const { teamId } = route.params;
+  const user = useAuthStore((s) => s.user);
   const teams = useTeamStore((s) => s.teams);
   const players = useTeamStore((s) => s.players);
   const updateTeam = useTeamStore((s) => s.updateTeam);
@@ -30,6 +33,7 @@ export function InviteShareScreen({ route }: Props) {
 
   const team = teams.find((item) => item.id === teamId);
   const championship = championships.find((item) => item.id === team?.championshipId);
+  const canManageInvite = !!team && canCaptainManageTeam(user, team);
 
   const availableSlots = useMemo(() => {
     const rosterSize = players.filter((item) => item.teamId === teamId).length;
@@ -47,7 +51,18 @@ export function InviteShareScreen({ route }: Props) {
     );
   }
 
+  if (!canManageInvite) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyText}>Apenas o capitão deste time pode ver o convite.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const handleRegenerate = () => {
+    if (!canManageInvite) return;
     Alert.alert(
       'Gerar novo código',
       'Isso vai invalidar o código atual. Deseja continuar?',

@@ -22,6 +22,7 @@ import { colors } from '../../theme/colors';
 import { auth } from '../../services/firebase';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { AuthBackground } from './AuthBackground';
+import { validateEmail } from '../../utils/authRules';
 
 const version = Constants.expoConfig?.version ?? '1.0.0';
 
@@ -41,8 +42,9 @@ export function LoginScreen({ navigation }: Props) {
 
   const handleLogin = async () => {
     let valid = true;
-    if (!email.trim()) {
-      setEmailError('Digite seu email');
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      setEmailError(emailResult.error === 'email_invalido' ? 'Email inválido' : 'Digite seu email');
       valid = false;
     }
     if (!password.trim()) {

@@ -187,6 +187,8 @@ export function JoinTeamScreen() {
         full: { type: 'error', text1: 'Time lotado', text2: 'Este time não tem mais vagas.' },
         closed: { type: 'error', text1: 'Inscrições fechadas', text2: 'O time não está aceitando novos membros.' },
         team_not_found: { type: 'error', text1: 'Time não encontrado' },
+        team_not_approved: { type: 'error', text1: 'Time ainda não aprovado', text2: 'Aguarde o organizador aprovar o time antes de solicitar entrada.' },
+        championship_closed: { type: 'error', text1: 'Inscrições encerradas', text2: 'As inscrições para este campeonato estão encerradas.' },
       };
 
       const msg = requestMessages[result] ?? { type: 'error', text1: 'Não foi possível enviar a solicitação' };

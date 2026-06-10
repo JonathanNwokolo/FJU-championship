@@ -34,7 +34,8 @@
       "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:8081/status\" -UseBasicParsing -TimeoutSec 5; Write-Output \"STATUS: $\\($r.StatusCode\\) BODY: $\\($r.Content\\)\" } catch { Write-Output \"ERRO: $\\($_.Exception.Message\\)\" })",
       "PowerShell(Stop-Process -Id 19648 -Force; Start-Sleep -Milliseconds 800; $still = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue; if \\($still\\) { Write-Output \"AINDA ESCUTANDO: $\\($still.OwningProcess -join ','\\)\" } else { Write-Output \"Porta 8081 liberada\" })",
       "Bash(break)",
-      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:8081/status\" -UseBasicParsing -TimeoutSec 8; Write-Output \"OK -> StatusCode=$\\($r.StatusCode\\) Body=$\\($r.Content\\)\" } catch { Write-Output \"ERRO: $\\($_.Exception.Message\\)\" })"
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:8081/status\" -UseBasicParsing -TimeoutSec 8; Write-Output \"OK -> StatusCode=$\\($r.StatusCode\\) Body=$\\($r.Content\\)\" } catch { Write-Output \"ERRO: $\\($_.Exception.Message\\)\" })",
+      "Bash(npx jest *)"
     ]
   },
   "enabledPlugins": {

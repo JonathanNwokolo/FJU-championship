@@ -894,6 +894,17 @@ export function ChampionshipDashboardScreen() {
   const handleSaveMatchResult = useCallback(async () => {
     if (!isOrganizer || !selectedMatch) return;
 
+    // A edição rápida não executa finalizeMatch (chaveamento, suspensões,
+    // currentRound). Só serve para CORRIGIR o placar de uma partida já
+    // finalizada em pontos corridos — em qualquer outro caso, bloqueia.
+    if (selectedMatch.status !== 'finalizado' || championship?.format !== 'pontos_corridos') {
+      Alert.alert(
+        'Edição rápida indisponível',
+        'Use o fluxo de registro de partida para finalizar. A edição rápida só está disponível para corrigir placar de partidas já finalizadas em pontos corridos.',
+      );
+      return;
+    }
+
     const homeScore = parseInt(editHomeScore, 10);
     const awayScore = parseInt(editAwayScore, 10);
 
@@ -927,7 +938,7 @@ export function ChampionshipDashboardScreen() {
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível salvar o resultado');
     }
-  }, [isOrganizer, selectedMatch, editHomeScore, editAwayScore]);
+  }, [isOrganizer, selectedMatch, editHomeScore, editAwayScore, championship?.format]);
 
   // ─── Export PDF report ───
   const handleExportReport = useCallback(async () => {

@@ -28,6 +28,7 @@ import { createInviteLink, createTeamInvite, generateInviteCode } from '../../se
 import { setDocument, getCollection } from '../../services/index';
 import { uploadTeamLogo } from '../../services/imageUpload';
 import { Team } from '../../types';
+import { isRegistrationDeadlinePassed, isChampionshipInProgress, isChampionshipFinished } from '../../utils/championshipStatus';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CreateTeam'>;
 type SuccessState = { teamId: string; teamName: string; inviteCode: string };
@@ -76,10 +77,7 @@ export function CreateTeamScreen({ route, navigation }: Props) {
 
     // Validate that championship is still accepting registrations
     if (championship) {
-      const deadlinePassed =
-        championship.registrationDeadline &&
-        new Date(championship.registrationDeadline).getTime() < Date.now();
-      if (championship.registrationsClosed || deadlinePassed) {
+      if (championship.registrationsClosed || isRegistrationDeadlinePassed(championship)) {
         Toast.show({
           type: 'error',
           text1: 'Inscrições encerradas',
@@ -88,7 +86,7 @@ export function CreateTeamScreen({ route, navigation }: Props) {
         });
         return;
       }
-      if (championship.status === 'em_andamento' || championship.status === 'finalizado') {
+      if (isChampionshipInProgress(championship) || isChampionshipFinished(championship)) {
         Toast.show({
           type: 'error',
           text1: 'Campeonato em andamento',
