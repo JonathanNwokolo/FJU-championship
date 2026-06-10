@@ -16,14 +16,31 @@ export function isTeamCaptain(userId: string, team: Pick<Team, 'captainId'>): bo
   return team.captainId === userId;
 }
 
+// Status que NÃO ocupam vaga nem contam como vínculo atual com o time.
+// 'sem_time' permanece com o teamId antigo no documento (as rules impedem o
+// atleta de limpar o próprio teamId ao sair), então o status é a ÚNICA fonte
+// confiável para saber se o vínculo ainda existe.
+const INACTIVE_ROSTER_STATUSES: Array<Player['status']> = ['sem_time', 'removido'];
+
+/**
+ * Atleta que pertence ao elenco ATUAL (ocupa vaga). Inclui suspenso/lesionado;
+ * exclui quem saiu ('sem_time') ou foi removido ('removido').
+ */
+export function isActiveRosterPlayer(player: Pick<Player, 'status'>): boolean {
+  return !INACTIVE_ROSTER_STATUSES.includes(player.status);
+}
+
+/** Vínculo ATUAL do atleta com um time específico (teamId + status ativo). */
+export function isPlayerInTeamActive(player: Player, teamId: string): boolean {
+  return player.teamId === teamId && isActiveRosterPlayer(player);
+}
+
 export function isDuplicatePlayerInTeam(
   players: Player[],
   playerId: string,
   teamId: string,
 ): boolean {
-  return players.some(
-    (p) => p.id === playerId && p.teamId === teamId && p.status !== 'removido',
-  );
+  return players.some((p) => p.id === playerId && isPlayerInTeamActive(p, teamId));
 }
 
 export function isPlayerActiveInTeam(
@@ -31,18 +48,16 @@ export function isPlayerActiveInTeam(
   playerId: string,
   teamId: string,
 ): boolean {
-  return players.some(
-    (p) => p.id === playerId && p.teamId === teamId && p.status !== 'removido',
-  );
+  return players.some((p) => p.id === playerId && isPlayerInTeamActive(p, teamId));
 }
 
 export function isTeamFull(players: Player[], maxPlayers: number): boolean {
-  const active = players.filter((p) => p.status !== 'removido');
+  const active = players.filter(isActiveRosterPlayer);
   return active.length >= maxPlayers;
 }
 
 export function countActivePlayersInTeam(players: Player[], teamId: string): number {
-  return players.filter((p) => p.teamId === teamId && p.status !== 'removido').length;
+  return players.filter((p) => isPlayerInTeamActive(p, teamId)).length;
 }
 
 export function isPlayerActive(player: Player): boolean {

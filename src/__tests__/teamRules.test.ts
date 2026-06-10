@@ -1,8 +1,10 @@
 import {
   countActivePlayersInTeam,
+  isActiveRosterPlayer,
   isDuplicatePlayerInTeam,
   isPlayerActive,
   isPlayerActiveInTeam,
+  isPlayerInTeamActive,
   isTeamCaptain,
   isTeamFull,
   validateTeamName,
@@ -96,11 +98,38 @@ describe('teamRules', () => {
     });
   });
 
+  describe('isActiveRosterPlayer', () => {
+    it('considera elenco ativo: ativo, suspenso, lesionado e sem status', () => {
+      expect(isActiveRosterPlayer(makePlayer('p1', 't1', 'ativo'))).toBe(true);
+      expect(isActiveRosterPlayer(makePlayer('p2', 't1', 'suspenso'))).toBe(true);
+      expect(isActiveRosterPlayer(makePlayer('p3', 't1', 'lesionado'))).toBe(true);
+      expect(isActiveRosterPlayer(makePlayer('p4', 't1', undefined))).toBe(true);
+    });
+
+    it('exclui sem_time e removido do elenco ativo', () => {
+      expect(isActiveRosterPlayer(makePlayer('p5', 't1', 'sem_time'))).toBe(false);
+      expect(isActiveRosterPlayer(makePlayer('p6', 't1', 'removido'))).toBe(false);
+    });
+  });
+
+  describe('isPlayerInTeamActive', () => {
+    it('vincula apenas player ativo com o teamId correto', () => {
+      expect(isPlayerInTeamActive(makePlayer('p1', 't1', 'ativo'), 't1')).toBe(true);
+      expect(isPlayerInTeamActive(makePlayer('p1', 't1', 'ativo'), 't2')).toBe(false);
+    });
+
+    it('sem_time NAO conta como vinculo mesmo com teamId antigo retido', () => {
+      // Rules impedem o atleta limpar o próprio teamId ao sair — o doc retém t1.
+      expect(isPlayerInTeamActive(makePlayer('p1', 't1', 'sem_time'), 't1')).toBe(false);
+    });
+  });
+
   describe('isPlayerActiveInTeam', () => {
     const players = [
       makePlayer('p1', 't1'),
       makePlayer('p2', 't1', 'removido'),
       makePlayer('p3', 't1', 'suspenso'),
+      makePlayer('p4', 't1', 'sem_time'),
     ];
 
     it('retorna true para atleta ativo no time', () => {
@@ -118,6 +147,10 @@ describe('teamRules', () => {
     it('retorna false para atleta que nao esta no time', () => {
       expect(isPlayerActiveInTeam(players, 'p99', 't1')).toBe(false);
     });
+
+    it('retorna false para atleta sem_time (saiu, mas o doc retem o teamId)', () => {
+      expect(isPlayerActiveInTeam(players, 'p4', 't1')).toBe(false);
+    });
   });
 
   describe('isTeamFull', () => {
@@ -125,6 +158,7 @@ describe('teamRules', () => {
       makePlayer('p1', 't1'),
       makePlayer('p2', 't1'),
       makePlayer('p3', 't1', 'removido'),
+      makePlayer('p4', 't1', 'sem_time'),
     ];
 
     it('considera time cheio quando atinge limite', () => {
@@ -136,8 +170,13 @@ describe('teamRules', () => {
     });
 
     it('ignora atletas removidos na contagem de lotacao', () => {
-      // 2 ativos + 1 removido = 2 validos. Limite 2 = cheio
+      // 2 ativos + 1 removido + 1 sem_time = 2 validos. Limite 2 = cheio
       expect(isTeamFull(players, 2)).toBe(true);
+    });
+
+    it('sem_time nao ocupa vaga na lotacao', () => {
+      // Se sem_time contasse, 3 >= 3 daria cheio — mas só há 2 ativos.
+      expect(isTeamFull(players, 3)).toBe(false);
     });
 
     it('retorna false para lista vazia', () => {
@@ -151,10 +190,20 @@ describe('teamRules', () => {
       makePlayer('p2', 't1'),
       makePlayer('p3', 't1', 'removido'),
       makePlayer('p4', 't2'),
+      makePlayer('p5', 't1', 'sem_time'),
     ];
 
     it('conta somente atletas ativos do time', () => {
       expect(countActivePlayersInTeam(players, 't1')).toBe(2);
+    });
+
+    it('sem_time e removido nao contam como vaga ocupada', () => {
+      const roster = [
+        makePlayer('a1', 't9', 'ativo'),
+        makePlayer('a2', 't9', 'sem_time'),
+        makePlayer('a3', 't9', 'removido'),
+      ];
+      expect(countActivePlayersInTeam(roster, 't9')).toBe(1);
     });
 
     it('ignora atletas de outros times', () => {

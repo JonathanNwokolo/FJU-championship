@@ -43,6 +43,7 @@ import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { getCollection } from '../../services/index';
 import { Championship, MatchModel, Team, UserRole, Player } from '../../types';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { colors, gradients, shadows } from '../../theme/colors';
 
@@ -405,7 +406,10 @@ function TeamSection({
   const players = useTeamStore((s) => s.players);
   const championships = useChampionshipStore((s) => s.championships);
 
-  const myPlayer = players.find((player) => player.userId === user?.id);
+  // Só player ATIVO define "meu time" — doc 'sem_time' guarda o teamId antigo.
+  const myPlayer = players.find(
+    (player) => player.userId === user?.id && isActiveRosterPlayer(player),
+  );
   const myTeam =
     role === 'capitao'
       ? teams.find((team) => team.captainId === user?.id)

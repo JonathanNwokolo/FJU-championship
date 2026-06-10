@@ -20,6 +20,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { joinByCode, requestToJoin, joinWaitlist, getWaitlistPosition } from '../../services/inviteService';
+import { countActivePlayersInTeam } from '../../utils/teamRules';
 import { colors } from '../../theme/colors';
 import { Team } from '../../types';
 
@@ -69,7 +70,8 @@ export function JoinTeamScreen() {
   };
 
   const getAvailableSlots = (team: Team) => {
-    const rosterSize = players.filter((player) => player.teamId === team.id).length;
+    // sem_time/removido mantêm o teamId antigo no doc — não ocupam vaga.
+    const rosterSize = countActivePlayersInTeam(players, team.id);
     const maxPlayers = team.maxPlayers ?? 15;
     return Math.max(0, maxPlayers - rosterSize);
   };

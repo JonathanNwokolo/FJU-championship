@@ -2,6 +2,7 @@
 import { getCollection, getDocument } from '../services/index';
 import { ACHIEVEMENTS } from '../utils/achievementDefinitions';
 import { calculateOverall } from '../utils/playerOverall';
+import { isActiveRosterPlayer } from '../utils/teamRules';
 import { useAchievementStore } from '../stores/achievementStore';
 import { useChampionshipStore } from '../stores/championshipStore';
 import { useMatchStore } from '../stores/matchStore';
@@ -102,14 +103,24 @@ export function useAthleteProfile(userId?: string, championshipId?: string) {
         } catch {
           userDoc = null;
         }
+        // Prefere o vínculo ATIVO: doc 'sem_time'/'removido' retém o teamId antigo
+        // (rules impedem limpá-lo) e só serve de fallback para dados históricos.
+        const storeCandidates = players.filter((item) => item.userId === userId);
+        const playerCandidates =
+          storeCandidates.length > 0
+            ? storeCandidates
+            : await getCollection<Player>('players', [
+                { field: 'userId', operator: '==', value: userId },
+              ]);
         const playerDoc =
-          players.find((item) => item.userId === userId) ??
-          (await getCollection<Player>('players', [{ field: 'userId', operator: '==', value: userId }]))[0] ??
-          null;
+          playerCandidates.find(isActiveRosterPlayer) ?? playerCandidates[0] ?? null;
 
-        const teamDoc =
-          (playerDoc ? teams.find((item) => item.id === playerDoc.teamId) : null) ??
-          (playerDoc?.teamId ? await getDocument<Team>('teams', playerDoc.teamId) : null);
+        // Time atual só existe se o vínculo for ativo — quem saiu não tem time.
+        const hasActiveLink = !!playerDoc && isActiveRosterPlayer(playerDoc);
+        const teamDoc = hasActiveLink
+          ? (teams.find((item) => item.id === playerDoc.teamId) ??
+            (playerDoc.teamId ? await getDocument<Team>('teams', playerDoc.teamId) : null))
+          : null;
 
         const eventsByUser = await getCollection<MatchEvent>('match_events', [
           { field: 'userId', operator: '==', value: userId },

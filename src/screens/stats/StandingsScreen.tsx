@@ -28,6 +28,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { getCollection } from '../../services/index';
 import { colors, shadows } from '../../theme/colors';
 import { MatchModel, Player, Team, TeamStanding } from '../../types';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 
 const W = {
   pos: 28,
@@ -243,7 +244,10 @@ export function StandingsScreen() {
     return unsubscribe;
   }, [navigation]);
 
-  const myPlayer = players.find((player) => player.userId === user?.id);
+  // Só player ATIVO define "meu time" — doc 'sem_time' guarda o teamId antigo.
+  const myPlayer = players.find(
+    (player) => player.userId === user?.id && isActiveRosterPlayer(player),
+  );
   const myTeam =
     user?.role === 'capitao'
       ? teams.find((team) => team.captainId === user.id)

@@ -28,6 +28,7 @@ import {
   createAnnouncement,
   AUDIENCE_LABELS,
 } from '../../services/announcementsService';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { Announcement, AnnouncementAudience, Team } from '../../types';
 import { colors, gradients } from '../../theme/colors';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
@@ -115,7 +116,13 @@ export function AnnouncementsScreen() {
   const championships = useChampionshipStore((s) => s.championships);
 
   const championship = championships.find((c) => c.id === championshipId);
-  const myPlayer = players.find((p) => p.userId === user?.id && p.championshipId === championshipId);
+  // Só player ATIVO define "meu time" — doc 'sem_time' guarda o teamId antigo.
+  const myPlayer = players.find(
+    (p) =>
+      p.userId === user?.id &&
+      p.championshipId === championshipId &&
+      isActiveRosterPlayer(p),
+  );
   const myTeam = myPlayer ? teams.find((t) => t.id === myPlayer.teamId) : undefined;
   const captainTeam = teams.find((t) => t.captainId === user?.id && t.championshipId === championshipId);
   const effectiveTeam: Team | undefined = myTeam ?? captainTeam;

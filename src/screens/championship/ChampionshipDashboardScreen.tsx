@@ -45,6 +45,7 @@ import { calculateStandings, calculateTopScorers } from '../../services/statsSer
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';
 import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
+import { isActiveRosterPlayer, isPlayerInTeamActive } from '../../utils/teamRules';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
 
 type NavT = NavigationProp<HomeStackParamList>;
@@ -700,7 +701,11 @@ export function ChampionshipDashboardScreen() {
   const approvedTeams = champTeams.filter((t) => t.status === 'aprovado');
   const pendingTeams = champTeams.filter((t) => t.status === 'pendente');
   const finishedMatches = matches.filter((m) => m.status === 'finalizado');
+  // HISTÓRICO: inclui sem_time/removido (lookup de nomes na timeline, disciplina
+  // e artilharia do relatório não podem perder quem saiu do time).
   const champPlayers = players.filter((p) => champTeams.some((t) => t.id === p.teamId));
+  // Contagem ATUAL de atletas: apenas vínculos ativos ocupam vaga.
+  const activeChampPlayers = champPlayers.filter(isActiveRosterPlayer);
 
   // ─── Computed stats for grid ───
   const totalGoals = champEvents.filter((e) => e.type === 'gol').length;
@@ -977,7 +982,7 @@ export function ChampionshipDashboardScreen() {
               <div class="stat-label">Times</div>
             </div>
             <div class="stat-box">
-              <div class="stat-value">${champPlayers.length}</div>
+              <div class="stat-value">${activeChampPlayers.length}</div>
               <div class="stat-label">Atletas</div>
             </div>
             <div class="stat-box">
@@ -1269,7 +1274,7 @@ export function ChampionshipDashboardScreen() {
           />
           <StatCard
             icon="👥"
-            value={String(champPlayers.length)}
+            value={String(activeChampPlayers.length)}
             label="Atletas"
             valueColor={colors.textPrimary}
           />
@@ -1499,7 +1504,7 @@ export function ChampionshipDashboardScreen() {
                   key={team.id}
                   team={team}
                   players={players.filter(
-                    (p) => p.teamId === team.id && p.status !== 'removido' && p.status !== 'sem_time',
+                    (p) => isPlayerInTeamActive(p, team.id),
                   )}
                   canManage={isOrganizer}
                   onApprove={handleApprove}

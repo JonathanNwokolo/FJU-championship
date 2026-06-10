@@ -29,6 +29,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { calculateStandings } from '../../services/statsService';
 import { ChampionshipResultData, Player } from '../../types';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
 type RouteT = RouteProp<HomeStackParamList, 'ChampionshipResult'>;
@@ -115,9 +116,12 @@ export function ChampionshipResultScreen() {
   const champEvents = events.filter((e) =>
     champMatches.some((m) => m.id === e.matchId)
   );
-  const champPlayers = players.filter((p) => 
+  // HISTÓRICO: inclui sem_time/removido para não apagar artilheiro/MVP que saiu.
+  const champPlayers = players.filter((p) =>
     champTeams.some((t) => t.id === p.teamId)
   );
+  // Contagem ATUAL de atletas: apenas vínculos ativos.
+  const activeChampPlayers = champPlayers.filter(isActiveRosterPlayer);
 
   // Calculate standings for podium
   const standings = championship
@@ -361,7 +365,7 @@ export function ChampionshipResultScreen() {
             <View style={styles.infoDivider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Atletas</Text>
-              <Text style={styles.infoValue}>{result?.totalPlayers ?? champPlayers.length}</Text>
+              <Text style={styles.infoValue}>{result?.totalPlayers ?? activeChampPlayers.length}</Text>
             </View>
             <View style={styles.infoDivider} />
             <View style={styles.infoRow}>

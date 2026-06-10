@@ -12,22 +12,14 @@ import { addDocument, deleteDocument, getCollection, getDocument, updateDocument
 import { auth, db } from './firebase';
 import { notifyJoinRequest, notifyJoinRequestResult } from './notificationService';
 import { Championship, JoinRequest, MatchEvent, Player, Team, TeamInvite } from '../types';
-import { isTeamCaptain } from '../utils/teamRules';
+import {
+  countActivePlayersInTeam as countActivePlayers,
+  isActiveRosterPlayer,
+  isTeamCaptain,
+} from '../utils/teamRules';
 
 const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEFAULT_MAX_PLAYERS = 15;
-
-// Status que NÃO ocupam vaga no elenco ativo.
-const INACTIVE_STATUSES: Array<Player['status']> = ['sem_time', 'removido'];
-
-function isActiveRosterPlayer(player: Player): boolean {
-  return !INACTIVE_STATUSES.includes(player.status);
-}
-
-/** Conta atletas que efetivamente ocupam vaga (exclui removidos/sem time). */
-function countActivePlayers(players: Player[], teamId: string): number {
-  return players.filter((p) => p.teamId === teamId && isActiveRosterPlayer(p)).length;
-}
 
 /**
  * Recalcula e grava approvedPlayersCount do time a partir do elenco real.

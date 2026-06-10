@@ -48,6 +48,7 @@ import { finishChampionship } from '../../services/championshipFinisher';
 import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
 import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
+import { isPlayerInTeamActive } from '../../utils/teamRules';
 import { useVotingStore } from '../../stores/votingStore';
 import { generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
 
@@ -193,13 +194,7 @@ export function MatchRegistrationScreen() {
   // Atletas removidos (AUD-04) mantêm teamId para preservar histórico, mas NÃO
   // podem receber novos eventos — por isso são excluídos do seletor.
   const bsPlayers = bsTeamId
-    ? players.filter(
-        (p) =>
-          p.teamId === bsTeamId &&
-          p.status !== 'removido' &&
-          p.status !== 'sem_time' &&
-          !checkSuspended(p),
-      )
+    ? players.filter((p) => isPlayerInTeamActive(p, bsTeamId) && !checkSuspended(p))
     : [];
 
   const suspendedWarning = useMemo(
@@ -207,7 +202,8 @@ export function MatchRegistrationScreen() {
       match
         ? players.filter(
             (p) =>
-              (p.teamId === match.homeTeamId || p.teamId === match.awayTeamId) &&
+              (isPlayerInTeamActive(p, match.homeTeamId) ||
+                isPlayerInTeamActive(p, match.awayTeamId)) &&
               checkSuspended(p),
           )
         : [],
@@ -455,8 +451,11 @@ export function MatchRegistrationScreen() {
     if (!match) return;
     const champId = match.championshipId;
     const champAwards = awards.filter((a) => a.championshipId === champId);
+    // Conquistas novas só para o elenco atual (quem saiu não ganha conquista nova).
     const allPlayers = players.filter(
-      (p) => p.teamId === match.homeTeamId || p.teamId === match.awayTeamId,
+      (p) =>
+        isPlayerInTeamActive(p, match.homeTeamId) ||
+        isPlayerInTeamActive(p, match.awayTeamId),
     );
 
     const newDefs: AchievementDefinition[] = [];

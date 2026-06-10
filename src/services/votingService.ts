@@ -2,6 +2,7 @@ import { MatchEvent, MatchModel, Player, RoundVote, RoundAward } from '../types'
 import { useVotingStore } from '../stores/votingStore';
 import { upsertDocument, getCollection, getDocument } from './firestore';
 import { auth } from './firebase';
+import { isActiveRosterPlayer } from '../utils/teamRules';
 
 // ---------------------------------------------------------------------------
 // 1. getCandidatesForRound
@@ -26,17 +27,21 @@ export function getCandidatesForRound(
       .map((e) => e.playerId),
   );
 
+  // Candidatos de votação NOVA são sempre do elenco atual — quem saiu
+  // ('sem_time') ou foi removido mantém o teamId antigo no doc e não concorre.
   if (scorerIds.size > 0) {
-    return players.filter((p) => scorerIds.has(p.id));
+    return players.filter((p) => scorerIds.has(p.id) && isActiveRosterPlayer(p));
   }
 
-  // Fallback: all players in the championship
+  // Fallback: all active players in the championship
   const champTeamIds = new Set(
     matches
       .filter((m) => m.championshipId === championshipId)
       .flatMap((m) => [m.homeTeamId, m.awayTeamId]),
   );
-  return players.filter((p) => p.teamId != null && champTeamIds.has(p.teamId));
+  return players.filter(
+    (p) => p.teamId != null && champTeamIds.has(p.teamId) && isActiveRosterPlayer(p),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -106,18 +111,22 @@ export async function submitVote(
     throw new Error('Você já votou nesta rodada');
   }
 
-  // 3. O candidato precisa existir e pertencer a este campeonato.
+  // 3. O candidato precisa existir, pertencer a este campeonato e estar no
+  //    elenco atual (sem_time/removido não concorrem em votação nova).
   const candidate = await getDocument<Player>('players', candidatePlayerId);
-  if (!candidate || candidate.championshipId !== championshipId) {
+  if (!candidate || candidate.championshipId !== championshipId || !isActiveRosterPlayer(candidate)) {
     throw new Error('Candidato inválido.');
   }
 
   // 4. O candidato não pode ser do mesmo time do votante (quando o votante tem time).
+  //    O vínculo do votante considera apenas player ATIVO — um doc 'sem_time'
+  //    guarda o teamId antigo e não representa time atual.
   const voterPlayers = await getCollection<Player>('players', [
     { field: 'championshipId', operator: '==', value: championshipId },
     { field: 'userId', operator: '==', value: voterId },
   ]);
-  const voterTeamId = voterPlayers.find((p) => !!p.teamId)?.teamId ?? null;
+  const voterTeamId =
+    voterPlayers.find((p) => !!p.teamId && isActiveRosterPlayer(p))?.teamId ?? null;
   if (voterTeamId && candidate.teamId === voterTeamId) {
     throw new Error('Você não pode votar em um jogador do seu próprio time.');
   }

@@ -19,6 +19,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
 import { getCandidatesForRound, isRoundComplete, submitVote } from '../../services/votingService';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { Player } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 
@@ -45,8 +46,15 @@ export function VotingScreen() {
     round,
   );
 
+  // Time atual do votante: só player ATIVO conta — um doc 'sem_time' guarda o
+  // teamId antigo e não pode definir o time do usuário.
   const userTeamId = user
-    ? players.find((p) => p.userId === user.id)?.teamId
+    ? players.find(
+        (p) =>
+          p.userId === user.id &&
+          p.championshipId === championshipId &&
+          isActiveRosterPlayer(p),
+      )?.teamId
     : undefined;
 
   const championshipMatches = matches.filter((match) => match.championshipId === championshipId);

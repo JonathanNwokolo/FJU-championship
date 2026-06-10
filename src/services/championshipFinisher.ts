@@ -37,6 +37,7 @@ import { calculateStandings, calculateTopScorers } from './statsService';
 import { hasAchievement, grantAchievement } from './achievementService';
 import { getTokensForChampionship, sendPushNotification } from './notificationService';
 import { calculateOverall } from '../utils/playerOverall';
+import { isActiveRosterPlayer } from '../utils/teamRules';
 
 interface FinishChampionshipResult {
   success: boolean;
@@ -263,7 +264,9 @@ export async function finishChampionship(
       ).length;
 
       const team = teams.find((t) => t.id === player.teamId);
-      const isChampion = player.teamId === winnerTeam?.id;
+      // Título/vice só para o elenco ATIVO no encerramento: docs 'sem_time'
+      // (e 'removido') retêm o teamId antigo apenas para fins históricos.
+      const isChampion = isActiveRosterPlayer(player) && player.teamId === winnerTeam?.id;
       const roundMvpCount = roundMvpCountByPlayerId[player.id] ?? 0;
       const isMvp = roundMvpCount > 0;
       const playerOverall = calculateOverall(
@@ -314,6 +317,7 @@ export async function finishChampionship(
       }
 
       if (
+        isActiveRosterPlayer(player) &&
         player.teamId === runnerUpTeam?.id &&
         !(await hasAchievement(player.id, 'vice_campeao'))
       ) {

@@ -33,6 +33,7 @@ import { registerForPushNotifications } from '../../services/notificationService
 import { isRoundComplete } from '../../services/votingService';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
 import { getBracketRoundLabel } from '../../utils/roundRobin';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 
 type BracketColumn = {
   key: string;
@@ -152,7 +153,10 @@ export function FixturesScreen() {
     currentRound,
   );
 
-  const myPlayer = players.find((player) => player.userId === user?.id);
+  // Só player ATIVO define "meu time" — doc 'sem_time' guarda o teamId antigo.
+  const myPlayer = players.find(
+    (player) => player.userId === user?.id && isActiveRosterPlayer(player),
+  );
   const myTeam =
     user?.role === 'capitao'
       ? teams.find((team) => team.captainId === user.id)

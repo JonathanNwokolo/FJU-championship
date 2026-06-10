@@ -39,6 +39,7 @@ import { startChampionship, MIN_TEAMS_TO_START } from '../../services/fixturesSe
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';
 import { colors } from '../../theme/colors';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 
 type RouteT = RouteProp<OrganizerStackParamList, 'ChampionshipManage'>;
 type NavT = NativeStackNavigationProp<OrganizerStackParamList, 'ChampionshipManage'>;
@@ -119,8 +120,12 @@ export function ChampionshipManageScreen() {
     [allTeams, championshipId],
   );
   const approvedTeams = champTeams.filter((t) => t.status === 'aprovado');
+  // Contagem ATUAL: sem_time/removido mantêm o teamId antigo e não contam.
   const champPlayers = useMemo(
-    () => allPlayers.filter((p) => champTeams.some((t) => t.id === p.teamId)),
+    () =>
+      allPlayers.filter(
+        (p) => isActiveRosterPlayer(p) && champTeams.some((t) => t.id === p.teamId),
+      ),
     [allPlayers, champTeams],
   );
   const champMatches = useMemo(

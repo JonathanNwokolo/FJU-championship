@@ -24,6 +24,7 @@ import { MatchModel, Player, Team } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
 import { getSuspendedPlayers } from '../../services/statsService';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 
 type RouteT = RouteProp<FixturesStackParamList, 'PreMatch'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
@@ -185,10 +186,12 @@ export function PreMatchScreen() {
   const isOrganizer =
     user?.role === 'organizador' && championship?.organizerId === user?.id;
 
-  // Get players for each team (sorted: goalkeepers first, then by number)
+  // Get players for each team (sorted: goalkeepers first, then by number).
+  // Apenas elenco ATUAL: sem_time/removido mantêm o teamId antigo no doc e não
+  // podem aparecer na escalação.
   const homePlayers = useMemo(() => {
     return players
-      .filter((p) => p.teamId === match?.homeTeamId)
+      .filter((p) => p.teamId === match?.homeTeamId && isActiveRosterPlayer(p))
       .sort((a, b) => {
         if (a.position === 'goleiro' && b.position !== 'goleiro') return -1;
         if (a.position !== 'goleiro' && b.position === 'goleiro') return 1;
@@ -198,7 +201,7 @@ export function PreMatchScreen() {
 
   const awayPlayers = useMemo(() => {
     return players
-      .filter((p) => p.teamId === match?.awayTeamId)
+      .filter((p) => p.teamId === match?.awayTeamId && isActiveRosterPlayer(p))
       .sort((a, b) => {
         if (a.position === 'goleiro' && b.position !== 'goleiro') return -1;
         if (a.position !== 'goleiro' && b.position === 'goleiro') return 1;

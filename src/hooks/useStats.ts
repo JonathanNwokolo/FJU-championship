@@ -11,6 +11,7 @@ import {
   calculateRoundMVP,
   getSuspendedPlayers,
 } from '../services/statsService';
+import { isActiveRosterPlayer } from '../utils/teamRules';
 import { ChampionshipRules } from '../types';
 
 const DEFAULT_RULES: ChampionshipRules = {
@@ -43,9 +44,17 @@ export function useStats(championshipId: string) {
     [teams, championshipId],
   );
 
+  // HISTÓRICO: inclui sem_time/removido (teamId preservado no doc) para não
+  // apagar artilharia/disciplina de quem já pontuou e depois saiu.
   const champPlayers = useMemo(
     () => players.filter((p) => champTeams.some((t) => t.id === p.teamId)),
     [players, champTeams],
+  );
+
+  // ELENCO ATUAL: apenas vínculos ativos (suspensões, escalações etc.).
+  const activeChampPlayers = useMemo(
+    () => champPlayers.filter(isActiveRosterPlayer),
+    [champPlayers],
   );
 
   const champPlayersForDiscipline = useMemo(
@@ -86,8 +95,8 @@ export function useStats(championshipId: string) {
   );
 
   const suspendedPlayers = useMemo(
-    () => getSuspendedPlayers(champMatches, events, champPlayers, champTeams, rules),
-    [champMatches, events, champPlayers, champTeams, rules],
+    () => getSuspendedPlayers(champMatches, events, activeChampPlayers, champTeams, rules),
+    [champMatches, events, activeChampPlayers, champTeams, rules],
   );
 
   const totalGoals = useMemo(() => {

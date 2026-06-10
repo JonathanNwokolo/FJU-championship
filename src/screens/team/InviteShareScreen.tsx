@@ -19,6 +19,7 @@ import { useChampionshipStore } from '../../stores/championshipStore';
 import { shareInviteViaWhatsApp, regenerateTeamInvite } from '../../services/inviteService';
 import { colors } from '../../theme/colors';
 import { canCaptainManageTeam } from '../../utils/permissionRules';
+import { countActivePlayersInTeam } from '../../utils/teamRules';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'InviteShare'>;
 
@@ -36,7 +37,8 @@ export function InviteShareScreen({ route }: Props) {
   const canManageInvite = !!team && canCaptainManageTeam(user, team);
 
   const availableSlots = useMemo(() => {
-    const rosterSize = players.filter((item) => item.teamId === teamId).length;
+    // sem_time/removido mantêm o teamId antigo no doc — não ocupam vaga.
+    const rosterSize = countActivePlayersInTeam(players, teamId);
     const maxPlayers = team?.maxPlayers ?? 15;
     return Math.max(0, maxPlayers - rosterSize);
   }, [players, team?.maxPlayers, teamId]);

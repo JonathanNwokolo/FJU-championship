@@ -33,6 +33,7 @@ import { updateDocument } from '../../services/index';
 import { leaveTeam, LeaveTeamResult } from '../../services/inviteService';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { PlayerPosition } from '../../types';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'EditProfile'>;
 
@@ -50,16 +51,23 @@ export function EditProfileScreen() {
   const { teams, players, updatePlayer } = useTeamStore();
   const championships = useChampionshipStore((s) => s.championships);
 
-  // Find the player record for this user
+  // Find the player record for this user.
+  // Prefere o vínculo ATIVO: após sair de um time o doc antigo fica 'sem_time'
+  // com o teamId retido (rules impedem limpá-lo) e não pode definir o time atual.
   const myPlayer = useMemo(
-    () => players.find((p) => p.userId === user?.id),
+    () =>
+      players.find((p) => p.userId === user?.id && isActiveRosterPlayer(p)) ??
+      players.find((p) => p.userId === user?.id),
     [players, user?.id]
   );
 
   const isAthlete = user?.role === 'atleta';
   const currentTeam = useMemo(
-    () => teams.find((team) => team.id === myPlayer?.teamId),
-    [teams, myPlayer?.teamId],
+    () =>
+      myPlayer && isActiveRosterPlayer(myPlayer)
+        ? teams.find((team) => team.id === myPlayer.teamId)
+        : undefined,
+    [teams, myPlayer],
   );
   const currentChampionship = useMemo(
     () => championships.find((championship) => championship.id === (myPlayer?.championshipId ?? currentTeam?.championshipId)),

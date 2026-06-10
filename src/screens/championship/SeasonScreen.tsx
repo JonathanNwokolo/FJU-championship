@@ -25,6 +25,7 @@ import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { ChampionshipResultData, Player } from '../../types';
+import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
 type RouteT = RouteProp<HomeStackParamList, 'Season'>;
@@ -137,9 +138,16 @@ export function SeasonScreen() {
     () => events.filter((e) => champMatches.some((m) => m.id === e.matchId)),
     [events, champMatches],
   );
+  // HISTÓRICO: inclui sem_time/removido para não apagar artilheiro/MVP que saiu.
   const champPlayers = useMemo(
     () => players.filter((p) => champTeams.some((t) => t.id === p.teamId)),
     [players, champTeams],
+  );
+
+  // Contagem ATUAL de atletas: apenas vínculos ativos.
+  const activeChampPlayers = useMemo(
+    () => champPlayers.filter(isActiveRosterPlayer),
+    [champPlayers],
   );
 
   const standings = useMemo(
@@ -307,7 +315,7 @@ export function SeasonScreen() {
               </AppCard>
               <AppCard style={styles.statCard}>
                 <Text style={styles.statIcon}>👥</Text>
-                <Text style={styles.statValue}>{result?.totalPlayers ?? champPlayers.length}</Text>
+                <Text style={styles.statValue}>{result?.totalPlayers ?? activeChampPlayers.length}</Text>
                 <Text style={styles.statLabel}>Atletas participantes</Text>
               </AppCard>
               <AppCard style={styles.statCard}>
