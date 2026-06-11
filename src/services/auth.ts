@@ -11,6 +11,7 @@ import { removeTokenFromFirestore } from './notificationService';
 import { AppUser, UserRole } from '../types';
 import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
 import { getMockActiveUser, setMockDocument, updateMockDocument } from '../mocks/mockDb';
+import { seedMockStores } from '../mocks/seedMockState';
 
 interface FirestoreUser {
   id: string;
@@ -52,6 +53,7 @@ export async function signIn(
   password: string
 ): Promise<{ user: AppUser; isOnboarded: boolean }> {
   if (USE_MOCK_DATA) {
+    seedMockStores();
     const user = getMockActiveUser();
     return { user: { ...user, email: user.email ?? email }, isOnboarded: true };
   }
@@ -93,6 +95,7 @@ export function listenToAuthChanges(
   callback: (result: { user: AppUser; isOnboarded: boolean } | null) => void
 ): () => void {
   if (USE_MOCK_DATA) {
+    seedMockStores();
     callback({ user: getMockActiveUser(), isOnboarded: true });
     return () => {};
   }
