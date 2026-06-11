@@ -3,6 +3,7 @@ import { useVotingStore } from '../stores/votingStore';
 import { upsertDocument, getCollection, getDocument } from './firestore';
 import { auth } from './firebase';
 import { isActiveRosterPlayer } from '../utils/teamRules';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
 
 // ---------------------------------------------------------------------------
 // 1. getCandidatesForRound
@@ -82,7 +83,7 @@ export async function submitVote(
   // AUD-07: revalida TODAS as regras no service (o cliente não é confiável).
 
   // 0. Autenticação: o voto precisa ser do próprio usuário autenticado.
-  if (!auth.currentUser || auth.currentUser.uid !== voterId) {
+  if (!USE_MOCK_DATA && (!auth.currentUser || auth.currentUser.uid !== voterId)) {
     throw new Error('Você precisa estar autenticado para votar.');
   }
 

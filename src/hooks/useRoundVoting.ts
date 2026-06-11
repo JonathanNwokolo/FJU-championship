@@ -9,6 +9,8 @@ import { db } from '../services/firebase';
 import { useVotingStore } from '../stores/votingStore';
 import { useAuthStore } from '../stores/authStore';
 import { RoundAward, RoundVote } from '../types';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { subscribeToCollection } from '../services/index';
 
 export interface VoteResult {
   playerId: string;
@@ -38,6 +40,40 @@ export function useRoundVoting(
     if (!championshipId) return;
 
     setLoading(true);
+
+    if (USE_MOCK_DATA) {
+      const unsubVotes = subscribeToCollection<RoundVote>(
+        'round_votes',
+        [
+          { field: 'championshipId', operator: '==', value: championshipId },
+          { field: 'round', operator: '==', value: round },
+        ],
+        (fresh) => {
+          const other = useVotingStore
+            .getState()
+            .votes.filter((v: RoundVote) => !(v.championshipId === championshipId && v.round === round));
+          setVotes([...other, ...fresh]);
+          setLoading(false);
+        },
+      );
+      const unsubAwards = subscribeToCollection<RoundAward>(
+        'round_awards',
+        [
+          { field: 'championshipId', operator: '==', value: championshipId },
+          { field: 'round', operator: '==', value: round },
+        ],
+        (fresh) => {
+          const other = useVotingStore
+            .getState()
+            .awards.filter((a: RoundAward) => !(a.championshipId === championshipId && a.round === round));
+          setAwards([...other, ...fresh]);
+        },
+      );
+      return () => {
+        unsubVotes();
+        unsubAwards();
+      };
+    }
 
     const votesQuery = query(
       collection(db, 'round_votes'),

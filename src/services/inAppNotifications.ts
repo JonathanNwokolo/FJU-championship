@@ -14,6 +14,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { InAppNotification, InAppNotificationType } from '../types';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { addDocument, getCollection, subscribeToCollection, updateDocument } from './firestore';
 
 const COL = 'in_app_notifications';
 
@@ -25,6 +27,22 @@ export async function saveInAppNotification(
   data: Record<string, string | number> = {},
 ): Promise<void> {
   if (userIds.length === 0) return;
+  if (USE_MOCK_DATA) {
+    await Promise.all(
+      userIds.map((userId) =>
+        addDocument('in_app_notifications', {
+          userId,
+          type,
+          title,
+          body,
+          data,
+          read: false,
+          createdAt: new Date().toISOString(),
+        }),
+      ),
+    );
+    return;
+  }
   try {
     const batch = writeBatch(db);
     const colRef = collection(db, COL);
@@ -50,6 +68,19 @@ export function listenToNotifications(
   userId: string,
   onChange: (notifications: InAppNotification[]) => void,
 ): () => void {
+  if (USE_MOCK_DATA) {
+    return subscribeToCollection<InAppNotification>(
+      COL,
+      [{ field: 'userId', operator: '==', value: userId }],
+      (notifications) =>
+        onChange(
+          notifications.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          ),
+        ),
+    );
+  }
+
   const q = query(
     collection(db, COL),
     where('userId', '==', userId),
@@ -87,6 +118,10 @@ export function listenToNotifications(
 }
 
 export async function markAsRead(notificationId: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    await updateDocument(COL, notificationId, { read: true });
+    return;
+  }
   try {
     await updateDoc(doc(db, COL, notificationId), { read: true });
   } catch (e) {
@@ -95,6 +130,14 @@ export async function markAsRead(notificationId: string): Promise<void> {
 }
 
 export async function markAllAsRead(userId: string): Promise<void> {
+  if (USE_MOCK_DATA) {
+    const unread = await getCollection<InAppNotification>(COL, [
+      { field: 'userId', operator: '==', value: userId },
+      { field: 'read', operator: '==', value: false },
+    ]);
+    await Promise.all(unread.map((item) => updateDocument(COL, item.id, { read: true })));
+    return;
+  }
   try {
     const q = query(collection(db, COL), where('userId', '==', userId), where('read', '==', false));
     const snap = await getDocs(q);

@@ -9,6 +9,8 @@ import { auth } from './firebase';
 import { setDocument, getDocument, updateDocument } from './firestore';
 import { removeTokenFromFirestore } from './notificationService';
 import { AppUser, UserRole } from '../types';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { getMockActiveUser, setMockDocument, updateMockDocument } from '../mocks/mockDb';
 
 interface FirestoreUser {
   id: string;
@@ -23,6 +25,18 @@ export async function signUp(
   password: string,
   name: string
 ): Promise<AppUser> {
+  if (USE_MOCK_DATA) {
+    const user: AppUser = {
+      id: `mock-user-${Date.now()}`,
+      name,
+      email,
+      role: 'atleta',
+      photoUrl: 'https://placehold.co/160x160/111827/F5A623?text=FJU',
+    };
+    setMockDocument('users', user.id, user);
+    return user;
+  }
+
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const { uid } = credential.user;
 
@@ -37,6 +51,11 @@ export async function signIn(
   email: string,
   password: string
 ): Promise<{ user: AppUser; isOnboarded: boolean }> {
+  if (USE_MOCK_DATA) {
+    const user = getMockActiveUser();
+    return { user: { ...user, email: user.email ?? email }, isOnboarded: true };
+  }
+
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const { uid } = credential.user;
 
@@ -51,6 +70,10 @@ export async function signIn(
 }
 
 export async function signOut(): Promise<void> {
+  if (USE_MOCK_DATA) {
+    return;
+  }
+
   const uid = auth.currentUser?.uid;
   if (uid) {
     await removeTokenFromFirestore(uid);
@@ -59,12 +82,21 @@ export async function signOut(): Promise<void> {
 }
 
 export async function saveRole(uid: string, role: UserRole): Promise<void> {
+  if (USE_MOCK_DATA) {
+    updateMockDocument('users', uid, { role });
+    return;
+  }
   await updateDocument('users', uid, { role });
 }
 
 export function listenToAuthChanges(
   callback: (result: { user: AppUser; isOnboarded: boolean } | null) => void
 ): () => void {
+  if (USE_MOCK_DATA) {
+    callback({ user: getMockActiveUser(), isOnboarded: true });
+    return () => {};
+  }
+
   return onAuthStateChanged(auth, async (firebaseUser) => {
     if (!firebaseUser) {
       callback(null);

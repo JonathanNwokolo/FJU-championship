@@ -51,6 +51,7 @@ import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
 import { isPlayerInTeamActive } from '../../utils/teamRules';
 import { useVotingStore } from '../../stores/votingStore';
 import { generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../../config/appConfig';
 
 type RouteT = RouteProp<FixturesStackParamList, 'MatchRegistration'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
@@ -260,6 +261,28 @@ export function MatchRegistrationScreen() {
       if (isLive && bsType === 'gol') {
         const newHome = liveHomeScore + (bsTeamId === match.homeTeamId ? 1 : 0);
         const newAway = liveAwayScore + (bsTeamId === match.awayTeamId ? 1 : 0);
+
+        if (USE_MOCK_DATA) {
+          const firestoreId = await addDocument('match_events', eventData);
+          await updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway });
+          const event: MatchEvent = {
+            id: firestoreId,
+            matchId,
+            championshipId: match.championshipId,
+            type: bsType,
+            teamId: bsTeamId,
+            playerId: bsPlayerId,
+            playerName: eventData.playerName,
+            teamName: eventData.teamName,
+            minute,
+            createdAt,
+          };
+          addEvent(event);
+          updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          return;
+        }
+
         const eventRef = doc(collection(db, 'match_events'));
         const batch = writeBatch(db);
 
@@ -355,6 +378,15 @@ export function MatchRegistrationScreen() {
             if (isLive && removing.type === 'gol' && match) {
               const newHome = Math.max(0, liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0));
               const newAway = Math.max(0, liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0));
+
+              if (USE_MOCK_DATA) {
+                await deleteDocument('match_events', eventId);
+                await updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway });
+                removeEvent(eventId);
+                updateMatch(matchId, { homeScore: newHome, awayScore: newAway });
+                return;
+              }
+
               const batch = writeBatch(db);
 
               batch.delete(doc(db, 'match_events', eventId));
@@ -577,6 +609,48 @@ export function MatchRegistrationScreen() {
         ...updatedMatchData,
         status: 'finalizado',
       };
+
+      if (USE_MOCK_DATA) {
+        await updateDocument('matches', matchId, updatedMatchData);
+        updateMatch(matchId, updatedMatchData);
+
+        const updatedMatches = matches.map((m) => (m.id === matchId ? updatedMatch : m));
+        const roundMatches = updatedMatches.filter(
+          (m) => m.championshipId === match.championshipId && m.round === match.round,
+        );
+        if (
+          roundMatches.length > 0 &&
+          roundMatches.every((m) => m.status === 'finalizado') &&
+          matchChampionship?.currentRound === match.round
+        ) {
+          const nextCurrentRound = match.round + 1;
+          await updateDocument('championships', match.championshipId, {
+            currentRound: nextCurrentRound,
+          });
+          updateChampionship(match.championshipId, { currentRound: nextCurrentRound });
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (homeTeam && awayTeam) {
+          notifyMatchFinished(
+            match.championshipId,
+            homeTeam.name,
+            awayTeam.name,
+            finalHome,
+            finalAway,
+            matchId,
+          ).catch(() => {});
+        }
+        await runAchievementChecks(events, updatedMatches);
+        Toast.show({
+          type: 'success',
+          text1: 'Partida finalizada',
+          text2: 'Resultado salvo no modo demo.',
+          visibilityTime: 2500,
+        });
+        navigation.goBack();
+        return;
+      }
 
       const buildGroupKnockoutPlan = (): GroupKnockoutPlan | null => {
         if (

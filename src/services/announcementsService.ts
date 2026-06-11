@@ -20,6 +20,13 @@ import {
   UserRole,
 } from '../types';
 import { getTokensForChampionship, getTokensForUsers, sendPushNotification } from './notificationService';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import {
+  addDocument,
+  getCollection,
+  subscribeToCollection,
+  updateDocument as updateMockableDocument,
+} from './firestore';
 
 const COL = 'announcements';
 
@@ -36,6 +43,14 @@ export async function createAnnouncement(data: {
   targetTeamId?: string;
   priority: AnnouncementPriority;
 }): Promise<string> {
+  if (USE_MOCK_DATA) {
+    return addDocument(COL, {
+      ...data,
+      readBy: [],
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   const ref = await addDoc(collection(db, COL), {
     ...data,
     readBy: [],
@@ -99,6 +114,26 @@ export function listenToAnnouncements(
   role: UserRole,
   onChange: (announcements: Announcement[]) => void,
 ): () => void {
+  if (USE_MOCK_DATA) {
+    return subscribeToCollection<Announcement>(
+      COL,
+      [{ field: 'championshipId', operator: '==', value: championshipId }],
+      (all) => {
+        const filtered = all
+          .filter((a) => {
+            if (role === 'organizador') return true;
+            if (a.targetAudience === 'todos') return true;
+            if (a.targetAudience === 'capitaes') return role === 'capitao';
+            if (a.targetAudience === 'atletas') return role === 'atleta';
+            if (a.targetAudience === 'time_especifico') return a.targetTeamId === teamId;
+            return false;
+          })
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        onChange(filtered);
+      },
+    );
+  }
+
   const q = query(
     collection(db, COL),
     where('championshipId', '==', championshipId),
@@ -154,6 +189,18 @@ export async function markAnnouncementAsRead(
   announcementId: string,
   userId: string,
 ): Promise<void> {
+  if (USE_MOCK_DATA) {
+    const current = await getCollection<Announcement>(COL, [
+      { field: 'id', operator: '==', value: announcementId },
+    ]);
+    const announcement = current[0];
+    if (announcement) {
+      await updateMockableDocument(COL, announcementId, {
+        readBy: Array.from(new Set([...announcement.readBy, userId])),
+      });
+    }
+    return;
+  }
   try {
     await updateDoc(doc(db, COL, announcementId), {
       readBy: arrayUnion(userId),

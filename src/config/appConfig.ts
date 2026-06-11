@@ -1,2 +1,8 @@
-// App configuration file
-// All mock data has been removed - app now uses Firebase real data only.
+export const USE_MOCK_DATA = true;
+export const MOCK_DATA_ENABLED = USE_MOCK_DATA && process.env.JEST_WORKER_ID == null;
+
+export const MOCK_ACTIVE_USER:
+  | 'organizador'
+  | 'capitao'
+  | 'atleta'
+  | 'atleta_sem_time' = 'organizador';

@@ -15,8 +15,11 @@ import { Championship, JoinRequest, MatchEvent, Player, Team, TeamInvite } from 
 import {
   countActivePlayersInTeam as countActivePlayers,
   isActiveRosterPlayer,
+  isPlayerInTeamActive,
   isTeamCaptain,
 } from '../utils/teamRules';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { getMockActiveUser } from '../mocks/mockDb';
 
 const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const DEFAULT_MAX_PLAYERS = 15;
@@ -289,6 +292,39 @@ export async function approveJoinRequest(
   requesterName: string,
   requesterPhotoUrl: string,
 ): Promise<'success' | 'full' | 'already_member' | 'team_not_found'> {
+  if (USE_MOCK_DATA) {
+    const team = await getDocument<Team>('teams', teamId);
+    if (!team) return 'team_not_found';
+
+    const roster = await getCollection<Player>('players', [
+      { field: 'teamId', operator: '==', value: teamId },
+    ]);
+    if (roster.some((p) => p.userId === requesterId && isActiveRosterPlayer(p))) {
+      return 'already_member';
+    }
+
+    const activeCount = countActivePlayers(roster, teamId);
+    if (activeCount >= (team.maxPlayers ?? DEFAULT_MAX_PLAYERS)) return 'full';
+
+    await addDocument('players', {
+      teamId,
+      championshipId: team.championshipId,
+      userId: requesterId,
+      name: requesterName,
+      position: 'meia',
+      number: nextAvailableNumber(roster),
+      photoUrl: requesterPhotoUrl ?? '',
+      status: 'ativo',
+      joinedAt: new Date().toISOString(),
+    });
+    await updateDocument('teams', teamId, {
+      approvedPlayersCount: activeCount + 1,
+      pendingRequests: (team.pendingRequests ?? []).filter((id) => id !== requesterId),
+    });
+
+    return 'success';
+  }
+
   return runTransaction(db, async (transaction) => {
     const teamRef = doc(db, 'teams', teamId);
     const teamSnap = await transaction.get(teamRef);
@@ -562,8 +598,58 @@ export async function leaveTeam(
   teamId: string,
   championshipId: string,
 ): Promise<LeaveTeamResult> {
-  const userId = auth.currentUser?.uid;
+  const userId = USE_MOCK_DATA ? getMockActiveUser().id : auth.currentUser?.uid;
   if (!userId) return 'not_authenticated';
+
+  if (USE_MOCK_DATA) {
+    const [player, team, championship] = await Promise.all([
+      getDocument<Player>('players', playerId),
+      getDocument<Team>('teams', teamId),
+      getDocument<Championship>('championships', championshipId),
+    ]);
+
+    if (!player || !team || !championship) return 'not_found';
+    if (player.userId !== userId || player.teamId !== teamId || team.championshipId !== championshipId) {
+      return 'not_allowed';
+    }
+    if (isTeamCaptain(userId, team)) return 'not_allowed';
+    if (championship.status === 'finalizado') return 'championship_finished';
+
+    const roster = await getCollection<Player>('players', [
+      { field: 'teamId', operator: '==', value: teamId },
+    ]);
+    const matches = await getCollection<{ status: string; homeTeamId: string; awayTeamId: string }>('matches', [
+      { field: 'championshipId', operator: '==', value: championshipId },
+    ]);
+    const activeRoster = roster.filter((item) => isPlayerInTeamActive(item, teamId));
+    const hasPendingTeamMatch = matches.some(
+      (match) =>
+        match.status !== 'finalizado' &&
+        (match.homeTeamId === teamId || match.awayTeamId === teamId),
+    );
+    if (activeRoster.length <= 1 && hasPendingTeamMatch) {
+      return 'blocked_only_player_pending_matches';
+    }
+
+    await updateDocument('players', playerId, {
+      status: 'sem_time',
+      leftAt: new Date().toISOString(),
+    });
+    await updateDocument('users', userId, { teamId: null, championshipId: null });
+
+    const pendingRequests = await getCollection<JoinRequest>('join_requests', [
+      { field: 'championshipId', operator: '==', value: championshipId },
+      { field: 'requesterId', operator: '==', value: userId },
+      { field: 'status', operator: '==', value: 'pending' },
+    ]);
+    await Promise.all(
+      pendingRequests
+        .filter((request) => request.type === 'waitlist' || request.teamId === teamId)
+        .map((request) => deleteDocument('join_requests', request.id)),
+    );
+
+    return 'success';
+  }
 
   const rosterSnapshot = await getDocs(query(collection(db, 'players'), where('teamId', '==', teamId)));
   const matchSnapshot = await getDocs(query(collection(db, 'matches'), where('championshipId', '==', championshipId)));

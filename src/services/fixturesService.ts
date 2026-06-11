@@ -12,10 +12,11 @@
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { Championship, Team, MatchModel } from '../types';
 import { generateRoundRobinFixtures, generateBracketFixtures } from '../utils/roundRobin';
-import { getCollection } from './firestore';
+import { getCollection, setDocument, updateDocument } from './firestore';
 import { db } from './firebase';
 import { useMatchStore } from '../stores/matchStore';
 import { useChampionshipStore } from '../stores/championshipStore';
+import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
 
 export const MIN_TEAMS_TO_START = 2;
 export const MATCHES_ALREADY_GENERATED_ERROR = 'Este campeonato já possui partidas geradas.';
@@ -80,6 +81,30 @@ export async function commitFixtures(
   const champUpdate = { status: 'em_andamento' as const, currentRound: 1, totalRounds };
 
   try {
+    if (USE_MOCK_DATA) {
+      const current = await getCollection<MatchModel>('matches', [
+        { field: 'championshipId', operator: '==', value: championship.id },
+      ]);
+      if (
+        current.length > 0 ||
+        championship.fixturesGenerated === true ||
+        championship.status !== 'inscricoes_abertas'
+      ) {
+        throw new Error(MATCHES_ALREADY_GENERATED_ERROR);
+      }
+
+      await Promise.all(matches.map((m) => setDocument('matches', m.id, m)));
+      await updateDocument('championships', championship.id, {
+        ...champUpdate,
+        fixturesGenerated: true,
+        drawCompletedAt: new Date().toISOString(),
+      });
+      useMatchStore.getState().addMatches(matches);
+      useChampionshipStore.getState().updateChampionship(championship.id, champUpdate);
+
+      return { success: true, matchesCreated: matches.length };
+    }
+
     await runTransaction(db, async (tx) => {
       const champRef = doc(db, 'championships', championship.id);
       const snap = await tx.get(champRef);
