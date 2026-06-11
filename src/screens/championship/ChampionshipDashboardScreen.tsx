@@ -1615,7 +1615,9 @@ export function ChampionshipDashboardScreen() {
             onPress={handleGenerateTable}
             fullWidth
           />
-          <Text style={styles.bottomHint}>Mínimo de 3 times aprovados necessário</Text>
+          <Text style={styles.bottomHint}>
+            Mínimo de {minTeamsToStart} times aprovados necessário
+          </Text>
         </View>
       )}
 

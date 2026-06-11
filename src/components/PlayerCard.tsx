@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     top: 20,
     left: 20,
     fontSize: 56,
-    fontWeight: '900',
+    fontFamily: 'Barlow-Black',
     color: '#FFFFFF',
     lineHeight: 56,
   },
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     top: 78,
     left: 24,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: 'Barlow-Bold',
     color: '#FFFFFF',
     letterSpacing: 1,
   },
@@ -181,12 +181,12 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     fontSize: 48,
-    fontWeight: '700',
+    fontFamily: 'Barlow-Bold',
     color: '#FFFFFF',
   },
   name: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontFamily: 'Barlow-Bold',
     color: '#FFFFFF',
     textAlign: 'center',
     marginTop: 8,
@@ -221,13 +221,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Barlow-Bold',
     color: '#FFFFFF',
   },
   statLabel: {
     fontSize: 10,
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontFamily: 'Barlow-SemiBold',
     letterSpacing: 0.5,
   },
   badgesRow: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: '#8A9BB0',
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'Barlow-Bold',
   },
   errorSubtitle: {
     color: '#4A5568',

@@ -30,6 +30,8 @@ import {
 } from '../../services/announcementsService';
 import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { Announcement, AnnouncementAudience, Team } from '../../types';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors, gradients } from '../../theme/colors';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 
@@ -102,6 +104,26 @@ function AnnouncementRow({
         <Text style={styles.rowAuthor}>{item.authorName}</Text>
       </View>
     </Pressable>
+  );
+}
+
+function AnnouncementsSkeleton() {
+  return (
+    <View style={styles.skeletonWrap}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <View key={i} style={styles.skeletonCard}>
+          <SkeletonLoader width={60} height={18} borderRadius={4} />
+          <View style={styles.skeletonGap} />
+          <SkeletonLoader width="70%" height={16} />
+          <View style={styles.skeletonGap} />
+          <SkeletonLoader width="90%" height={12} />
+          <View style={styles.skeletonGapSm} />
+          <SkeletonLoader width="60%" height={12} />
+          <View style={styles.skeletonGap} />
+          <SkeletonLoader width="30%" height={10} />
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -253,19 +275,17 @@ export function AnnouncementsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
+        <AnnouncementsSkeleton />
       ) : announcements.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyIcon}>📢</Text>
-          <Text style={styles.emptyTitle}>Nenhum aviso ainda</Text>
-          <Text style={styles.emptyDesc}>
-            {canCreate
-              ? 'Toque no "+" para publicar um aviso para os participantes.'
-              : 'Os organizadores e capitães publicarão avisos aqui.'}
-          </Text>
-        </View>
+        <EmptyState
+          icon="📢"
+          title="Nenhum aviso ainda"
+          description={
+            canCreate
+              ? 'Crie o primeiro comunicado para manter todos informados.'
+              : 'Quando houver comunicados do campeonato, eles aparecerão aqui.'
+          }
+        />
       ) : (
         <FlatList
           data={announcements}
@@ -440,29 +460,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
+  skeletonWrap: {
+    paddingTop: 8,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+  skeletonCard: {
+    backgroundColor: colors.bg200,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  emptyTitle: {
-    fontFamily: 'Barlow-Bold',
-    fontSize: 18,
-    color: colors.textPrimary,
-    textAlign: 'center',
+  skeletonGap: {
+    height: 8,
   },
-  emptyDesc: {
-    marginTop: 8,
-    fontFamily: 'Barlow-Regular',
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
+  skeletonGapSm: {
+    height: 6,
   },
   listContent: {
     paddingTop: 8,

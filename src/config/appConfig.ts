@@ -7,6 +7,6 @@ export const MOCK_DATA_ENABLED = USE_MOCK_DATA && process.env.JEST_WORKER_ID == 
 // 'organizador' | 'capitao' | 'atleta' | 'atleta_sem_time'
 export const MOCK_ACTIVE_USER:
   | 'organizador'
-  | 'capitao'
   | 'atleta'
-  | 'atleta_sem_time' = 'organizador';
+  | 'capitao'
+  | 'atleta_sem_time' = 'capitao';

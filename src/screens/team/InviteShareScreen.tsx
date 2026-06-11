@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
+import { EmptyState } from '../../components/EmptyState';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
@@ -46,9 +47,11 @@ export function InviteShareScreen({ route }: Props) {
   if (!team) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Time não encontrado.</Text>
-        </View>
+        <EmptyState
+          icon="⚠️"
+          title="Time não encontrado"
+          description="Não foi possível carregar os dados deste time."
+        />
       </SafeAreaView>
     );
   }
@@ -56,9 +59,11 @@ export function InviteShareScreen({ route }: Props) {
   if (!canManageInvite) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Apenas o capitão deste time pode ver o convite.</Text>
-        </View>
+        <EmptyState
+          icon="🔒"
+          title="Acesso restrito"
+          description="Apenas o capitão ou organizador pode gerenciar este convite."
+        />
       </SafeAreaView>
     );
   }
@@ -234,16 +239,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Regular',
     fontSize: 13,
     lineHeight: 18,
-    color: colors.textSecondary,
-  },
-  emptyWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontFamily: 'Barlow-Regular',
-    fontSize: 15,
     color: colors.textSecondary,
   },
 });

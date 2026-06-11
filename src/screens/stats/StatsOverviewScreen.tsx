@@ -5,11 +5,13 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { AppCard } from '../../components/AppCard';
 import { EmptyState } from '../../components/EmptyState';
 import { SectionHeader } from '../../components/SectionHeader';
+import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { TeamLogo } from '../../components/TeamLogo';
 import { TAB_NAMES } from '../../navigation/constants';
 import { useStats } from '../../hooks/useStats';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useTeamStore } from '../../stores/teamStore';
+import { useMatchStore } from '../../stores/matchStore';
 import { colors } from '../../theme/colors';
 import { PlayerDisciplineRanking, SuspendedPlayer, Team } from '../../types';
 
@@ -107,9 +109,58 @@ function DisciplineRow({
   );
 }
 
+function StatsSkeletonView() {
+  return (
+    <>
+      <View style={styles.grid}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <AppCard key={i} style={styles.highlightCard}>
+            <SkeletonLoader width={28} height={28} borderRadius={8} />
+            <SkeletonLoader width="70%" height={22} />
+            <SkeletonLoader width="50%" height={10} />
+          </AppCard>
+        ))}
+      </View>
+
+      <AppCard style={styles.roundLeaderCard}>
+        <SkeletonLoader width="40%" height={10} />
+        <View style={styles.skeletonLeaderRow}>
+          <SkeletonLoader width="55%" height={22} />
+          <SkeletonLoader width={48} height={24} />
+        </View>
+      </AppCard>
+
+      <View style={styles.disciplineSection}>
+        <SkeletonLoader width={110} height={14} />
+        <View style={styles.disciplineList}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <AppCard key={i} style={styles.disciplineCard}>
+              <View style={styles.disciplineMain}>
+                <SkeletonLoader width={36} height={36} borderRadius={18} />
+                <View style={styles.disciplineCopy}>
+                  <SkeletonLoader width="70%" height={14} />
+                  <View style={styles.skeletonSpacer} />
+                  <SkeletonLoader width="45%" height={12} />
+                </View>
+              </View>
+              <View style={styles.disciplineStats}>
+                <SkeletonLoader width={44} height={36} borderRadius={8} />
+                <SkeletonLoader width={44} height={36} borderRadius={8} />
+              </View>
+            </AppCard>
+          ))}
+        </View>
+      </View>
+    </>
+  );
+}
+
 export function StatsOverviewScreen() {
   const navigation = useNavigation<NavProp>();
   const champId = useChampionshipStore((s) => s.selectedChampionshipId) ?? '';
+  const championshipsLoading = useChampionshipStore((s) => s.loading);
+  const teamsLoading = useTeamStore((s) => s.loading);
+  const matchesLoading = useMatchStore((s) => s.loading);
   const { players, teams } = useTeamStore();
   const {
     standings,
@@ -138,6 +189,20 @@ export function StatsOverviewScreen() {
       },
     });
   };
+
+  // Loading real dos stores: começa true e vira false após a 1ª hidratação
+  // (snapshot/seed). Campeonato sem partidas NÃO é loading — apenas dados zerados.
+  const showSkeleton = championshipsLoading || teamsLoading || matchesLoading;
+
+  if (showSkeleton) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <StatsSkeletonView />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -288,6 +353,15 @@ const styles = StyleSheet.create({
   disciplineSection: {
     width: '100%',
     gap: 10,
+  },
+  skeletonLeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  skeletonSpacer: {
+    height: 6,
   },
   disciplineList: {
     gap: 10,

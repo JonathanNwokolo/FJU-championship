@@ -15,11 +15,18 @@ const EMOJI_TO_ICON: Record<string, IconName> = {
   '⚽': 'soccer',
   '🚩': 'flag-outline',
   '🔍': 'magnify',
+  '🔎': 'magnify',
   '🛡️': 'shield-outline',
   '👥': 'account-group-outline',
   '📊': 'chart-bar',
   '🎯': 'target',
   '🏅': 'medal-outline',
+  '🔒': 'lock-outline',
+  '⚠️': 'alert-outline',
+  '📨': 'email-outline',
+  '🔔': 'bell-outline',
+  '📢': 'bullhorn-outline',
+  '📋': 'clipboard-text-outline',
   // Padrão
   'default': 'alert-circle-outline',
 };

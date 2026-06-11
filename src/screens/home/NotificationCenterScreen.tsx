@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -14,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { listenToNotifications, markAllAsRead, markAsRead } from '../../services/inAppNotifications';
 import { InAppNotification, InAppNotificationType } from '../../types';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
 
 const TYPE_META: Record<InAppNotificationType, { icon: string; color: string }> = {
@@ -72,6 +73,25 @@ function NotificationRow({
   );
 }
 
+function NotificationsSkeleton() {
+  return (
+    <View style={styles.skeletonWrap}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <View key={i} style={styles.skeletonRow}>
+          <SkeletonLoader width={44} height={44} borderRadius={22} />
+          <View style={styles.skeletonContent}>
+            <SkeletonLoader width="60%" height={14} />
+            <View style={styles.skeletonGap} />
+            <SkeletonLoader width="80%" height={12} />
+            <View style={styles.skeletonGap} />
+            <SkeletonLoader width="20%" height={10} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function NotificationCenterScreen() {
   const navigation = useNavigation();
   const user = useAuthStore((s) => s.user);
@@ -115,15 +135,13 @@ export function NotificationCenterScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.accent} />
-        </View>
+        <NotificationsSkeleton />
       ) : notifications.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyIcon}>🔔</Text>
-          <Text style={styles.emptyTitle}>Nenhuma notificacao</Text>
-          <Text style={styles.emptyDesc}>Gols, resultados e solicitacoes aparecerao aqui.</Text>
-        </View>
+        <EmptyState
+          icon="🔔"
+          title="Nenhuma notificação"
+          description="Gols, resultados e solicitações aparecerão aqui."
+        />
       ) : (
         <FlatList
           data={notifications}
@@ -235,27 +253,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginLeft: 72,
   },
-  center: {
+  skeletonWrap: {
+    paddingVertical: 8,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  skeletonContent: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 32,
   },
-  emptyIcon: {
-    fontSize: 48,
-  },
-  emptyTitle: {
-    fontFamily: 'Barlow-Bold',
-    fontSize: 18,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  emptyDesc: {
-    fontFamily: 'Barlow-Regular',
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
+  skeletonGap: {
+    height: 6,
   },
 });
