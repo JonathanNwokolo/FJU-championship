@@ -30,6 +30,8 @@ import {
 } from '../../services/announcementsService';
 import { isActiveRosterPlayer } from '../../utils/teamRules';
 import { Announcement, AnnouncementAudience, Team } from '../../types';
+import { AppButton } from '../../components/AppButton';
+import { Chip } from '../../components/Chip';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors, gradients } from '../../theme/colors';
@@ -339,17 +341,13 @@ export function AnnouncementsScreen() {
               <Text style={styles.fieldLabel}>Destinatários</Text>
               <View style={styles.audienceRow}>
                 {AUDIENCE_OPTIONS.map((opt) => (
-                  <TouchableOpacity
+                  <Chip
                     key={opt.value}
-                    style={[styles.audienceChip, audience === opt.value && styles.audienceChipActive]}
+                    label={opt.label}
+                    active={audience === opt.value}
                     onPress={() => setAudience(opt.value)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.audienceChipIcon}>{opt.icon}</Text>
-                    <Text style={[styles.audienceChipLabel, audience === opt.value && styles.audienceChipLabelActive]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
+                    size="sm"
+                  />
                 ))}
               </View>
 
@@ -358,17 +356,14 @@ export function AnnouncementsScreen() {
                   <Text style={styles.fieldLabel}>Selecionar time</Text>
                   <View style={styles.teamList}>
                     {championshipTeams.map((t) => (
-                      <TouchableOpacity
+                      <Chip
                         key={t.id}
-                        style={[styles.teamChip, selectedTeamId === t.id && styles.teamChipActive]}
+                        label={t.name}
+                        active={selectedTeamId === t.id}
                         onPress={() => setSelectedTeamId(t.id)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[styles.teamDot, { backgroundColor: t.primaryColor }]} />
-                        <Text style={[styles.teamChipLabel, selectedTeamId === t.id && styles.teamChipLabelActive]} numberOfLines={1}>
-                          {t.name}
-                        </Text>
-                      </TouchableOpacity>
+                        size="sm"
+                        style={styles.teamChip}
+                      />
                     ))}
                   </View>
                 </>
@@ -390,18 +385,14 @@ export function AnnouncementsScreen() {
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.publishBtn, saving && styles.publishBtnDisabled]}
+          <AppButton
+            title={saving ? 'Publicando...' : 'Publicar aviso'}
             onPress={handleCreate}
             disabled={saving}
-            activeOpacity={0.8}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.textOnAccent} size="small" />
-            ) : (
-              <Text style={styles.publishBtnText}>Publicar aviso</Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+            fullWidth
+            style={styles.publishBtn}
+          />
         </BottomSheetScrollView>
       </BottomSheet>
     </SafeAreaView>

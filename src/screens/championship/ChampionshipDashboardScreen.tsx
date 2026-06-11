@@ -35,6 +35,7 @@ import { useVotingStore } from '../../stores/votingStore';
 import { AppButton } from '../../components/AppButton';
 import { Badge } from '../../components/Badge';
 import { SectionHeader } from '../../components/SectionHeader';
+import { StatTile } from '../../components/StatTile';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { colors } from '../../theme/colors';
 import { Team, Player, ChampionshipStatus, MatchModel, MatchEvent } from '../../types';
@@ -116,12 +117,24 @@ function StatCard({
   label: string;
   valueColor: string;
 }) {
+  const iconMap: Record<string, React.ComponentProps<typeof StatTile>['icon']> = {
+    '🏆': 'trophy-outline',
+    '⚽': 'football-outline',
+    '👥': 'people-outline',
+    '📊': 'analytics-outline',
+    '🟨': 'albums-outline',
+    '📅': 'calendar-outline',
+  };
+
   return (
-    <View style={statStyles.card}>
-      <Text style={statStyles.icon}>{icon}</Text>
-      <Text style={[statStyles.value, { color: valueColor }]}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
-    </View>
+    <StatTile
+      icon={iconMap[icon]}
+      value={value}
+      label={label}
+      valueColor={valueColor}
+      compact
+      style={statStyles.card}
+    />
   );
 }
 
@@ -164,12 +177,24 @@ function GridStatCard({
   label: string;
   highlight?: boolean;
 }) {
+  const iconMap: Record<string, React.ComponentProps<typeof StatTile>['icon']> = {
+    '🏆': 'trophy-outline',
+    '⚽': 'football-outline',
+    '👥': 'people-outline',
+    '📊': 'analytics-outline',
+    '🟨': 'albums-outline',
+    '📅': 'calendar-outline',
+  };
+
   return (
-    <View style={[gridStatStyles.card, highlight && gridStatStyles.cardHighlight]}>
-      <Text style={gridStatStyles.icon}>{icon}</Text>
-      <Text style={[gridStatStyles.value, highlight && gridStatStyles.valueHighlight]}>{value}</Text>
-      <Text style={gridStatStyles.label}>{label}</Text>
-    </View>
+    <StatTile
+      icon={iconMap[icon]}
+      value={value}
+      label={label}
+      compact
+      highlight={highlight}
+      style={gridStatStyles.card}
+    />
   );
 }
 

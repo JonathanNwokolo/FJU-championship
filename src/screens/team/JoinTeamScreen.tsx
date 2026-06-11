@@ -15,6 +15,7 @@ import Toast from 'react-native-toast-message';
 import { AppButton } from '../../components/AppButton';
 import { SearchBar } from '../../components/SearchBar';
 import { EmptyState } from '../../components/EmptyState';
+import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
@@ -272,7 +273,17 @@ export function JoinTeamScreen() {
           </Text>
         </View>
 
-        <View style={styles.modeTabs}>
+        <SegmentedTabs
+          tabs={[
+            { key: 'code', label: 'Codigo manual', icon: 'keypad-outline' },
+            { key: 'search', label: 'Buscar time', icon: 'search-outline' },
+          ]}
+          activeKey={mode}
+          onChange={(key) => setMode(key as JoinMode)}
+          style={styles.segmentedTabs}
+        />
+
+        <View style={styles.hiddenTabs}>
           <TouchableOpacity
             onPress={() => setMode('code')}
             style={[styles.modeTab, mode === 'code' && styles.modeTabActive]}
@@ -417,6 +428,12 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 18,
   },
+  segmentedTabs: {
+    marginBottom: 18,
+  },
+  hiddenTabs: {
+    display: 'none',
+  },
   modeTab: {
     flex: 1,
     minHeight: 42,
@@ -441,6 +458,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   card: {
+    marginTop: 18,
     gap: 14,
     padding: 20,
     borderRadius: 18,
@@ -468,6 +486,7 @@ const styles = StyleSheet.create({
   },
   searchModeWrap: {
     flex: 1,
+    marginTop: 18,
   },
   listContent: {
     paddingTop: 12,

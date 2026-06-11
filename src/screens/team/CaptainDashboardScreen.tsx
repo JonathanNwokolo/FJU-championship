@@ -35,6 +35,7 @@ import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
 import { Badge } from '../../components/Badge';
 import { SectionHeader } from '../../components/SectionHeader';
+import { StatTile } from '../../components/StatTile';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { TeamLogo } from '../../components/TeamLogo';
 import { EmptyState } from '../../components/EmptyState';
@@ -113,12 +114,23 @@ function TeamColorPicker({
 
 // ── Stat Card Component ──────────────────────────────────────────────────────
 function StatCard({ label, value, icon }: { label: string; value: string | number; icon: string }) {
+  const iconMap: Record<string, React.ComponentProps<typeof StatTile>['icon']> = {
+    '🏆': 'trophy-outline',
+    '⚽': 'football-outline',
+    '👥': 'people-outline',
+    '📊': 'analytics-outline',
+    '🟨': 'albums-outline',
+    '📅': 'calendar-outline',
+  };
+
   return (
-    <AppCard style={styles.statCard}>
-      <Text style={styles.statIcon}>{icon}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </AppCard>
+    <StatTile
+      icon={iconMap[icon]}
+      value={value}
+      label={label}
+      compact
+      style={styles.statCard}
+    />
   );
 }
 

@@ -17,8 +17,10 @@ import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '../../components/AppButton';
+import { Chip } from '../../components/Chip';
 import { EmptyState } from '../../components/EmptyState';
 import { SearchBar } from '../../components/SearchBar';
+import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
@@ -224,7 +226,17 @@ export function ManageRosterScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.tabs}>
+        <SegmentedTabs
+          tabs={[
+            { key: 'roster', label: 'Elenco', icon: 'people-outline' },
+            { key: 'requests', label: 'Solicitações', icon: 'mail-outline', badgeCount: pendingCount },
+          ]}
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as TabKey)}
+          style={styles.segmentedTabs}
+        />
+
+        <View style={styles.hiddenTabs}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'roster' && styles.tabActive]}
             onPress={() => setActiveTab('roster')}
@@ -383,15 +395,13 @@ export function ManageRosterScreen({ route, navigation }: Props) {
             {POSITIONS.map((position) => {
               const selected = newPosition === position;
               return (
-                <TouchableOpacity
+                <Chip
                   key={position}
+                  label={POSITION_LABELS[position]}
+                  active={selected}
+                  size="sm"
                   onPress={() => setNewPosition(position)}
-                  style={[styles.positionChip, selected && styles.positionChipActive]}
-                >
-                  <Text style={[styles.positionChipText, selected && styles.positionChipTextActive]}>
-                    {POSITION_LABELS[position]}
-                  </Text>
-                </TouchableOpacity>
+                />
               );
             })}
           </View>
@@ -457,12 +467,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.accent,
   },
+  hiddenTabs: {
+    display: 'none',
+  },
   tabs: {
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
+  },
+  segmentedTabs: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
   },
   tab: {
     flex: 1,

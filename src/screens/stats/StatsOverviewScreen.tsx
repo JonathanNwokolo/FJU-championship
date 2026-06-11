@@ -6,6 +6,7 @@ import { AppCard } from '../../components/AppCard';
 import { EmptyState } from '../../components/EmptyState';
 import { SectionHeader } from '../../components/SectionHeader';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
+import { StatTile } from '../../components/StatTile';
 import { TeamLogo } from '../../components/TeamLogo';
 import { TAB_NAMES } from '../../navigation/constants';
 import { useStats } from '../../hooks/useStats';
@@ -28,14 +29,24 @@ function HighlightCard({
   value: string;
   accent?: boolean;
 }) {
+  const iconMap: Record<string, React.ComponentProps<typeof StatTile>['icon']> = {
+    '🏆': 'trophy-outline',
+    '⚽': 'football-outline',
+    '📊': 'analytics-outline',
+    '🛡️': 'shield-checkmark-outline',
+    '⚡': 'flash-outline',
+    '🟨': 'albums-outline',
+  };
+
   return (
-    <AppCard style={styles.highlightCard}>
-      <Text style={styles.highlightIcon}>{icon}</Text>
-      <Text style={[styles.highlightValue, !accent && styles.highlightValueText]} numberOfLines={2}>
-        {value}
-      </Text>
-      <Text style={styles.highlightLabel}>{label}</Text>
-    </AppCard>
+    <StatTile
+      icon={iconMap[icon]}
+      label={label}
+      value={value}
+      compact
+      highlight={accent}
+      style={styles.highlightCard}
+    />
   );
 }
 
