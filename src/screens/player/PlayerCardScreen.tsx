@@ -4,10 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
+import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { captureRef } from 'react-native-view-shot';
 import { DeviceMotion } from 'expo-sensors';
 import Animated, {
+  FadeIn,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -17,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
+import { useVotingStore } from '../../stores/votingStore';
 import { usePlayerStats } from '../../hooks/usePlayerStats';
 import { usePlayerAchievements } from '../../hooks/usePlayerAchievements';
 import { PlayerCard, PlayerCardErrorBoundary } from '../../components/PlayerCard';
@@ -48,8 +51,17 @@ export function PlayerCardScreen({ route, navigation }: Props) {
     [championships, championshipId],
   );
 
-  const { goals, yellowCards, redCards, overall } = usePlayerStats(playerId, championshipId);
+  const { goals, assists, yellowCards, redCards, overall, matchesPlayed } = usePlayerStats(playerId, championshipId);
   const { unlocked } = usePlayerAchievements(playerId, championshipId);
+
+  const awards = useVotingStore((s) => s.awards);
+  const mvps = useMemo(
+    () =>
+      awards.filter(
+        (a) => a.championshipId === championshipId && a.winnerPlayerId === playerId,
+      ).length,
+    [awards, championshipId, playerId],
+  );
   const topAchievements = useMemo(
     () =>
       [...unlocked]
@@ -104,8 +116,14 @@ export function PlayerCardScreen({ route, navigation }: Props) {
   const cardRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
 
+  // Toque leve ao abrir o card-assinatura.
+  useEffect(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
+
   const handleShare = async () => {
     if (!cardRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSharing(true);
     try {
       const uri = await captureRef(cardRef, { format: 'png', quality: 1.0 });
@@ -155,13 +173,19 @@ export function PlayerCardScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.center}>
-          <Animated.View style={animatedCardStyle}>
+          <Animated.View
+            style={[styles.cardGlow, animatedCardStyle]}
+            entering={FadeIn.duration(420)}
+          >
             <View ref={cardRef} collapsable={false}>
               <PlayerCardErrorBoundary>
                 <PlayerCard
                   player={player}
                   team={team}
                   goals={goals}
+                  assists={assists}
+                  matchesPlayed={matchesPlayed}
+                  mvps={mvps}
                   yellowCards={yellowCards}
                   redCards={redCards}
                   overall={overall}
@@ -179,7 +203,7 @@ export function PlayerCardScreen({ route, navigation }: Props) {
                 colors={['transparent', 'rgba(255,255,255,0.15)', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+                style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
               />
             </Animated.View>
           </Animated.View>
@@ -238,6 +262,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cardGlow: {
+    borderRadius: 24,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 28,
+    elevation: 16,
   },
   shareArea: {
     paddingHorizontal: 24,

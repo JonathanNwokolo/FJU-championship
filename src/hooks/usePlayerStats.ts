@@ -24,6 +24,7 @@ export function usePlayerStats(playerId: string, championshipId: string) {
     );
 
     const goals = playerEvents.filter((e) => e.type === 'gol').length;
+    const assists = playerEvents.filter((e) => e.type === 'assistencia').length;
     const yellowCards = playerEvents.filter((e) => e.type === 'cartao_amarelo').length;
     const redCards = playerEvents.filter((e) => e.type === 'cartao_vermelho').length;
     const overall = calculateOverall(goals, yellowCards, redCards);
@@ -44,6 +45,8 @@ export function usePlayerStats(playerId: string, championshipId: string) {
       .filter((p) => p.events.length > 0) // only matches with participation
       .sort((a, b) => b.match.round - a.match.round);
 
-    return { goals, yellowCards, redCards, overall, matchBreakdown, loading: false };
+    const matchesPlayed = matchBreakdown.length;
+
+    return { goals, assists, yellowCards, redCards, overall, matchesPlayed, matchBreakdown, loading: false };
   }, [playerId, championshipId, matches, events]);
 }
