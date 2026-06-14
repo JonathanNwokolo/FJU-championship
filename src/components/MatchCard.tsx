@@ -220,9 +220,12 @@ export function MatchCard({
       {isFinished && goalRows.length > 0 && (
         <View style={styles.footer}>
           {goalRows.map((event) => (
-            <Text key={event.id} style={styles.goalText} numberOfLines={1}>
-              ⚽ {players.find((player) => player.id === event.playerId)?.name ?? 'Atleta'} · {event.minute}'
-            </Text>
+            <View key={event.id} style={styles.goalRow}>
+              <Ionicons name="football" size={11} color={colors.textSecondary} />
+              <Text style={styles.goalText} numberOfLines={1}>
+                {players.find((player) => player.id === event.playerId)?.name ?? 'Atleta'} · {event.minute}'
+              </Text>
+            </View>
           ))}
         </View>
       )}
@@ -389,8 +392,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 10,
   },
-  goalText: {
+  goalRow: {
     maxWidth: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  goalText: {
+    flexShrink: 1,
     fontFamily: 'Barlow-Regular',
     fontSize: 11,
     color: colors.textSecondary,

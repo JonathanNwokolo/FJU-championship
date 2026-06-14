@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 import { colors } from '../../theme/colors';
 import { AppButton } from '../../components/AppButton';
@@ -75,6 +76,7 @@ export function VotingScreen() {
     setSubmitting(true);
     try {
       await submitVote(championshipId, round, user.id, selectedId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
       Alert.alert('Erro', e.message ?? 'Não foi possível registrar o voto.');
     } finally {

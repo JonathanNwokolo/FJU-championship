@@ -6,8 +6,10 @@ Starting project at C:\Users\Home\Desktop\WORKS\FJU-championship
 Starting Metro Bundler
 
 Waiting on http://localhost:8081
+An update for expo is available: 56.0.9 → ~56.0.11
+8 other packages may need updating. Run npx expo install --check for details.
 Logs for your project will appear below.
-Web Bundled 4363ms index.ts (1581 modules)
+Web Bundled 9167ms index.ts (1594 modules)
 Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
@@ -18,27 +20,17 @@ Web  LOG  Running application "main" with appParams:
 Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web Bundled 63ms index.ts (1 module)
+Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web  ERROR  Unexpected text node: . A text node cannot be a child of a <View>.
+Web  WARN  could not find scrollable ref!
+Web  WARN  could not find scrollable ref!
+Web Bundled 861ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
 Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
@@ -48,12 +40,37 @@ Web  LOG  Running application "main" with appParams:
 Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web Bundled 94ms index.ts (1 module)
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  "dove" is not a valid icon name for family "material-community"
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web  WARN  expo-sensors: setUpdateInterval() is not supported on web
+Web Bundled 76ms index.ts (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 Web  WARN  [Reanimated] Reduced motion setting is enabled on this device. This warning is visible only in the development mode. Some animations will be disabled by default. You can override the behavior for individual animations, see https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device.
 Web  WARN  "shadow*" style props are deprecated. Use "boxShadow".
 Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
@@ -63,18 +80,3 @@ Web  LOG  Running application "main" with appParams:
 Development-level warnings: ON.
 Performance optimizations: OFF.
 Web  WARN  props.pointerEvents is deprecated. Use style.pointerEvents
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
-Web  ERROR  "[Error: The method or property ExpoNotifications.getLastNotificationResponse is not available on web, are you sure you've linked all the native dependencies properly?]"
-
-The above error occurred in the <AppNavigator> component.
-
-React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.

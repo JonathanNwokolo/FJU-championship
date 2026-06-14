@@ -16,6 +16,8 @@ import BottomSheet, {
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { AppButton } from '../../components/AppButton';
 import { Chip } from '../../components/Chip';
 import { EmptyState } from '../../components/EmptyState';
@@ -145,6 +147,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
     try {
       await addDocument('players', player);
       addPlayerLocal(player);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Mantém a contagem de vagas (AUD-06) consistente após adição manual.
       recomputeApprovedCount(teamId).catch(() => {});
       setNewName('');
@@ -171,6 +174,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
             // de fato quando não há nenhum match_event vinculado.
             const mode = await removePlayerFromRoster(player);
             removePlayerLocal(player.id);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             processWaitlistOnVacancy(teamId).catch(() => {});
             Toast.show({
               type: 'success',
@@ -191,6 +195,11 @@ export function ManageRosterScreen({ route, navigation }: Props) {
     setRespondingId(requestId);
     try {
       await respondToRequest(requestId, approved, teamId, requesterId);
+      Haptics.notificationAsync(
+        approved
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Warning,
+      );
       Toast.show({
         type: 'success',
         text1: approved ? 'Solicitação aprovada' : 'Solicitação recusada',
@@ -273,8 +282,11 @@ export function ManageRosterScreen({ route, navigation }: Props) {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContent}
               ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-              renderItem={({ item }) => (
-                <View style={styles.rosterItem}>
+              renderItem={({ item, index }) => (
+                <Animated.View
+                  style={styles.rosterItem}
+                  entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(260)}
+                >
                   <TouchableOpacity
                     style={styles.rosterInfo}
                     activeOpacity={0.82}
@@ -300,7 +312,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
                   <TouchableOpacity onPress={() => handleRemovePlayer(item)} style={styles.deleteButton}>
                     <Ionicons name="trash-outline" size={18} color={colors.danger} />
                   </TouchableOpacity>
-                </View>
+                </Animated.View>
               )}
               ListEmptyComponent={
                 <EmptyState
@@ -317,8 +329,11 @@ export function ManageRosterScreen({ route, navigation }: Props) {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-            renderItem={({ item }) => (
-              <View style={styles.requestItem}>
+            renderItem={({ item, index }) => (
+              <Animated.View
+                style={styles.requestItem}
+                entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(260)}
+              >
                 <View style={styles.requestInfo}>
                   <View style={styles.requestAvatar}>
                     <Text style={styles.requestAvatarText}>
@@ -350,7 +365,7 @@ export function ManageRosterScreen({ route, navigation }: Props) {
                     <Text style={styles.actionChipText}>✗ Recusar</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </Animated.View>
             )}
             ListEmptyComponent={
               <EmptyState

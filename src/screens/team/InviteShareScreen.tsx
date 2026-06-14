@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -7,7 +7,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppButton } from '../../components/AppButton';
@@ -32,6 +34,12 @@ export function InviteShareScreen({ route }: Props) {
   const updateTeam = useTeamStore((s) => s.updateTeam);
   const championships = useChampionshipStore((s) => s.championships);
   const [regenerating, setRegenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+  }, []);
 
   const team = teams.find((item) => item.id === teamId);
   const championship = championships.find((item) => item.id === team?.championshipId);
@@ -67,6 +75,14 @@ export function InviteShareScreen({ route }: Props) {
       </SafeAreaView>
     );
   }
+
+  const handleCopy = async () => {
+    await Clipboard.setStringAsync(team.inviteCode);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCopied(true);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 1800);
+  };
 
   const handleRegenerate = () => {
     if (!canManageInvite) return;
@@ -119,18 +135,18 @@ export function InviteShareScreen({ route }: Props) {
 
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={async () => {
-              await Clipboard.setStringAsync(team.inviteCode);
-              Toast.show({
-                type: 'success',
-                text1: 'Copiado!',
-                text2: 'Código copiado para a área de transferência.',
-                visibilityTime: 1800,
-              });
-            }}
+            style={[styles.actionButton, copied && styles.actionButtonCopied]}
+            onPress={handleCopy}
+            activeOpacity={0.85}
           >
-            <Text style={styles.actionText}>📋 Copiar código</Text>
+            <Ionicons
+              name={copied ? 'checkmark-circle' : 'copy-outline'}
+              size={18}
+              color={copied ? colors.success : colors.textPrimary}
+            />
+            <Text style={[styles.actionText, copied && styles.actionTextCopied]}>
+              {copied ? 'Copiado!' : 'Copiar código'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
@@ -148,8 +164,10 @@ export function InviteShareScreen({ route }: Props) {
                 });
               })
             }
+            activeOpacity={0.85}
           >
-            <Text style={styles.actionText}>💬 Compartilhar no WhatsApp</Text>
+            <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+            <Text style={styles.actionText}>Compartilhar no WhatsApp</Text>
           </TouchableOpacity>
         </View>
 
@@ -223,14 +241,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg200,
     borderWidth: 1,
     borderColor: colors.border,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     paddingHorizontal: 16,
+  },
+  actionButtonCopied: {
+    backgroundColor: 'rgba(0,200,83,0.12)',
+    borderColor: colors.success,
   },
   actionText: {
     fontFamily: 'Barlow-SemiBold',
     fontSize: 14,
     color: colors.textPrimary,
+  },
+  actionTextCopied: {
+    color: colors.success,
   },
   regenerateSection: {
     gap: 12,

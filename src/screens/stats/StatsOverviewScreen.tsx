@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { AppCard } from '../../components/AppCard';
 import { EmptyState } from '../../components/EmptyState';
 import { SectionHeader } from '../../components/SectionHeader';
@@ -126,37 +127,37 @@ function StatsSkeletonView() {
       <View style={styles.grid}>
         {Array.from({ length: 6 }).map((_, i) => (
           <AppCard key={i} style={styles.highlightCard}>
-            <SkeletonLoader width={28} height={28} borderRadius={8} />
-            <SkeletonLoader width="70%" height={22} />
-            <SkeletonLoader width="50%" height={10} />
+            <SkeletonLoader width={28} height={28} borderRadius={8} variant="shimmer" />
+            <SkeletonLoader width="70%" height={22} variant="shimmer" />
+            <SkeletonLoader width="50%" height={10} variant="shimmer" />
           </AppCard>
         ))}
       </View>
 
       <AppCard style={styles.roundLeaderCard}>
-        <SkeletonLoader width="40%" height={10} />
+        <SkeletonLoader width="40%" height={10} variant="shimmer" />
         <View style={styles.skeletonLeaderRow}>
-          <SkeletonLoader width="55%" height={22} />
-          <SkeletonLoader width={48} height={24} />
+          <SkeletonLoader width="55%" height={22} variant="shimmer" />
+          <SkeletonLoader width={48} height={24} variant="shimmer" />
         </View>
       </AppCard>
 
       <View style={styles.disciplineSection}>
-        <SkeletonLoader width={110} height={14} />
+        <SkeletonLoader width={110} height={14} variant="shimmer" />
         <View style={styles.disciplineList}>
           {Array.from({ length: 3 }).map((_, i) => (
             <AppCard key={i} style={styles.disciplineCard}>
               <View style={styles.disciplineMain}>
-                <SkeletonLoader width={36} height={36} borderRadius={18} />
+                <SkeletonLoader width={36} height={36} borderRadius={18} variant="shimmer" />
                 <View style={styles.disciplineCopy}>
-                  <SkeletonLoader width="70%" height={14} />
+                  <SkeletonLoader width="70%" height={14} variant="shimmer" />
                   <View style={styles.skeletonSpacer} />
-                  <SkeletonLoader width="45%" height={12} />
+                  <SkeletonLoader width="45%" height={12} variant="shimmer" />
                 </View>
               </View>
               <View style={styles.disciplineStats}>
-                <SkeletonLoader width={44} height={36} borderRadius={8} />
-                <SkeletonLoader width={44} height={36} borderRadius={8} />
+                <SkeletonLoader width={44} height={36} borderRadius={8} variant="shimmer" />
+                <SkeletonLoader width={44} height={36} borderRadius={8} variant="shimmer" />
               </View>
             </AppCard>
           ))}
@@ -242,13 +243,17 @@ export function StatsOverviewScreen() {
           <SectionHeader title="DISCIPLINA" />
           {disciplineRanking.length > 0 ? (
             <View style={styles.disciplineList}>
-              {disciplineRanking.map((player) => (
-                <DisciplineRow
+              {disciplineRanking.map((player, index) => (
+                <Animated.View
                   key={player.playerId}
-                  item={player}
-                  team={teams.find((team) => team.id === player.teamId)}
-                  onPress={() => openAthlete(player.playerId)}
-                />
+                  entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(260)}
+                >
+                  <DisciplineRow
+                    item={player}
+                    team={teams.find((team) => team.id === player.teamId)}
+                    onPress={() => openAthlete(player.playerId)}
+                  />
+                </Animated.View>
               ))}
             </View>
           ) : (

@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetScrollView,
@@ -114,15 +116,15 @@ function AnnouncementsSkeleton() {
     <View style={styles.skeletonWrap}>
       {Array.from({ length: 4 }).map((_, i) => (
         <View key={i} style={styles.skeletonCard}>
-          <SkeletonLoader width={60} height={18} borderRadius={4} />
+          <SkeletonLoader width={60} height={18} borderRadius={4} variant="shimmer" />
           <View style={styles.skeletonGap} />
-          <SkeletonLoader width="70%" height={16} />
+          <SkeletonLoader width="70%" height={16} variant="shimmer" />
           <View style={styles.skeletonGap} />
-          <SkeletonLoader width="90%" height={12} />
+          <SkeletonLoader width="90%" height={12} variant="shimmer" />
           <View style={styles.skeletonGapSm} />
-          <SkeletonLoader width="60%" height={12} />
+          <SkeletonLoader width="60%" height={12} variant="shimmer" />
           <View style={styles.skeletonGap} />
-          <SkeletonLoader width="30%" height={10} />
+          <SkeletonLoader width="30%" height={10} variant="shimmer" />
         </View>
       ))}
     </View>
@@ -234,6 +236,7 @@ export function AnnouncementsScreen() {
         priority: urgent ? 'urgente' : 'normal',
       });
       sheetRef.current?.close();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({ type: 'success', text1: 'Aviso publicado!' });
     } catch {
       Toast.show({ type: 'error', text1: 'Erro ao publicar aviso' });
@@ -292,8 +295,10 @@ export function AnnouncementsScreen() {
         <FlatList
           data={announcements}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <AnnouncementRow item={item} userId={user?.id ?? ''} onPress={handlePress} />
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(260)}>
+              <AnnouncementRow item={item} userId={user?.id ?? ''} onPress={handlePress} />
+            </Animated.View>
           )}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}

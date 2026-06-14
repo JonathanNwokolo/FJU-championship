@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { TeamColorDot } from '../../components/TeamColorDot';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
@@ -75,7 +77,7 @@ function ScorerGroupRow({
       </View>
       <View style={styles.goalsCol}>
         <Text style={styles.goalsValue}>{group.goals}</Text>
-        <Text style={styles.goalsIcon}>⚽</Text>
+        <Ionicons name="football-outline" size={13} color={colors.textSecondary} style={styles.goalsIcon} />
       </View>
     </View>
   );
@@ -153,7 +155,8 @@ export function TopScorersScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Artilheiros</Text>
         <View style={styles.totalBadge}>
-          <Text style={styles.totalBadgeText}>⚽ {totalGoals} gols</Text>
+          <Ionicons name="football" size={13} color={colors.accent} />
+          <Text style={styles.totalBadgeText}>{totalGoals} gols</Text>
         </View>
       </View>
 
@@ -191,8 +194,10 @@ export function TopScorersScreen() {
       <FlatList
         data={grouped.slice(1)}
         keyExtractor={(item) => `${item.rank}-${item.goals}`}
-        renderItem={({ item }) => (
-          <ScorerGroupRow group={item} getPhoto={getPhoto} onOpenAthlete={openAthlete} />
+        renderItem={({ item, index }) => (
+          <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(260)}>
+            <ScorerGroupRow group={item} getPhoto={getPhoto} onOpenAthlete={openAthlete} />
+          </Animated.View>
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
@@ -234,6 +239,9 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   totalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -418,9 +426,6 @@ const styles = StyleSheet.create({
   },
   goalsIcon: {
     marginBottom: 4,
-    fontFamily: 'Barlow-Regular',
-    fontSize: 12,
-    color: colors.textSecondary,
   },
   empty: {
     flex: 1,

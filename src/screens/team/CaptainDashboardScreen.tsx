@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import BottomSheet, {
@@ -636,9 +637,19 @@ export function CaptainDashboardScreen() {
     }
   }, [myTeam, currentPlayers, editMaxPlayers, updateTeam]);
 
+  const [codeCopied, setCodeCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+  }, []);
+
   const handleCopyCode = useCallback(async () => {
     if (!myTeam) return;
     await Clipboard.setStringAsync(myTeam.inviteCode);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCodeCopied(true);
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCodeCopied(false), 1800);
     Toast.show({ type: 'success', text1: 'Código copiado!' });
   }, [myTeam]);
 
@@ -803,9 +814,19 @@ export function CaptainDashboardScreen() {
           <AppCard style={styles.inviteCard}>
             <Text style={styles.inviteLabel}>CÓDIGO DO TIME</Text>
             <Text style={styles.inviteCode}>{myTeam.inviteCode}</Text>
-            <TouchableOpacity style={styles.copyBtn} onPress={handleCopyCode}>
-              <Ionicons name="copy-outline" size={18} color={colors.accent} />
-              <Text style={styles.copyBtnText}>Copiar</Text>
+            <TouchableOpacity
+              style={[styles.copyBtn, codeCopied && styles.copyBtnDone]}
+              onPress={handleCopyCode}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={codeCopied ? 'checkmark-circle' : 'copy-outline'}
+                size={18}
+                color={codeCopied ? colors.success : colors.accent}
+              />
+              <Text style={[styles.copyBtnText, codeCopied && styles.copyBtnTextDone]}>
+                {codeCopied ? 'Copiado!' : 'Copiar'}
+              </Text>
             </TouchableOpacity>
           </AppCard>
         </View>
@@ -1331,10 +1352,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentGlow,
     borderRadius: 20,
   },
+  copyBtnDone: {
+    backgroundColor: 'rgba(0,200,83,0.14)',
+  },
   copyBtnText: {
     fontFamily: 'Barlow-SemiBold',
     fontSize: 13,
     color: colors.accent,
+  },
+  copyBtnTextDone: {
+    color: colors.success,
   },
   convocationHint: {
     fontFamily: 'Barlow-Regular',

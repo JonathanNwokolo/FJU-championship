@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '../../stores/authStore';
 import { listenToNotifications, markAllAsRead, markAsRead } from '../../services/inAppNotifications';
 import { InAppNotification, InAppNotificationType } from '../../types';
@@ -78,13 +79,13 @@ function NotificationsSkeleton() {
     <View style={styles.skeletonWrap}>
       {Array.from({ length: 5 }).map((_, i) => (
         <View key={i} style={styles.skeletonRow}>
-          <SkeletonLoader width={44} height={44} borderRadius={22} />
+          <SkeletonLoader width={44} height={44} borderRadius={22} variant="shimmer" />
           <View style={styles.skeletonContent}>
-            <SkeletonLoader width="60%" height={14} />
+            <SkeletonLoader width="60%" height={14} variant="shimmer" />
             <View style={styles.skeletonGap} />
-            <SkeletonLoader width="80%" height={12} />
+            <SkeletonLoader width="80%" height={12} variant="shimmer" />
             <View style={styles.skeletonGap} />
-            <SkeletonLoader width="20%" height={10} />
+            <SkeletonLoader width="20%" height={10} variant="shimmer" />
           </View>
         </View>
       ))}
@@ -146,7 +147,11 @@ export function NotificationCenterScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <NotificationRow item={item} onPress={handlePress} />}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 45).duration(260)}>
+              <NotificationRow item={item} onPress={handlePress} />
+            </Animated.View>
+          )}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
