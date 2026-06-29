@@ -14,6 +14,7 @@ import { DrawFullscreenScreen } from '../screens/match/DrawFullscreenScreen';
 import { PlayerCardScreen } from '../screens/player/PlayerCardScreen';
 import { PlayerAchievementsScreen } from '../screens/player/PlayerAchievementsScreen';
 import { RoundAwardScreen } from '../screens/match/RoundAwardScreen';
+import { MatchRegistrationScreen } from '../screens/match/MatchRegistrationScreen';
 import { AthleteProfileScreen } from '../screens/home/AthleteProfileScreen';
 import { EditProfileScreen } from '../screens/home/EditProfileScreen';
 import { ChampionshipHistoryScreen } from '../screens/championship/ChampionshipHistoryScreen';
@@ -41,6 +42,7 @@ export type HomeStackParamList = {
   PlayerAchievements: { playerId: string; championshipId: string };
   PlayerStatsDetail: { playerId: string; championshipId: string };
   RoundAward: { championshipId: string; round: number };
+  MatchRegistration: { matchId: string };
   AthleteProfile: { userId?: string; championshipId?: string } | undefined;
   CareerCard: { userId: string };
   EditProfile: undefined;
@@ -127,6 +129,11 @@ export function HomeStackNavigator() {
       <Stack.Screen
         name="RoundAward"
         component={RoundAwardScreen}
+        options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="MatchRegistration"
+        component={MatchRegistrationScreen}
         options={{ headerShown: false, animation: 'slide_from_bottom' }}
       />
       <Stack.Screen

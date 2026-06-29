@@ -1,5 +1,7 @@
 import {
   canAcceptFinalScore,
+  canEditMatchEvents,
+  activeMatchEvents,
   countGoalEventsByTeam,
   getMatchResult,
   getMatchWinnerId,
@@ -17,6 +19,13 @@ describe('matchRules', () => {
   it('partida finalizada aceita placar numerico', () => {
     expect(canAcceptFinalScore(match({ status: 'finalizado', homeScore: 2, awayScore: 1 }))).toBe(true);
     expect(canAcceptFinalScore(match({ status: 'finalizado', homeScore: null, awayScore: 1 }))).toBe(false);
+  });
+
+  it('recusa edicao de eventos apos partida finalizada', () => {
+    expect(canEditMatchEvents(match({ status: 'agendado' }))).toBe(true);
+    expect(canEditMatchEvents(match({ status: 'ao_vivo' }))).toBe(true);
+    expect(canEditMatchEvents(match({ status: 'finalizado' }))).toBe(false);
+    expect(canEditMatchEvents(null)).toBe(false);
   });
 
   it('placar determina vencedor mandante', () => {
@@ -47,6 +56,17 @@ describe('matchRules', () => {
     ];
 
     expect(countGoalEventsByTeam(events)).toEqual({ home: 2, away: 1 });
+  });
+
+  it('ignora evento removido por correcao controlada', () => {
+    const events: MatchEvent[] = [
+      event('e1', 'home', 'gol'),
+      { ...event('e2', 'home', 'gol'), removedAt: 'now', removedByCorrectionId: 'corr1' },
+      event('e3', 'away', 'gol'),
+    ];
+
+    expect(activeMatchEvents(events).map((item) => item.id)).toEqual(['e1', 'e3']);
+    expect(countGoalEventsByTeam(events)).toEqual({ home: 1, away: 1 });
   });
 });
 

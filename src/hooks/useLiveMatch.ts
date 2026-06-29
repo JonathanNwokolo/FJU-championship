@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../services/firebase';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 import { subscribeToCollection } from '../services/index';
 import { MatchModel } from '../types';
 
@@ -9,7 +9,7 @@ export function useLiveMatch(championshipId: string) {
   const [hasLive, setHasLive] = useState(false);
 
   useEffect(() => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK) {
       if (!championshipId) {
         setHasLive(false);
         return;

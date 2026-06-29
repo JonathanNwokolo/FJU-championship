@@ -20,7 +20,8 @@ export function useAnnouncementsBadge(championshipId: string) {
       isActiveRosterPlayer(p),
   );
   const myTeam = myPlayer ? teams.find((t) => t.id === myPlayer.teamId) : undefined;
-  const teamId = myTeam?.id ?? null;
+  const captainTeam = teams.find((t) => t.captainId === user?.id && t.championshipId === championshipId);
+  const teamId = myTeam?.id ?? captainTeam?.id ?? null;
 
   useEffect(() => {
     if (!user?.id || !championshipId) return;

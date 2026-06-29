@@ -77,8 +77,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   setRole: async (role) => {
     const { user } = get();
     if (!user) return;
-    set({ user: { ...user, role }, isOnboarded: true });
     await saveRole(user.id, role);
+    set({ user: { ...user, role }, isOnboarded: true });
   },
 
   setUser: (user) => set({ user }),

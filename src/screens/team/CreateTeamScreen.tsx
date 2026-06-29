@@ -24,16 +24,14 @@ import { useChampionshipStore } from '../../stores/championshipStore';
 import { colors } from '../../theme/colors';
 import { TEAM_COLORS } from '../../utils/constants';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
-import { createInviteLink, createTeamInvite, generateInviteCode } from '../../services/inviteService';
-import { setDocument, getCollection } from '../../services/index';
+import { createTeamRegistration } from '../../services/inviteService';
+import { getCollection } from '../../services/index';
 import { uploadTeamLogo } from '../../services/imageUpload';
 import { Team } from '../../types';
 import { isRegistrationDeadlinePassed, isChampionshipInProgress, isChampionshipFinished } from '../../utils/championshipStatus';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CreateTeam'>;
 type SuccessState = { teamId: string; teamName: string; inviteCode: string };
-
-const DEFAULT_MAX_PLAYERS = 15;
 
 export function CreateTeamScreen({ route, navigation }: Props) {
   const { championshipId } = route.params;
@@ -128,31 +126,66 @@ export function CreateTeamScreen({ route, navigation }: Props) {
 
     setLoading(true);
     try {
-      const inviteCode = await generateInviteCode();
-      const inviteLink = createInviteLink(inviteCode);
-      const teamId = tempTeamId;
-      const team: Team = {
-        id: teamId,
+      if (!user?.id) {
+        Toast.show({
+          type: 'error',
+          text1: 'Sessao invalida',
+          text2: 'Entre novamente para criar um time.',
+          visibilityTime: 2600,
+        });
+        return;
+      }
+
+      const result = await createTeamRegistration({
+        teamId: tempTeamId,
         championshipId,
-        name: name.trim(),
+        captainId: user.id,
+        name,
         primaryColor,
         secondaryColor,
-        captainId: user?.id ?? '',
-        status: championship?.rules?.manualApproval !== false ? 'pendente' : 'aprovado',
-        inviteCode,
-        inviteLink,
-        maxPlayers: championship?.maxPlayers ?? DEFAULT_MAX_PLAYERS,
-        registrationOpen: true,
-        pendingRequests: [],
-        createdAt: new Date().toISOString(),
-        ...(logoPreset && { logoPreset }),
-        ...(logoUrl && { logoUrl }),
-      };
+        logoPreset,
+        logoUrl,
+      });
 
-      const createdTeamId = await setDocument('teams', teamId, team);
-      await createTeamInvite(team);
-      addTeam(team);
-      setSuccess({ teamId: createdTeamId, teamName: team.name, inviteCode });
+      if (result.status !== 'success') {
+        const messageByStatus: Record<typeof result.status, { title: string; body: string }> = {
+          championship_not_found: {
+            title: 'Campeonato nao encontrado',
+            body: 'Atualize a lista e tente novamente.',
+          },
+          closed: {
+            title: 'Inscricoes encerradas',
+            body: 'Nao e possivel criar time neste campeonato agora.',
+          },
+          captain_already_has_team: {
+            title: 'Time ja cadastrado',
+            body: 'Voce ja e capitao de um time neste campeonato.',
+          },
+          max_teams_reached: {
+            title: 'Limite de times atingido',
+            body: `Este campeonato aceita no maximo ${championship?.maxTeams ?? 'o limite definido'} times.`,
+          },
+          duplicate_name: {
+            title: 'Nome ja usado',
+            body: 'Escolha outro nome para o time.',
+          },
+        };
+        const message = messageByStatus[result.status];
+        Toast.show({
+          type: 'error',
+          text1: message.title,
+          text2: message.body,
+          visibilityTime: 3200,
+        });
+        return;
+      }
+
+      addTeam(result.team);
+      setSuccess({
+        teamId: result.team.id,
+        teamName: result.team.name,
+        inviteCode: result.inviteCode,
+      });
     } catch (error) {
       console.warn('[CreateTeamScreen] create team failed:', error);
       Toast.show({

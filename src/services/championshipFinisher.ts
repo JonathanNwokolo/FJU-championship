@@ -77,6 +77,32 @@ function getPendingMatches(matches: MatchModel[]): MatchModel[] {
   );
 }
 
+export function dedupeRoundAwards(roundAwards: RoundAward[]): RoundAward[] {
+  const byRound = new Map<string, RoundAward[]>();
+  for (const award of roundAwards) {
+    const key = `${award.championshipId}_${award.round}`;
+    byRound.set(key, [...(byRound.get(key) ?? []), award]);
+  }
+
+  return [...byRound.entries()].map(([key, awards]) => {
+    const deterministic = awards.find((award) => award.id === key);
+    if (deterministic) return deterministic;
+
+    const winnerIds = new Set(awards.map((award) => award.winnerPlayerId));
+    if (winnerIds.size > 1) {
+      console.warn(
+        `[championshipFinisher] conflicting legacy round_awards for ${key}; using oldest closedAt then id`,
+      );
+    }
+
+    return [...awards].sort((a, b) => {
+      const closedAtDiff = (a.closedAt ?? '').localeCompare(b.closedAt ?? '');
+      if (closedAtDiff !== 0) return closedAtDiff;
+      return a.id.localeCompare(b.id);
+    })[0];
+  });
+}
+
 export interface FinishChampionshipOptions {
   // Pula a checagem de partidas pendentes. Usado APENAS no encerramento automático
   // do mata-mata (ao finalizar a partida final), onde a conclusão é garantida por
@@ -142,6 +168,7 @@ export async function finishChampionship(
     const matchIds = new Set(matches.map((m) => m.id));
     const champEvents = events.filter((e) => matchIds.has(e.matchId));
     const finishedMatches = matches.filter((m) => m.status === 'finalizado');
+    const uniqueRoundAwards = dedupeRoundAwards(roundAwards);
 
     // 2. Calculate final results
     const standings = calculateStandings(finishedMatches, champEvents, teams, championship.rules);
@@ -175,7 +202,7 @@ export async function finishChampionship(
 
     // MVP: player with most total votes across all round_awards
     const votesByPlayer: Record<string, { name: string; teamId: string; votes: number }> = {};
-    for (const award of roundAwards) {
+    for (const award of uniqueRoundAwards) {
       const key = award.winnerPlayerId;
       if (!votesByPlayer[key]) {
         votesByPlayer[key] = { name: award.winnerName, teamId: award.winnerTeamId, votes: 0 };
@@ -232,7 +259,7 @@ export async function finishChampionship(
 
     // Build round MVP count per player.id (not userId)
     const roundMvpCountByPlayerId: Record<string, number> = {};
-    for (const award of roundAwards) {
+    for (const award of uniqueRoundAwards) {
       roundMvpCountByPlayerId[award.winnerPlayerId] =
         (roundMvpCountByPlayerId[award.winnerPlayerId] ?? 0) + 1;
     }

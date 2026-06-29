@@ -45,7 +45,7 @@ jest.mock('../services/notificationService', () => ({
   notifyJoinRequestResult: jest.fn(() => Promise.resolve()),
 }));
 
-import { approveJoinRequest } from '../services/inviteService';
+import { approveJoinRequest, nextAvailableNumber } from '../services/inviteService';
 
 const TEAM_ID = 'team-1';
 
@@ -171,5 +171,17 @@ describe('approveJoinRequest — vaga real do elenco, não approvedPlayersCount'
     expect(await approveJoinRequest(TEAM_ID, 'user-novo', 'Novo Atleta', '')).toBe(
       'team_not_found',
     );
+  });
+
+  it('sugere numero ignorando atletas sem_time e removido', () => {
+    const roster = [
+      { ...makePlayer('p1', 'ativo'), number: 1 },
+      { ...makePlayer('p2', 'sem_time'), number: 2 },
+      { ...makePlayer('p3', 'removido'), number: 3 },
+      { ...makePlayer('p4', 'suspenso'), number: 4 },
+      { ...makePlayer('p5', 'lesionado'), number: 5 },
+    ];
+
+    expect(nextAvailableNumber(roster)).toBe(2);
   });
 });

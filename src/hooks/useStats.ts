@@ -44,6 +44,13 @@ export function useStats(championshipId: string) {
     [teams, championshipId],
   );
 
+  // P-12: a classificação só deve conter times APROVADOS. Times pendentes/rejeitados
+  // não jogam (0 partidas) e apareciam como linhas zeradas no fim da tabela.
+  const standingsTeams = useMemo(
+    () => champTeams.filter((t) => t.status === 'aprovado'),
+    [champTeams],
+  );
+
   // HISTÓRICO: inclui sem_time/removido (teamId preservado no doc) para não
   // apagar artilharia/disciplina de quem já pontuou e depois saiu.
   const champPlayers = useMemo(
@@ -71,8 +78,8 @@ export function useStats(championshipId: string) {
   );
 
   const standings = useMemo(
-    () => calculateStandings(champMatches, events, champTeams, rules),
-    [champMatches, events, champTeams, rules],
+    () => calculateStandings(champMatches, events, standingsTeams, rules),
+    [champMatches, events, standingsTeams, rules],
   );
 
   const topScorers = useMemo(

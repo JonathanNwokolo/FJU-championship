@@ -41,13 +41,14 @@ import { colors } from '../../theme/colors';
 import { Team, Player, ChampionshipStatus, MatchModel, MatchEvent } from '../../types';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { isRoundComplete, closeVoting } from '../../services/votingService';
-import { updateDocument, addDocument, getCollection } from '../../services/index';
+import { updateDocument, getCollection } from '../../services/index';
 import { calculateStandings, calculateTopScorers } from '../../services/statsService';
 import { finishChampionship } from '../../services/championshipFinisher';
 import { notifyTeamApproved, notifyTeamRejected } from '../../services/notificationService';
 import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
 import { isActiveRosterPlayer, isPlayerInTeamActive } from '../../utils/teamRules';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
+import { activeMatchEvents } from '../../utils/matchRules';
 
 type NavT = NavigationProp<HomeStackParamList>;
 type RouteT = RouteProp<HomeStackParamList, 'ChampionshipDashboard'>;
@@ -682,16 +683,15 @@ export function ChampionshipDashboardScreen() {
               champTeams.some((t) => t.id === p.teamId),
             );
 
-            const awardData = await closeVoting(championshipId, round, champPlayers);
-            if (!awardData) {
-              Alert.alert('Sem votos', 'Nenhum voto registrado nesta rodada.');
-              return;
-            }
-
             try {
-              const docId = await addDocument('round_awards', awardData);
-              const award = { ...awardData, id: docId };
-              addAward(award);
+              // P-05: closeVoting agora grava com id determinístico (champ_round) e
+              // é idempotente — encerrar duas vezes não cria prêmios duplicados.
+              const result = await closeVoting(championshipId, round, champPlayers);
+              if (!result) {
+                Alert.alert('Sem votos', 'Nenhum voto registrado nesta rodada.');
+                return;
+              }
+              addAward(result.award);
               navigation.navigate('RoundAward', { championshipId, round });
             } catch {
               Alert.alert('Erro', 'Não foi possível encerrar a votação.');
@@ -703,7 +703,6 @@ export function ChampionshipDashboardScreen() {
   };
 
   const [teamFilter, setTeamFilter] = useState<'todos' | 'pendente' | 'aprovado'>('todos');
-  const [editMatchBottomSheetOpen, setEditMatchBottomSheetOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<MatchModel | null>(null);
   const [editHomeScore, setEditHomeScore] = useState('');
   const [editAwayScore, setEditAwayScore] = useState('');
@@ -715,7 +714,7 @@ export function ChampionshipDashboardScreen() {
   
   // Events from all matches for timeline
   const { events } = useMatchStore.getState();
-  const champEvents = events.filter(e => {
+  const champEvents = activeMatchEvents(events).filter(e => {
     const match = matches.find(m => m.id === e.matchId);
     return match !== undefined;
   });
@@ -918,8 +917,8 @@ export function ChampionshipDashboardScreen() {
     setSelectedMatch(match);
     setEditHomeScore(match.homeScore?.toString() ?? '');
     setEditAwayScore(match.awayScore?.toString() ?? '');
-    editMatchSheetRef.current?.snapToIndex(0);
-  }, [isOrganizer]);
+    navigation.navigate('MatchRegistration', { matchId: match.id });
+  }, [isOrganizer, navigation]);
 
   const handleSaveMatchResult = useCallback(async () => {
     if (!isOrganizer || !selectedMatch) return;
@@ -1433,7 +1432,7 @@ export function ChampionshipDashboardScreen() {
           <View style={styles.section}>
             <SectionHeader 
               title="RESULTADOS" 
-              subtitle="Toque para editar" 
+              subtitle="Toque para corrigir com auditoria" 
             />
             <View style={styles.sectionBody}>
               {finishedMatches.slice(0, 5).map((match) => {

@@ -9,7 +9,7 @@ import { db } from '../services/firebase';
 import { useVotingStore } from '../stores/votingStore';
 import { useAuthStore } from '../stores/authStore';
 import { RoundAward, RoundVote } from '../types';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 import { subscribeToCollection } from '../services/index';
 
 export interface VoteResult {
@@ -41,7 +41,7 @@ export function useRoundVoting(
 
     setLoading(true);
 
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK) {
       const unsubVotes = subscribeToCollection<RoundVote>(
         'round_votes',
         [

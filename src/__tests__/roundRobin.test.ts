@@ -91,6 +91,100 @@ describe('roundRobin', () => {
   });
 
   describe('generateBracketFixtures', () => {
+    const teamsOf = (n: number) =>
+      Array.from({ length: n }, (_, i) => makeTeam(`t${i + 1}`));
+
+    const bracketSizeOf = (n: number) => Math.pow(2, Math.ceil(Math.log2(n)));
+    const totalRoundsOf = (n: number) => Math.ceil(Math.log2(n));
+
+    const generateFixed = (n: number) => {
+      let id = 0;
+      return generateBracketFixtures(teamsOf(n), 'champ-1', {
+        shuffle: false,
+        makeId: () => `m-${++id}`,
+      });
+    };
+
+    const assignedTeamIds = (matches: MatchModel[]) =>
+      matches.flatMap((m) => [m.homeTeamId, m.awayTeamId]).filter(Boolean);
+
+    const assertNoOrphanNextMatch = (matches: MatchModel[]) => {
+      const ids = new Set(matches.map((m) => m.id));
+      for (const match of matches) {
+        if (match.nextMatchId) {
+          expect(ids.has(match.nextMatchId)).toBe(true);
+        }
+      }
+    };
+
+    const assertPendingEmptyMatchesAreStructural = (matches: MatchModel[]) => {
+      const incomingCount = new Map<string, number>();
+      for (const match of matches) {
+        if (match.nextMatchId) {
+          incomingCount.set(match.nextMatchId, (incomingCount.get(match.nextMatchId) ?? 0) + 1);
+        }
+      }
+
+      for (const match of matches) {
+        const hasHome = match.homeTeamId.length > 0;
+        const hasAway = match.awayTeamId.length > 0;
+
+        if (!hasHome || !hasAway) {
+          expect(match.status).toBe('agendado');
+          expect(incomingCount.get(match.id)).toBeGreaterThanOrEqual(1);
+        }
+      }
+    };
+
+    const simulateTournament = (matches: MatchModel[], n: number) => {
+      const working = matches.map((m) => ({ ...m }));
+      const active = new Set(assignedTeamIds(working));
+      const eliminated = new Set<string>();
+      let championId: string | null = null;
+      let finalEntrants: string[] = [];
+
+      expect(active.size).toBe(n);
+
+      while (!championId) {
+        const playable = working.find(
+          (m) => m.status !== 'finalizado' && m.homeTeamId && m.awayTeamId,
+        );
+        expect(playable).toBeDefined();
+        if (!playable) break;
+
+        expect(active.has(playable.homeTeamId)).toBe(true);
+        expect(active.has(playable.awayTeamId)).toBe(true);
+
+        if (!playable.nextMatchId) {
+          finalEntrants = [playable.homeTeamId, playable.awayTeamId];
+        }
+
+        const winnerId = playable.homeTeamId;
+        const loserId = playable.awayTeamId;
+        playable.status = 'finalizado';
+        playable.homeScore = 1;
+        playable.awayScore = 0;
+        playable.winnerId = winnerId;
+        eliminated.add(loserId);
+        active.delete(loserId);
+
+        const result = processKnockoutResult(working, playable, winnerId);
+        if (result.isFinal) {
+          championId = winnerId;
+        } else {
+          expect(result.updatedNextMatch).not.toBeNull();
+        }
+      }
+
+      expect(finalEntrants).toHaveLength(2);
+      expect(new Set(finalEntrants).size).toBe(2);
+      expect(championId).toBeTruthy();
+      expect(active.size).toBe(1);
+      expect(active.has(championId!)).toBe(true);
+      expect(eliminated.size).toBe(n - 1);
+      expect(working.every((m) => m.status === 'finalizado')).toBe(true);
+    };
+
     it('retorna lista vazia para 0 times', () => {
       expect(generateBracketFixtures([], 'champ-1')).toHaveLength(0);
     });
@@ -100,41 +194,107 @@ describe('roundRobin', () => {
     });
 
     it('gera 1 partida (final) para 2 times', () => {
-      const matches = generateBracketFixtures([makeTeam('t1'), makeTeam('t2')], 'champ-1');
+      const matches = generateFixed(2);
       expect(matches).toHaveLength(1);
       expect(matches[0].bracketRound).toBe('final');
     });
 
     it('gera 3 partidas para 4 times (2 semis + 1 final)', () => {
-      const matches = generateBracketFixtures(
-        [makeTeam('t1'), makeTeam('t2'), makeTeam('t3'), makeTeam('t4')],
-        'champ-1',
-      );
+      const matches = generateFixed(4);
       expect(matches).toHaveLength(3);
     });
 
     it('final nao tem nextMatchId', () => {
-      const matches = generateBracketFixtures(
-        [makeTeam('t1'), makeTeam('t2'), makeTeam('t3'), makeTeam('t4')],
-        'champ-1',
-      );
+      const matches = generateFixed(4);
       const final = matches.find((m) => m.bracketRound === 'final');
       expect(final).toBeDefined();
       expect(final?.nextMatchId).toBeNull();
     });
 
-    it('partidas de rodadas anteriores apontam para proxima', () => {
-      const matches = generateBracketFixtures(
-        [makeTeam('t1'), makeTeam('t2'), makeTeam('t3'), makeTeam('t4')],
-        'champ-1',
-      );
+    it('partidas de rodadas anteriores apontam para proxima partida existente', () => {
+      const matches = generateFixed(4);
       const semis = matches.filter((m) => m.bracketRound === 'semi');
       for (const semi of semis) {
         expect(semi.nextMatchId).not.toBeNull();
       }
+      assertNoOrphanNextMatch(matches);
+    });
+
+    describe('byes estruturais fora de potencia de 2', () => {
+      for (const n of [2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16]) {
+        const bracketSize = bracketSizeOf(n);
+        const byes = bracketSize - n;
+        const totalRounds = totalRoundsOf(n);
+
+        it(`${n} times: bracket ${bracketSize}, ${byes} byes, ${n - 1} partidas competitivas`, () => {
+          const matches = generateFixed(n);
+          const rounds = new Set(matches.map((m) => m.round));
+          const entries = assignedTeamIds(matches);
+
+          expect(matches).toHaveLength(n - 1);
+          expect(Math.max(...matches.map((m) => m.round))).toBe(totalRounds);
+          expect(rounds.size).toBe(totalRounds);
+          expect(entries).toHaveLength(n);
+          expect(new Set(entries).size).toBe(n);
+          expect(matches.filter((m) => m.round === 1)).toHaveLength(n - bracketSize / 2);
+          expect(matches.filter((m) => m.nextMatchId == null)).toHaveLength(1);
+          expect(matches.find((m) => m.nextMatchId == null)?.bracketRound).toBe('final');
+          expect(matches.filter((m) => m.round === 1).every((m) => m.homeTeamId && m.awayTeamId)).toBe(true);
+          assertPendingEmptyMatchesAreStructural(matches);
+          assertNoOrphanNextMatch(matches);
+          simulateTournament(matches, n);
+        });
+      }
+
+      it('3 times: um time recebe bye e entra direto na final', () => {
+        const matches = generateFixed(3);
+        const round1 = matches.filter((m) => m.round === 1);
+        const final = matches.find((m) => m.bracketRound === 'final')!;
+
+        expect(round1).toHaveLength(1);
+        expect(final.homeTeamId || final.awayTeamId).toBeTruthy();
+        expect([final.homeTeamId, final.awayTeamId].filter(Boolean)).toHaveLength(1);
+      });
+
+      it('5 times: tres byes, uma partida inicial e duas semis', () => {
+        const matches = generateFixed(5);
+        expect(matches.filter((m) => m.round === 1)).toHaveLength(1);
+        expect(matches.filter((m) => m.round === 2)).toHaveLength(2);
+        expect(matches.filter((m) => m.round === 3)).toHaveLength(1);
+      });
+
+      it('6 times: dois byes, duas partidas iniciais e quatro times na rodada seguinte', () => {
+        const matches = generateFixed(6);
+        const round1 = matches.filter((m) => m.round === 1);
+        const round2 = matches.filter((m) => m.round === 2);
+        const seededRound2Teams = assignedTeamIds(round2);
+
+        expect(round1).toHaveLength(2);
+        expect(round2).toHaveLength(2);
+        expect(seededRound2Teams).toHaveLength(2);
+      });
+
+      it('7 times: um bye, tres partidas iniciais e quatro times na rodada seguinte', () => {
+        const matches = generateFixed(7);
+        const round1 = matches.filter((m) => m.round === 1);
+        const round2 = matches.filter((m) => m.round === 2);
+
+        expect(round1).toHaveLength(3);
+        expect(round2).toHaveLength(2);
+        expect(assignedTeamIds(round2)).toHaveLength(1);
+      });
+
+      it('9 times: sete byes, uma partida inicial e oito times seguem na chave', () => {
+        const matches = generateFixed(9);
+        const round1 = matches.filter((m) => m.round === 1);
+        const round2 = matches.filter((m) => m.round === 2);
+
+        expect(round1).toHaveLength(1);
+        expect(round2).toHaveLength(4);
+        expect(assignedTeamIds(round2)).toHaveLength(7);
+      });
     });
   });
-
   describe('processKnockoutResult', () => {
     it('identifica partida final quando nao ha nextMatchId', () => {
       const final: MatchModel = {

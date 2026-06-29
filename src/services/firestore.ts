@@ -16,7 +16,7 @@ import {
   WhereFilterOp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 import {
   addMockDocument,
   deleteMockDocument,
@@ -43,7 +43,7 @@ export async function setDocument<T extends object>(
   docId: string,
   data: T
 ): Promise<string> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return setMockDocument(collectionName, docId, data);
   }
   await setDoc(doc(db, collectionName, docId), {
@@ -62,7 +62,7 @@ export async function upsertDocument<T extends object>(
   docId: string,
   data: T
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     setMockDocument(collectionName, docId, data);
     return;
   }
@@ -73,7 +73,7 @@ export async function addDocument<T extends object>(
   collectionName: string,
   data: T
 ): Promise<string> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return addMockDocument(collectionName, data);
   }
   const ref = await addDoc(collection(db, collectionName), {
@@ -88,7 +88,7 @@ export async function updateDocument(
   docId: string,
   data: Partial<Record<string, unknown>>
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     updateMockDocument(collectionName, docId, data);
     return;
   }
@@ -99,7 +99,7 @@ export async function deleteDocument(
   collectionName: string,
   docId: string
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     deleteMockDocument(collectionName, docId);
     return;
   }
@@ -110,7 +110,7 @@ export async function getDocument<T>(
   collectionName: string,
   docId: string
 ): Promise<T | null> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return getMockDocument<T>(collectionName, docId);
   }
   const snap = await getDoc(doc(db, collectionName, docId));
@@ -122,7 +122,7 @@ export async function getCollection<T>(
   collectionName: string,
   filters?: FirestoreFilter[]
 ): Promise<T[]> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return listMockDocuments<T>(collectionName, filters ?? []);
   }
   const constraints: QueryConstraint[] = (filters ?? []).map((f) =>
@@ -140,7 +140,7 @@ export function subscribeToCollection<T>(
   onError?: (error: Error) => void,
   limitCount?: number,
 ): () => void {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return subscribeToMockCollection<T>(
       collectionName,
       filters ?? [],
@@ -176,7 +176,7 @@ export function subscribeToDocument<T>(
   callback: (data: T | null) => void,
   onError?: (error: Error) => void,
 ): () => void {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return subscribeToMockDocument<T>(collectionName, docId, callback);
   }
   return onSnapshot(

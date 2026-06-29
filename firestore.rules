@@ -21,6 +21,30 @@ service cloud.firestore {
       return userRole() == 'organizador';
     }
 
+    function teamMembershipId(teamId, userId) {
+      return teamId + '_' + userId;
+    }
+
+    function isOrganizerAllowlisted(userId) {
+      return exists(/databases/$(database)/documents/organizer_allowlist/$(userId)) &&
+        get(/databases/$(database)/documents/organizer_allowlist/$(userId)).data.enabled == true &&
+        get(/databases/$(database)/documents/organizer_allowlist/$(userId)).data.uid == userId;
+    }
+
+    function isActiveMembershipStatus(status) {
+      return !(status in ['sem_time', 'removido']);
+    }
+
+    function isActiveTeamMember(teamId, userId) {
+      let membership = get(
+        /databases/$(database)/documents/team_memberships/$(teamMembershipId(teamId, userId))
+      ).data;
+      return membership != null &&
+        membership.teamId == teamId &&
+        membership.userId == userId &&
+        isActiveMembershipStatus(membership.status);
+    }
+
     function isChampionshipOrganizer(champId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/championships/$(champId)).data.organizerId == uid();
@@ -38,38 +62,204 @@ service cloud.firestore {
       // deixam de ficar expostos a terceiros. Tokens de push NÃO vivem mais aqui —
       // ficam em /push_tokens (lido pelo dono ou por um organizador para fan-out).
       allow read: if isSignedIn() && uid() == userId;
-      // Each user may write their own doc; organizer can update any
-      allow write: if isSignedIn() && (uid() == userId || isOrganizer());
+      function selfUserKeysAreSafe() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'email',
+          'photoUrl',
+          'role',
+          'teamId',
+          'championshipId'
+        ]);
+      }
+
+      function roleIsAllowedForSelf() {
+        return !('role' in request.resource.data) ||
+          request.resource.data.role in ['atleta', 'capitao'] ||
+          (request.resource.data.role == 'organizador' && isOrganizerAllowlisted(userId));
+      }
+
+      allow create: if isSignedIn() &&
+        uid() == userId &&
+        roleIsAllowedForSelf();
+      allow update: if isSignedIn() && (
+        (
+          uid() == userId &&
+          selfUserKeysAreSafe() &&
+          roleIsAllowedForSelf()
+        ) ||
+        isOrganizer()
+      );
+      allow delete: if isSignedIn() && isOrganizer();
+    }
+
+    match /organizer_allowlist/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || isOrganizer());
+      allow create, update: if isSignedIn() &&
+        isOrganizer() &&
+        request.resource.data.uid == userId;
+      allow delete: if isSignedIn() && isOrganizer();
     }
 
     // ── /championships ───────────────────────────────────────────────────────
 
     match /championships/{champId} {
+      function captainTeamRegistrationCounterUpdateIsSafe() {
+        let teamId = request.resource.data.lastTeamRegistrationId;
+        let teamPath = /databases/$(database)/documents/teams/$(teamId);
+        let invitePath = /databases/$(database)/documents/team_invites/$(teamId);
+        let maxTeams = resource.data.maxTeams == null ? 100000 : resource.data.maxTeams;
+        return teamId is string &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'registeredTeamsCount',
+            'lastTeamRegistrationId'
+          ]) &&
+          request.resource.data.registeredTeamsCount is int &&
+          request.resource.data.registeredTeamsCount > 0 &&
+          request.resource.data.registeredTeamsCount <= maxTeams &&
+          (
+            (
+              resource.data.registeredTeamsCount is int &&
+              request.resource.data.registeredTeamsCount == resource.data.registeredTeamsCount + 1
+            ) ||
+            !(resource.data.registeredTeamsCount is int)
+          ) &&
+          existsAfter(teamPath) &&
+          getAfter(teamPath).data.championshipId == champId &&
+          getAfter(teamPath).data.captainId == uid() &&
+          getAfter(teamPath).data.status != 'rejeitado' &&
+          existsAfter(invitePath) &&
+          getAfter(invitePath).data.teamId == teamId &&
+          getAfter(invitePath).data.championshipId == champId &&
+          getAfter(invitePath).data.createdBy == uid();
+      }
+
       allow read: if isSignedIn();
       // Only an organizer can create their own championship
       allow create: if isSignedIn() && isOrganizer() &&
         request.resource.data.organizerId == uid();
       // Only the owning organizer can update/delete it
-      allow update: if isSignedIn() && resource.data.organizerId == uid();
+      allow update: if isSignedIn() && (
+        resource.data.organizerId == uid() ||
+        captainTeamRegistrationCounterUpdateIsSafe()
+      );
       allow delete: if isSignedIn() && resource.data.organizerId == uid();
     }
 
     // ── /teams ───────────────────────────────────────────────────────────────
 
     match /teams/{teamId} {
+      function championshipAcceptsTeamCreate() {
+        let champ = get(/databases/$(database)/documents/championships/$(request.resource.data.championshipId)).data;
+        return champ != null &&
+          champ.status == 'inscricoes_abertas' &&
+          (champ.registrationsClosed == null || champ.registrationsClosed == false) &&
+          (
+            request.resource.data.status == 'pendente' ||
+            (champ.rules.manualApproval == false && request.resource.data.status == 'aprovado')
+          );
+      }
+
+      function captainTeamUpdateIsSafe() {
+        return request.resource.data.championshipId == resource.data.championshipId &&
+          request.resource.data.captainId == resource.data.captainId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name',
+            'primaryColor',
+            'secondaryColor',
+            'logoUrl',
+            'logoPreset',
+            'inviteCode',
+            'inviteLink',
+            'registrationOpen',
+            'maxPlayers',
+            'pendingRequests',
+            'approvedPlayersCount'
+          ]);
+      }
+
+      function ownActiveMembershipCreatedAfter() {
+        let membershipPath =
+          /databases/$(database)/documents/team_memberships/$(teamMembershipId(teamId, uid()));
+        return !exists(membershipPath) &&
+          existsAfter(membershipPath) &&
+          getAfter(membershipPath).data.teamId == teamId &&
+          getAfter(membershipPath).data.userId == uid() &&
+          isActiveMembershipStatus(getAfter(membershipPath).data.status);
+      }
+
+      function athleteJoinCounterUpdateIsSafe() {
+        let maxPlayers = resource.data.maxPlayers == null ? 15 : resource.data.maxPlayers;
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'approvedPlayersCount'
+          ]) &&
+          request.resource.data.approvedPlayersCount is int &&
+          request.resource.data.approvedPlayersCount > 0 &&
+          request.resource.data.approvedPlayersCount <= maxPlayers &&
+          (
+            (
+              resource.data.approvedPlayersCount is int &&
+              request.resource.data.approvedPlayersCount == resource.data.approvedPlayersCount + 1
+            ) ||
+            !(resource.data.approvedPlayersCount is int)
+          ) &&
+          ownActiveMembershipCreatedAfter();
+      }
+
+      function ownActiveMembershipMarkedInactiveAfter() {
+        let membershipPath =
+          /databases/$(database)/documents/team_memberships/$(teamMembershipId(teamId, uid()));
+        return exists(membershipPath) &&
+          existsAfter(membershipPath) &&
+          getAfter(membershipPath).data.teamId == teamId &&
+          getAfter(membershipPath).data.userId == uid() &&
+          getAfter(membershipPath).data.status == 'sem_time';
+      }
+
+      function athleteLeaveCounterUpdateIsSafe() {
+        let maxPlayers = resource.data.maxPlayers == null ? 15 : resource.data.maxPlayers;
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'approvedPlayersCount'
+          ]) &&
+          request.resource.data.approvedPlayersCount is int &&
+          request.resource.data.approvedPlayersCount >= 0 &&
+          request.resource.data.approvedPlayersCount <= maxPlayers &&
+          (
+            (
+              resource.data.approvedPlayersCount is int &&
+              (
+                (
+                  resource.data.approvedPlayersCount > 0 &&
+                  request.resource.data.approvedPlayersCount == resource.data.approvedPlayersCount - 1
+                ) ||
+                (
+                  resource.data.approvedPlayersCount == 0 &&
+                  request.resource.data.approvedPlayersCount == 0
+                )
+              )
+            ) ||
+            !(resource.data.approvedPlayersCount is int)
+          ) &&
+          ownActiveMembershipMarkedInactiveAfter();
+      }
+
       allow read: if isSignedIn();
       // Team creation: any signed-in user (becomes captain)
       allow create: if isSignedIn() &&
-        request.resource.data.captainId == uid();
+        request.resource.data.captainId == uid() &&
+        championshipAcceptsTeamCreate();
       // Updates/deletes: captain or organizer of the championship
       allow update: if isSignedIn() && (
-        resource.data.captainId == uid() ||
+        (
+          resource.data.captainId == uid() &&
+          captainTeamUpdateIsSafe()
+        ) ||
+        athleteJoinCounterUpdateIsSafe() ||
+        athleteLeaveCounterUpdateIsSafe() ||
         isChampionshipOrganizer(resource.data.championshipId)
       );
-      allow delete: if isSignedIn() && (
-        resource.data.captainId == uid() ||
-        isChampionshipOrganizer(resource.data.championshipId)
-      );
+      allow delete: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId);
     }
 
     // ── /players ─────────────────────────────────────────────────────────────
@@ -147,7 +337,39 @@ service cloud.firestore {
       // Helper: atleta não pode mudar teamId ou championshipId
       function isNotChangingTeamOrChampionship() {
         return request.resource.data.teamId == resource.data.teamId &&
-          request.resource.data.championshipId == resource.data.championshipId;
+          request.resource.data.championshipId == resource.data.championshipId &&
+          request.resource.data.userId == resource.data.userId;
+      }
+
+      function selfPlayerUpdateIsSafe() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'photoUrl',
+          'position',
+          'number',
+          'status',
+          'leftAt'
+        ]) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) ||
+          request.resource.data.status == 'sem_time'
+        );
+      }
+
+      function captainPlayerUpdateIsSafe() {
+        return request.resource.data.teamId == resource.data.teamId &&
+          request.resource.data.championshipId == resource.data.championshipId &&
+          request.resource.data.userId == resource.data.userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name',
+            'photoUrl',
+            'position',
+            'number',
+            'status',
+            'leftAt',
+            'suspendedRound',
+            'yellowCards'
+          ]);
       }
 
       // Update: atleta próprio (restrito), capitão ou organizador (completo)
@@ -156,15 +378,91 @@ service cloud.firestore {
         (
           resource.data.userId == uid() &&
           isNotSelfApproval() &&
-          isNotChangingTeamOrChampionship()
+          isNotChangingTeamOrChampionship() &&
+          selfPlayerUpdateIsSafe()
         ) ||
-        // Capitão ou organizador: acesso completo
-        isPrivilegedForPlayer()
+        (
+          isTeamCaptain(resource.data.teamId) &&
+          captainPlayerUpdateIsSafe()
+        ) ||
+        isChampionshipOrganizer(resource.data.championshipId)
       );
 
-      // Delete: atleta próprio, capitão ou organizador
+      // Delete: apenas capitão ou organizador. Atleta sai do elenco por status='sem_time'.
       allow delete: if isSignedIn() && (
+        isTeamCaptain(resource.data.teamId) ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+    }
+
+    // Deterministic team membership index used by Security Rules. Firestore Rules
+    // cannot query /players, so team-scoped reads must use this direct lookup.
+    match /team_memberships/{membershipId} {
+      function membershipIdMatches(data) {
+        return membershipId == teamMembershipId(data.teamId, data.userId);
+      }
+
+      function hasMatchingPlayer(data) {
+        let player = getAfter(/databases/$(database)/documents/players/$(data.playerId)).data;
+        return player != null &&
+          player.userId == data.userId &&
+          player.teamId == data.teamId &&
+          player.championshipId == data.championshipId &&
+          isActiveMembershipStatus(player.status);
+      }
+
+      function membershipCreateIsSafe() {
+        return request.resource.data.keys().hasAll([
+          'teamId',
+          'championshipId',
+          'userId',
+          'playerId',
+          'status'
+        ]) &&
+        membershipIdMatches(request.resource.data) &&
+        (
+          (
+            request.resource.data.userId == uid() &&
+            hasMatchingPlayer(request.resource.data)
+          ) ||
+          isTeamCaptain(request.resource.data.teamId) ||
+          isChampionshipOrganizer(request.resource.data.championshipId)
+        );
+      }
+
+      function selfMembershipUpdateIsSafe() {
+        return resource.data.userId == uid() &&
+          request.resource.data.teamId == resource.data.teamId &&
+          request.resource.data.championshipId == resource.data.championshipId &&
+          request.resource.data.userId == resource.data.userId &&
+          request.resource.data.playerId == resource.data.playerId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status',
+            'leftAt',
+            'updatedAt'
+          ]) &&
+          request.resource.data.status == 'sem_time';
+      }
+
+      function privilegedMembershipUpdateIsSafe() {
+        return membershipIdMatches(request.resource.data) &&
+          (
+            isTeamCaptain(resource.data.teamId) ||
+            isChampionshipOrganizer(resource.data.championshipId)
+          );
+      }
+
+      allow read: if isSignedIn() && (
         resource.data.userId == uid() ||
+        isTeamCaptain(resource.data.teamId) ||
+        isChampionshipOrganizer(resource.data.championshipId)
+      );
+      allow create: if isSignedIn() && membershipCreateIsSafe();
+      allow update: if isSignedIn() && (
+        selfMembershipUpdateIsSafe() ||
+        privilegedMembershipUpdateIsSafe()
+      );
+      allow delete: if isSignedIn() && (
         isTeamCaptain(resource.data.teamId) ||
         isChampionshipOrganizer(resource.data.championshipId)
       );
@@ -186,12 +484,70 @@ service cloud.firestore {
     // ── /match_events ─────────────────────────────────────────────────────────
 
     match /match_events/{eventId} {
+      function matchIsStillEditable(matchId) {
+        return get(/databases/$(database)/documents/matches/$(matchId)).data.status != 'finalizado';
+      }
+
+      function finalizedEventCorrectionIsSafe(data) {
+        let correctionId = data.lastCorrectionId;
+        let correctionPath = /databases/$(database)/documents/match_corrections/$(correctionId);
+        return correctionId is string &&
+          existsAfter(correctionPath) &&
+          getAfter(correctionPath).data.matchId == data.matchId &&
+          getAfter(correctionPath).data.championshipId == data.championshipId &&
+          getAfter(correctionPath).data.organizerId == uid() &&
+          getAfter(correctionPath).data.reason is string &&
+          getAfter(correctionPath).data.reason.size() >= 5 &&
+          get(/databases/$(database)/documents/matches/$(data.matchId)).data.status == 'finalizado';
+      }
+
       allow read: if isSignedIn();
       // Events are created/edited by the championship organizer (match registration)
       allow create: if isSignedIn() &&
-        isChampionshipOrganizer(request.resource.data.championshipId);
-      allow update, delete: if isSignedIn() &&
-        isChampionshipOrganizer(resource.data.championshipId);
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        (
+          matchIsStillEditable(request.resource.data.matchId) ||
+          finalizedEventCorrectionIsSafe(request.resource.data)
+        );
+      allow update: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId) &&
+        (
+          matchIsStillEditable(resource.data.matchId) ||
+          finalizedEventCorrectionIsSafe(request.resource.data)
+        );
+      allow delete: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId) &&
+        matchIsStillEditable(resource.data.matchId);
+    }
+
+    // ── /match_corrections ───────────────────────────────────────────────────
+
+    match /match_corrections/{correctionId} {
+      function correctionHasRequiredFields() {
+        let d = request.resource.data;
+        return d.championshipId is string &&
+          d.matchId is string &&
+          d.organizerId == uid() &&
+          d.reason is string &&
+          d.reason.size() >= 5 &&
+          d.previousScore is map &&
+          d.newScore is map &&
+          d.previousMatchVersion is int &&
+          d.newMatchVersion is int &&
+          d.newMatchVersion == d.previousMatchVersion + 1 &&
+          d.eventsAdded is list &&
+          d.eventsRemoved is list &&
+          d.eventsChanged is list &&
+          d.derivedEffects is list &&
+          d.previousMatch is map;
+      }
+
+      allow read: if isSignedIn() && isChampionshipOrganizer(resource.data.championshipId);
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        correctionHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/match_corrections/$(correctionId));
+      allow update, delete: if false;
     }
 
     // ── /join_requests ────────────────────────────────────────────────────────
@@ -219,8 +575,19 @@ service cloud.firestore {
     // ── /team_invites ─────────────────────────────────────────────────────────
 
     match /team_invites/{inviteId} {
+      function captainCreatesOwnInviteAfterTeam() {
+        let teamPath = /databases/$(database)/documents/teams/$(request.resource.data.teamId);
+        return inviteId == request.resource.data.teamId &&
+          existsAfter(teamPath) &&
+          getAfter(teamPath).data.captainId == uid() &&
+          getAfter(teamPath).data.championshipId == request.resource.data.championshipId;
+      }
+
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isTeamCaptain(request.resource.data.teamId);
+      allow create: if isSignedIn() && (
+        isTeamCaptain(request.resource.data.teamId) ||
+        captainCreatesOwnInviteAfterTeam()
+      );
       // Captain manages the invite freely; an athlete may ONLY consume it, i.e.
       // flip it to 'used' attributing it to themselves (no other fields touched).
       allow update: if isSignedIn() && (
@@ -336,15 +703,41 @@ service cloud.firestore {
     // ── /announcements ────────────────────────────────────────────────────────
 
     match /announcements/{announcementId} {
-      allow read: if isSignedIn();
+      function canReadAnnouncement(data) {
+        return data.targetAudience == 'todos' ||
+          isChampionshipOrganizer(data.championshipId) ||
+          (data.targetAudience == 'capitaes' && userRole() == 'capitao') ||
+          (data.targetAudience == 'atletas' && userRole() == 'atleta') ||
+          (
+            data.targetAudience == 'time_especifico' &&
+            (
+              isActiveTeamMember(data.targetTeamId, uid()) ||
+              isTeamCaptain(data.targetTeamId)
+            )
+          );
+      }
+
+      function captainAnnouncementCreateIsSafe() {
+        return userRole() == 'capitao' &&
+          request.resource.data.authorId == uid() &&
+          request.resource.data.targetAudience == 'time_especifico' &&
+          request.resource.data.targetTeamId is string &&
+          isTeamCaptain(request.resource.data.targetTeamId) &&
+          get(/databases/$(database)/documents/teams/$(request.resource.data.targetTeamId)).data.championshipId ==
+            request.resource.data.championshipId;
+      }
+
+      allow read: if isSignedIn() && canReadAnnouncement(resource.data);
       // Organizer of the championship, or a real captain posting as themselves.
       // authorRole is NOT trusted from the payload — the role is read from /users.
       allow create: if isSignedIn() && (
         isChampionshipOrganizer(request.resource.data.championshipId) ||
-        (userRole() == 'capitao' && request.resource.data.authorId == uid())
+        captainAnnouncementCreateIsSafe()
       );
       allow update: if isSignedIn() &&
-        resource.data.authorId == uid();
+        canReadAnnouncement(resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+        uid() in request.resource.data.readBy;
       allow delete: if isSignedIn() && (
         resource.data.authorId == uid() ||
         isChampionshipOrganizer(resource.data.championshipId)
@@ -362,12 +755,11 @@ service cloud.firestore {
 
     match /players/{playerId}/achievements/{achievementId} {
       allow read: if isSignedIn();
-      // Granted by the organizer (match registration / finisher) or by the user
-      // who owns the player document.
-      allow write: if isSignedIn() && (
-        isOrganizer() ||
-        get(/databases/$(database)/documents/players/$(playerId)).data.userId == uid()
-      );
+      // Granted only by an organizer. Athletes cannot self-award achievements.
+      allow write: if isSignedIn() &&
+        isChampionshipOrganizer(
+          get(/databases/$(database)/documents/players/$(playerId)).data.championshipId
+        );
     }
 
     // ── Convocations (subcollection of teams) ────────────────────────────────

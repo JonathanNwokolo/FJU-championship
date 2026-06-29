@@ -9,7 +9,7 @@ import { auth } from './firebase';
 import { setDocument, getDocument, updateDocument } from './firestore';
 import { removeTokenFromFirestore } from './notificationService';
 import { AppUser, UserRole } from '../types';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 import { getMockActiveUser, setMockDocument, updateMockDocument } from '../mocks/mockDb';
 import { seedMockStores } from '../mocks/seedMockState';
 
@@ -21,12 +21,18 @@ interface FirestoreUser {
   photoUrl?: string;
 }
 
+interface OrganizerAllowlistEntry {
+  id: string;
+  uid: string;
+  enabled: boolean;
+}
+
 export async function signUp(
   email: string,
   password: string,
   name: string
 ): Promise<AppUser> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     const user: AppUser = {
       id: `mock-user-${Date.now()}`,
       name,
@@ -52,7 +58,7 @@ export async function signIn(
   email: string,
   password: string
 ): Promise<{ user: AppUser; isOnboarded: boolean }> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     seedMockStores();
     const user = getMockActiveUser();
     return { user: { ...user, email: user.email ?? email }, isOnboarded: true };
@@ -72,7 +78,7 @@ export async function signIn(
 }
 
 export async function signOut(): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return;
   }
 
@@ -84,17 +90,28 @@ export async function signOut(): Promise<void> {
 }
 
 export async function saveRole(uid: string, role: UserRole): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     updateMockDocument('users', uid, { role });
     return;
   }
+  if (role === 'organizador' && !(await isOrganizerAllowlisted(uid))) {
+    throw new Error('Atribuicao de organizador bloqueada. Solicite liberacao administrativa.');
+  }
   await updateDocument('users', uid, { role });
+}
+
+export async function isOrganizerAllowlisted(uid: string): Promise<boolean> {
+  if (USE_MOCK) {
+    return true;
+  }
+  const entry = await getDocument<OrganizerAllowlistEntry>('organizer_allowlist', uid);
+  return entry?.enabled === true && entry.uid === uid;
 }
 
 export function listenToAuthChanges(
   callback: (result: { user: AppUser; isOnboarded: boolean } | null) => void
 ): () => void {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     seedMockStores();
     callback({ user: getMockActiveUser(), isOnboarded: true });
     return () => {};

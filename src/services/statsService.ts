@@ -9,6 +9,7 @@ import {
   PlayerDisciplineRanking,
   SuspendedPlayer,
 } from '../types';
+import { activeMatchEvents } from '../utils/matchRules';
 
 // ─── Standings ────────────────────────────────────────────────────────────────
 
@@ -21,17 +22,74 @@ function goalsForTeamInMatch(m: MatchModel, teamId: string): number {
   return 0;
 }
 
+// P-13: ordena um grupo de times empatados em PONTOS, aplicando os critérios de
+// desempate na ordem configurada. O `confronto_direto` é resolvido por uma
+// MINI-TABELA calculada só com as partidas ENTRE os membros do grupo (pontos →
+// saldo → gols pró no recorte) — o correto quando 3+ times empatam. A comparação
+// par-a-par anterior podia produzir ordem inconsistente (A>B, B>C, C>A).
+function sortTiedGroup(
+  group: TeamStanding[],
+  finishedMatches: MatchModel[],
+  rules: ChampionshipRules,
+): TeamStanding[] {
+  const groupIds = new Set(group.map((g) => g.teamId));
+  const h2h: Record<string, { points: number; gd: number; gf: number }> = {};
+  for (const g of group) h2h[g.teamId] = { points: 0, gd: 0, gf: 0 };
+
+  for (const m of finishedMatches) {
+    if (!groupIds.has(m.homeTeamId) || !groupIds.has(m.awayTeamId)) continue;
+    const hg = goalsForTeamInMatch(m, m.homeTeamId);
+    const ag = goalsForTeamInMatch(m, m.awayTeamId);
+    const home = h2h[m.homeTeamId];
+    const away = h2h[m.awayTeamId];
+    home.gf += hg;
+    away.gf += ag;
+    home.gd += hg - ag;
+    away.gd += ag - hg;
+    if (hg > ag) home.points += rules.pointsWin;
+    else if (hg < ag) away.points += rules.pointsWin;
+    else {
+      home.points += rules.pointsDraw;
+      away.points += rules.pointsDraw;
+    }
+  }
+
+  return [...group].sort((a, b) => {
+    for (const tb of rules.tiebreakers) {
+      if (tb === 'saldo_gols' && b.goalDifference !== a.goalDifference)
+        return b.goalDifference - a.goalDifference;
+
+      if (tb === 'gols_pro' && b.goalsFor !== a.goalsFor)
+        return b.goalsFor - a.goalsFor;
+
+      if (tb === 'confronto_direto') {
+        const ha = h2h[a.teamId];
+        const hb = h2h[b.teamId];
+        if (hb.points !== ha.points) return hb.points - ha.points;
+        if (hb.gd !== ha.gd) return hb.gd - ha.gd;
+        if (hb.gf !== ha.gf) return hb.gf - ha.gf;
+      }
+
+      if (tb === 'fair_play' && a.fairPlayScore !== b.fairPlayScore)
+        return a.fairPlayScore - b.fairPlayScore;
+    }
+    return 0;
+  });
+}
+
 export function calculateStandings(
   matches: MatchModel[],
   events: MatchEvent[],
   teams: Team[],
   rules: ChampionshipRules,
 ): TeamStanding[] {
+  const activeEvents = activeMatchEvents(events);
+  const approvedTeams = teams.filter((team) => team.status == null || team.status === 'aprovado');
   const finishedMatches = matches.filter((m) => m.status === 'finalizado');
   const finishedMatchIds = new Set(finishedMatches.map((m) => m.id));
 
   const map: Record<string, TeamStanding> = {};
-  for (const t of teams) {
+  for (const t of approvedTeams) {
     map[t.id] = {
       teamId: t.id,
       teamName: t.name,
@@ -83,7 +141,7 @@ export function calculateStandings(
     }
   }
 
-  for (const e of events) {
+  for (const e of activeEvents) {
     if (!finishedMatchIds.has(e.matchId)) continue;
     const s = map[e.teamId];
     if (!s) continue;
@@ -98,41 +156,25 @@ export function calculateStandings(
 
   const list = Object.values(map);
 
-  list.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
+  // Ordena por pontos e, para cada bloco de empatados, resolve o desempate em
+  // grupo (mini-tabela de confronto direto). Ver sortTiedGroup (P-13).
+  list.sort((a, b) => b.points - a.points);
 
-    for (const tb of rules.tiebreakers) {
-      if (tb === 'saldo_gols' && b.goalDifference !== a.goalDifference)
-        return b.goalDifference - a.goalDifference;
-
-      if (tb === 'gols_pro' && b.goalsFor !== a.goalsFor)
-        return b.goalsFor - a.goalsFor;
-
-      if (tb === 'confronto_direto') {
-        const h2h = finishedMatches.filter(
-          (m) =>
-            (m.homeTeamId === a.teamId && m.awayTeamId === b.teamId) ||
-            (m.homeTeamId === b.teamId && m.awayTeamId === a.teamId),
-        );
-        let ap = 0;
-        let bp = 0;
-        for (const m of h2h) {
-          const ag2 = goalsForTeamInMatch(m, a.teamId);
-          const bg2 = goalsForTeamInMatch(m, b.teamId);
-          if (ag2 > bg2) ap += rules.pointsWin;
-          else if (ag2 < bg2) bp += rules.pointsWin;
-          else { ap += rules.pointsDraw; bp += rules.pointsDraw; }
-        }
-        if (bp !== ap) return bp - ap;
-      }
-
-      if (tb === 'fair_play' && a.fairPlayScore !== b.fairPlayScore)
-        return a.fairPlayScore - b.fairPlayScore;
+  const ordered: TeamStanding[] = [];
+  let i = 0;
+  while (i < list.length) {
+    let j = i;
+    while (j < list.length && list[j].points === list[i].points) j += 1;
+    const group = list.slice(i, j);
+    if (group.length > 1) {
+      ordered.push(...sortTiedGroup(group, finishedMatches, rules));
+    } else {
+      ordered.push(...group);
     }
-    return 0;
-  });
+    i = j;
+  }
 
-  return list;
+  return ordered;
 }
 
 // ─── Top scorers ──────────────────────────────────────────────────────────────
@@ -142,6 +184,7 @@ export function calculateTopScorers(
   players: Player[],
   teams: Team[],
 ): PlayerScorer[] {
+  const activeEvents = activeMatchEvents(events);
   // AUD-04: a artilharia é dirigida pelos EVENTOS (não pela existência do player).
   // Acumula gols por playerId e guarda um snapshot de nome/time vindo do próprio
   // evento, usado como fallback quando o documento do player/team não existe mais
@@ -150,7 +193,7 @@ export function calculateTopScorers(
     string,
     { goals: number; snapName?: string; snapTeamId?: string; snapTeamName?: string }
   > = {};
-  for (const e of events) {
+  for (const e of activeEvents) {
     if (e.type !== 'gol') continue;
     const cur = goalMap[e.playerId] ?? { goals: 0 };
     cur.goals += 1;
@@ -183,6 +226,7 @@ export function calculatePlayerDisciplineRanking(
   players: Player[],
   teams: Team[],
 ): PlayerDisciplineRanking[] {
+  const activeEvents = activeMatchEvents(events);
   // AUD-04: ranking de cartões dirigido pelos EVENTOS, com snapshot de nome/time
   // como fallback quando o documento do player não existe mais (atleta removido).
   // `events` deve já vir filtrado pelo campeonato.
@@ -191,7 +235,7 @@ export function calculatePlayerDisciplineRanking(
     { yellowCards: number; redCards: number; teamId: string; snapName?: string; snapTeamName?: string }
   > = {};
 
-  for (const event of events) {
+  for (const event of activeEvents) {
     if (event.type !== 'cartao_amarelo' && event.type !== 'cartao_vermelho') continue;
 
     const current = cardMap[event.playerId] ?? {
@@ -328,8 +372,9 @@ export function getPlayerSuspensionReason(
   targetRound: number,
   yellowLimit: number,
 ): SuspensionReason | null {
+  const activeEvents = activeMatchEvents(events);
   const byId = new Map(finishedMatches.map((m) => [m.id, m]));
-  const cards = collectPlayerCards(events, byId, playerId);
+  const cards = collectPlayerCards(activeEvents, byId, playerId);
   return buildSuspensionMap(cards, yellowLimit).get(targetRound) ?? null;
 }
 
@@ -340,6 +385,7 @@ export function getSuspendedPlayers(
   teams: Team[],
   rules: ChampionshipRules,
 ): SuspendedPlayer[] {
+  const activeEvents = activeMatchEvents(events);
   const finishedMatches = matches.filter((m) => m.status === 'finalizado');
   if (!finishedMatches.length) return [];
 
@@ -351,7 +397,7 @@ export function getSuspendedPlayers(
   const result: SuspendedPlayer[] = [];
 
   for (const player of players) {
-    const cards = collectPlayerCards(events, finishedMatchById, player.id);
+    const cards = collectPlayerCards(activeEvents, finishedMatchById, player.id);
     if (cards.length === 0) continue;
 
     const reason = buildSuspensionMap(cards, limit).get(nextRound);

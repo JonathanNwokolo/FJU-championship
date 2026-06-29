@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useMatchStore } from '../stores/matchStore';
 import { calculateOverall } from '../utils/playerOverall';
 import { MatchEvent, MatchModel } from '../types';
+import { activeMatchEvents } from '../utils/matchRules';
 
 export interface MatchPerformance {
   match: MatchModel;
@@ -19,7 +20,7 @@ export function usePlayerStats(playerId: string, championshipId: string) {
     const champMatches = matches.filter((m) => m.championshipId === championshipId);
     const champMatchIds = new Set(champMatches.map((m) => m.id));
 
-    const playerEvents = events.filter(
+    const playerEvents = activeMatchEvents(events).filter(
       (e) => e.playerId === playerId && champMatchIds.has(e.matchId),
     );
 

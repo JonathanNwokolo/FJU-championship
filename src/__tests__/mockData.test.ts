@@ -30,7 +30,7 @@ import { isActiveRosterPlayer } from '../utils/teamRules';
 import { MatchModel, Player } from '../types';
 
 jest.mock('../config/appConfig', () => ({
-  USE_MOCK_DATA: true,
+  USE_MOCK: true,
   MOCK_DATA_ENABLED: true,
   MOCK_ACTIVE_USER: 'organizador',
 }));

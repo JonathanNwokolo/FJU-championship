@@ -16,7 +16,7 @@ import { getCollection, setDocument, updateDocument } from './firestore';
 import { db } from './firebase';
 import { useMatchStore } from '../stores/matchStore';
 import { useChampionshipStore } from '../stores/championshipStore';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 
 export const MIN_TEAMS_TO_START = 2;
 export const MATCHES_ALREADY_GENERATED_ERROR = 'Este campeonato já possui partidas geradas.';
@@ -81,7 +81,7 @@ export async function commitFixtures(
   const champUpdate = { status: 'em_andamento' as const, currentRound: 1, totalRounds };
 
   try {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK) {
       const current = await getCollection<MatchModel>('matches', [
         { field: 'championshipId', operator: '==', value: championship.id },
       ]);

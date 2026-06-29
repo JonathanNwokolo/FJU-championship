@@ -16,6 +16,7 @@ import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import { MatchEvent, Player, Team } from '../../types';
+import { activeMatchEvents } from '../../utils/matchRules';
 
 type RouteT = RouteProp<FixturesStackParamList, 'MatchSummary'>;
 type SummaryTab = 'eventos' | 'estatisticas';
@@ -132,7 +133,7 @@ export function MatchSummaryScreen() {
   const { teams, players } = useTeamStore();
 
   const match = matches.find((item) => item.id === matchId);
-  const matchEvents = events
+  const matchEvents = activeMatchEvents(events)
     .filter((event) => event.matchId === matchId)
     .sort((a, b) => a.minute - b.minute);
 

@@ -38,7 +38,11 @@ import {
   UserRole,
 } from '../types';
 
-const now = new Date('2026-06-10T12:00:00.000Z');
+// Âncora relativa ao tempo real: o dataset de demo descreve um campeonato "agora".
+// Usar uma data fixa fazia as deadlines (daysFromNow > 0) "vencerem" com o passar do
+// tempo real, quebrando o teste de coerência e o fluxo de inscrição da demo
+// (isChampionshipOpenForRegistration passava a rejeitar o campeonato aberto).
+const now = new Date();
 const daysFromNow = (days: number, hours = 0) =>
   new Date(now.getTime() + days * 24 * 60 * 60 * 1000 + hours * 60 * 60 * 1000).toISOString();
 

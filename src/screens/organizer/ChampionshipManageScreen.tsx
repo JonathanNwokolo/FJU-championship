@@ -189,6 +189,24 @@ export function ChampionshipManageScreen() {
       Alert.alert('Times insuficientes', `É preciso ao menos ${MIN_TEAMS_TO_START} times aprovados.`);
       return;
     }
+    // P-11: um time aprovado sem nenhum jogador ativo não pode entrar no sorteio —
+    // viraria uma linha vazia na tabela / um confronto sem elenco. champPlayers já
+    // contém só vínculos ativos (exclui sem_time/removido).
+    const emptyTeams = approvedTeams.filter(
+      (t) => !champPlayers.some((p) => p.teamId === t.id),
+    );
+    if (emptyTeams.length > 0) {
+      const names = emptyTeams.map((t) => t.name).join(', ');
+      Alert.alert(
+        'Times sem elenco',
+        `${emptyTeams.length === 1 ? 'O time' : 'Os times'} ${names} ${
+          emptyTeams.length === 1 ? 'não tem' : 'não têm'
+        } nenhum jogador. Adicione atletas (ou rejeite ${
+          emptyTeams.length === 1 ? 'o time' : 'esses times'
+        }) antes de gerar a tabela.`,
+      );
+      return;
+    }
     Alert.alert(
       'Iniciar campeonato',
       `Gerar a tabela com ${approvedTeams.length} times aprovados e iniciar o campeonato?`,
@@ -381,6 +399,15 @@ export function ChampionshipManageScreen() {
   const canStart =
     isOwner && championship.status === 'inscricoes_abertas' && approvedTeams.length >= MIN_TEAMS_TO_START;
 
+  // 6.5 — Central de pendências: o organizador vê numa olhada o que falta agir.
+  const pendingTeamsCount = champTeams.filter((t) => t.status === 'pendente').length;
+  const emptyApprovedCount = approvedTeams.filter(
+    (t) => !champPlayers.some((p) => p.teamId === t.id),
+  ).length;
+  const openMatchesCount = champMatches.filter(
+    (m) => m.status !== 'finalizado' && !!m.homeTeamId && !!m.awayTeamId,
+  ).length;
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top']} style={styles.header}>
@@ -434,6 +461,11 @@ export function ChampionshipManageScreen() {
             canStart={canStart}
             starting={starting}
             finishing={finishing}
+            pendingTeamsCount={pendingTeamsCount}
+            emptyApprovedCount={emptyApprovedCount}
+            openMatchesCount={openMatchesCount}
+            onGoToTeams={() => setActiveTab('teams')}
+            onGoToMatches={() => setActiveTab('matches')}
             onEdit={() => setActiveTab('settings')}
             onCloseRegistrations={handleCloseRegistrations}
             onStart={handleStartChampionship}
@@ -498,6 +530,11 @@ function OverviewTab({
   canStart,
   starting,
   finishing,
+  pendingTeamsCount,
+  emptyApprovedCount,
+  openMatchesCount,
+  onGoToTeams,
+  onGoToMatches,
   onEdit,
   onCloseRegistrations,
   onStart,
@@ -511,6 +548,11 @@ function OverviewTab({
   canStart: boolean;
   starting: boolean;
   finishing: boolean;
+  pendingTeamsCount: number;
+  emptyApprovedCount: number;
+  openMatchesCount: number;
+  onGoToTeams: () => void;
+  onGoToMatches: () => void;
   onEdit: () => void;
   onCloseRegistrations: () => void;
   onStart: () => void;
@@ -520,8 +562,95 @@ function OverviewTab({
     ? `Temporada ${championship.season}${championship.edition ? ` · ${championship.edition}ª edição` : ''}`
     : null;
 
+  // 6.5 — itens acionáveis ("o que falta fazer"). Só aparece com campeonato não
+  // finalizado e pelo menos uma pendência.
+  const pendingItems: {
+    key: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    tone: 'warn' | 'danger' | 'go';
+    onPress: () => void;
+  }[] = [];
+  if (isOwner && championship.status !== 'finalizado') {
+    if (pendingTeamsCount > 0) {
+      pendingItems.push({
+        key: 'pending-teams',
+        icon: 'hourglass-outline',
+        tone: 'warn',
+        label: `${pendingTeamsCount} ${pendingTeamsCount === 1 ? 'time aguardando' : 'times aguardando'} aprovação`,
+        onPress: onGoToTeams,
+      });
+    }
+    if (emptyApprovedCount > 0) {
+      pendingItems.push({
+        key: 'empty-teams',
+        icon: 'alert-circle-outline',
+        tone: 'danger',
+        label: `${emptyApprovedCount} ${emptyApprovedCount === 1 ? 'time aprovado sem elenco' : 'times aprovados sem elenco'}`,
+        onPress: onGoToTeams,
+      });
+    }
+    if (canStart && emptyApprovedCount === 0) {
+      pendingItems.push({
+        key: 'ready-start',
+        icon: 'rocket-outline',
+        tone: 'go',
+        label: 'Tudo pronto — gerar tabela e iniciar',
+        onPress: onStart,
+      });
+    }
+    if (championship.status === 'em_andamento' && openMatchesCount > 0) {
+      pendingItems.push({
+        key: 'open-matches',
+        icon: 'football-outline',
+        tone: 'warn',
+        label: `${openMatchesCount} ${openMatchesCount === 1 ? 'partida a registrar' : 'partidas a registrar'}`,
+        onPress: onGoToMatches,
+      });
+    }
+  }
+
   return (
     <View>
+      {pendingItems.length > 0 && (
+        <View style={styles.pendCard}>
+          <View style={styles.pendHeaderRow}>
+            <Ionicons name="list-circle-outline" size={18} color={colors.accent} />
+            <Text style={styles.pendHeader}>PENDÊNCIAS</Text>
+          </View>
+          {pendingItems.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={styles.pendRow}
+              activeOpacity={0.7}
+              onPress={item.onPress}
+            >
+              <View
+                style={[
+                  styles.pendIcon,
+                  item.tone === 'danger' && styles.pendIconDanger,
+                  item.tone === 'go' && styles.pendIconGo,
+                ]}
+              >
+                <Ionicons
+                  name={item.icon}
+                  size={16}
+                  color={
+                    item.tone === 'danger'
+                      ? colors.danger
+                      : item.tone === 'go'
+                        ? colors.success
+                        : colors.accent
+                  }
+                />
+              </View>
+              <Text style={styles.pendText} numberOfLines={2}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       <View style={styles.infoCard}>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Formato</Text>
@@ -1082,6 +1211,55 @@ const styles = StyleSheet.create({
   },
 
   // Overview
+  // Pendências (6.5)
+  pendCard: {
+    backgroundColor: colors.bg200,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: 14,
+    marginBottom: 16,
+  },
+  pendHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  pendHeader: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    letterSpacing: 1,
+    color: colors.accent,
+  },
+  pendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  pendIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentGlow,
+  },
+  pendIconDanger: {
+    backgroundColor: 'rgba(255,59,71,0.14)',
+  },
+  pendIconGo: {
+    backgroundColor: 'rgba(0,200,83,0.14)',
+  },
+  pendText: {
+    flex: 1,
+    fontFamily: 'Barlow-Medium',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
   infoCard: {
     backgroundColor: colors.bg200,
     borderRadius: 16,

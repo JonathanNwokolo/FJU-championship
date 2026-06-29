@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,8 +14,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { colors } from '../../theme/colors';
 import { UserRole } from '../../types';
 import { AuthBackground } from '../auth/AuthBackground';
+import { ALLOW_ORGANIZER_SELF_ASSIGN } from '../../config/appConfig';
+import { isOrganizerAllowlisted } from '../../services/auth';
 
-const roles: Array<{
+const roleOptions: Array<{
   role: UserRole;
   icon: keyof typeof FontAwesome5.glyphMap;
   color: string;
@@ -46,13 +49,40 @@ const roles: Array<{
 
 export function RoleSelectionScreen() {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [canSeeOrganizerRole, setCanSeeOrganizerRole] = useState(ALLOW_ORGANIZER_SELF_ASSIGN);
+  const user = useAuthStore((s) => s.user);
   const setRole = useAuthStore((s) => s.setRole);
 
-  const handleSelect = (role: UserRole) => {
+  useEffect(() => {
+    let mounted = true;
+    if (!user?.id || ALLOW_ORGANIZER_SELF_ASSIGN) return;
+
+    isOrganizerAllowlisted(user.id)
+      .then((allowed) => {
+        if (mounted && allowed) setCanSeeOrganizerRole(true);
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
+  const roles = roleOptions.filter(
+    (item) => item.role !== 'organizador' || canSeeOrganizerRole,
+  );
+
+  const handleSelect = async (role: UserRole) => {
     setSelectedRole(role);
-    // Optimistically sets isOnboarded = true, then saves to Firestore.
-    // AppNavigator will switch to MainTabNavigator automatically.
-    setRole(role);
+    try {
+      await setRole(role);
+    } catch (error) {
+      setSelectedRole(null);
+      Alert.alert(
+        'Perfil nao liberado',
+        error instanceof Error ? error.message : 'Nao foi possivel salvar este perfil.',
+      );
+    }
   };
 
   return (

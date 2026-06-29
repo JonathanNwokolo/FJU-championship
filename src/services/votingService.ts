@@ -1,9 +1,9 @@
 import { MatchEvent, MatchModel, Player, RoundVote, RoundAward } from '../types';
 import { useVotingStore } from '../stores/votingStore';
-import { upsertDocument, getCollection, getDocument } from './firestore';
+import { upsertDocument, setDocument, getCollection, getDocument } from './firestore';
 import { auth } from './firebase';
 import { isActiveRosterPlayer } from '../utils/teamRules';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 
 // ---------------------------------------------------------------------------
 // 1. getCandidatesForRound
@@ -83,7 +83,7 @@ export async function submitVote(
   // AUD-07: revalida TODAS as regras no service (o cliente não é confiável).
 
   // 0. Autenticação: o voto precisa ser do próprio usuário autenticado.
-  if (!USE_MOCK_DATA && (!auth.currentUser || auth.currentUser.uid !== voterId)) {
+  if (!USE_MOCK && (!auth.currentUser || auth.currentUser.uid !== voterId)) {
     throw new Error('Você precisa estar autenticado para votar.');
   }
 
@@ -185,6 +185,10 @@ export function isRoundComplete(matches: MatchModel[], round: number): boolean {
   return roundMatches.every((m) => m.status === 'finalizado');
 }
 
+export function roundAwardId(championshipId: string, round: number): string {
+  return `${championshipId}_${round}`;
+}
+
 // ---------------------------------------------------------------------------
 // closeVoting — cria RoundAward com dados completos
 // ---------------------------------------------------------------------------
@@ -193,15 +197,30 @@ export async function closeVoting(
   championshipId: string,
   round: number,
   players: Player[],
-): Promise<RoundAward | null> {
+): Promise<{ award: RoundAward; created: boolean } | null> {
+  // P-05: idempotência. Se a votação desta rodada já foi encerrada, retorna o
+  // prêmio existente SEM criar outro. Antes, o caller usava addDocument (id
+  // automático), então um duplo toque / dois dispositivos geravam RoundAwards
+  // duplicados — inflando o MVP e a contagem de craque no encerramento.
+  const existing = await getCollection<RoundAward>('round_awards', [
+    { field: 'championshipId', operator: '==', value: championshipId },
+    { field: 'round', operator: '==', value: round },
+  ]);
+  if (existing.length > 0) {
+    const deterministic = existing.find((award) => award.id === roundAwardId(championshipId, round));
+    return { award: deterministic ?? existing[0], created: false };
+  }
+
   const results = await getVoteResults(championshipId, round);
   if (results.length === 0) return null;
 
   const winner = results[0];
   const winnerPlayer = players.find((p) => p.id === winner.playerId);
 
-  return {
-    id: '',  // será preenchido pelo caller após addDocument
+  // ID determinístico champ_round: no máximo um prêmio por rodada, mesmo sob corrida.
+  const id = roundAwardId(championshipId, round);
+  const award: RoundAward = {
+    id,
     championshipId,
     round,
     winnerPlayerId: winner.playerId,
@@ -210,4 +229,8 @@ export async function closeVoting(
     totalVotes: results.reduce((sum, r) => sum + r.votes, 0),
     closedAt: new Date().toISOString(),
   };
+
+  // Escrita centralizada aqui (fonte da verdade), não mais no caller.
+  await setDocument('round_awards', id, award);
+  return { award, created: true };
 }

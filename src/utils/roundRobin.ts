@@ -85,137 +85,117 @@ function calculateBracketRounds(numTeams: number): number {
 }
 
 /**
- * Gera fixtures para formato mata-mata (eliminação direta)
+ * Ordem de chaveamento padrão (standard seeding) para um bracket de tamanho `size`
+ * (potência de 2). Retorna os "seeds" (1-indexed) na ordem linear dos slots do
+ * primeiro round, de forma que seed 1 enfrente o pior seed, etc.
+ *   size 2 → [1,2]
+ *   size 4 → [1,4,2,3]
+ *   size 8 → [1,8,4,5,2,7,3,6]
+ *
+ * AUD/P-03: quando o nº de times não é potência de 2, os seeds inexistentes
+ * (maiores que numTeams) viram BYE. Distribuir os times por esta ordem garante que
+ * cada BYE caia em um confronto separado (pareando com um time real, que avança),
+ * em vez de gerar partidas vazio×vazio e travar o bracket.
+ */
+function seedOrder(size: number): number[] {
+  let seeds = [1, 2];
+  while (seeds.length < size) {
+    const sum = seeds.length * 2 + 1;
+    const next: number[] = [];
+    for (const s of seeds) {
+      next.push(s);
+      next.push(sum - s);
+    }
+    seeds = next;
+  }
+  return seeds;
+}
+
+interface GenerateBracketFixturesOptions {
+  shuffle?: boolean;
+  makeId?: () => string;
+}
+
+type BracketEntrant = {
+  teamId: string | null;
+  sourceMatch: MatchModel | null;
+} | null;
+
+/**
+ * Gera fixtures para formato mata-mata (eliminacao direta).
+ *
+ * BYEs sao avancos estruturais: eles preenchem o slot seguinte sem criar
+ * documento de partida, sem placar artificial e sem aumentar o total N - 1.
  */
 export function generateBracketFixtures(
   teams: Team[],
   championshipId: string,
+  options: GenerateBracketFixturesOptions = {},
 ): MatchModel[] {
   const uniqueTeams = uniqueTeamsById(teams);
   if (uniqueTeams.length < 2) return [];
 
-  const shuffled = fisherYates(uniqueTeams);
+  const orderedTeams = options.shuffle === false ? uniqueTeams : fisherYates(uniqueTeams);
+  const createId = options.makeId ?? makeId;
   const result: MatchModel[] = [];
 
-  // Arredondar para potência de 2 mais próxima (para cima)
-  const numTeams = shuffled.length;
+  const numTeams = orderedTeams.length;
   const totalRounds = calculateBracketRounds(numTeams);
   const bracketSize = Math.pow(2, totalRounds);
+  const slots = seedOrder(bracketSize).map((seed) =>
+    seed - 1 < orderedTeams.length ? orderedTeams[seed - 1].id : null,
+  );
 
-  // Criar mapa de IDs das partidas por rodada e posição
-  const matchIdMap: Record<string, string> = {};
-
-  // Gerar todas as rodadas do bracket (da primeira fase até a final)
-  let roundTeamCount = bracketSize;
-
-  for (let roundNum = 1; roundNum <= totalRounds; roundNum++) {
-    const matchesInRound = roundTeamCount / 2;
-    const bracketRound = getBracketRoundName(roundTeamCount);
-
-    for (let pos = 0; pos < matchesInRound; pos++) {
-      const matchId = makeId();
-      matchIdMap[`${roundNum}-${pos}`] = matchId;
-
-      // Calcular nextMatchId (partida da próxima rodada)
-      let nextMatchId: string | null = null;
-      if (roundNum < totalRounds) {
-        const nextPos = Math.floor(pos / 2);
-        nextMatchId = matchIdMap[`${roundNum + 1}-${nextPos}`] ?? null;
-      }
-
-      // Na primeira rodada, atribuir times reais
-      // Nas rodadas seguintes, os times serão definidos após as partidas anteriores
-      let homeTeamId = '';
-      let awayTeamId = '';
-
-      if (roundNum === 1) {
-        const homeIndex = pos * 2;
-        const awayIndex = pos * 2 + 1;
-        homeTeamId = homeIndex < shuffled.length ? shuffled[homeIndex].id : '';
-        awayTeamId = awayIndex < shuffled.length ? shuffled[awayIndex].id : '';
-      }
-
-      result.push({
-        id: matchId,
-        championshipId,
-        round: roundNum,
-        homeTeamId,
-        awayTeamId,
-        homeScore: null,
-        awayScore: null,
-        status: 'agendado',
-        bracketRound,
-        bracketPosition: pos,
-        nextMatchId,
-        winnerId: null,
-      });
+  const buildNode = (start: number, size: number): BracketEntrant => {
+    if (size === 1) {
+      const teamId = slots[start];
+      return teamId ? { teamId, sourceMatch: null } : null;
     }
 
-    roundTeamCount = roundTeamCount / 2;
-  }
+    const half = size / 2;
+    const left = buildNode(start, half);
+    const right = buildNode(start + half, half);
 
-  // Atualizar nextMatchId para todas as partidas (segunda passada)
-  for (let roundNum = 1; roundNum < totalRounds; roundNum++) {
-    const matchesInRound = Math.pow(2, totalRounds - roundNum);
-    for (let pos = 0; pos < matchesInRound; pos++) {
-      const currentMatchId = matchIdMap[`${roundNum}-${pos}`];
-      const nextPos = Math.floor(pos / 2);
-      const nextMatchId = matchIdMap[`${roundNum + 1}-${nextPos}`];
+    if (!left) return right;
+    if (!right) return left;
 
-      const matchIndex = result.findIndex((m) => m.id === currentMatchId);
-      if (matchIndex !== -1 && nextMatchId) {
-        result[matchIndex].nextMatchId = nextMatchId;
-      }
+    const round = Math.log2(size);
+    const teamsInRound = bracketSize / Math.pow(2, round - 1);
+    const bracketPosition = start / size;
+
+    const match: MatchModel = {
+      id: createId(),
+      championshipId,
+      round,
+      homeTeamId: left.sourceMatch ? '' : left.teamId ?? '',
+      awayTeamId: right.sourceMatch ? '' : right.teamId ?? '',
+      homeScore: null,
+      awayScore: null,
+      status: 'agendado',
+      bracketRound: getBracketRoundName(teamsInRound),
+      bracketPosition,
+      nextMatchId: null,
+      winnerId: null,
+    };
+
+    if (left.sourceMatch) {
+      left.sourceMatch.nextMatchId = match.id;
     }
-  }
-
-  // Processar BYEs (times que passam automaticamente)
-  const firstRoundMatches = result.filter((m) => m.round === 1);
-  for (const match of firstRoundMatches) {
-    // Se apenas um time está definido, ele passa automaticamente
-    if (match.homeTeamId && !match.awayTeamId) {
-      match.winnerId = match.homeTeamId;
-      match.status = 'finalizado';
-      match.homeScore = 0;
-      match.awayScore = 0;
-      advanceWinnerToNextMatch(result, match, match.homeTeamId);
-    } else if (!match.homeTeamId && match.awayTeamId) {
-      match.winnerId = match.awayTeamId;
-      match.status = 'finalizado';
-      match.homeScore = 0;
-      match.awayScore = 0;
-      advanceWinnerToNextMatch(result, match, match.awayTeamId);
-    } else if (!match.homeTeamId && !match.awayTeamId) {
-      // Partida vazia, pode acontecer com brackets incompletos
-      match.status = 'finalizado';
+    if (right.sourceMatch) {
+      right.sourceMatch.nextMatchId = match.id;
     }
-  }
 
-  return result;
+    result.push(match);
+    return { teamId: null, sourceMatch: match };
+  };
+
+  buildNode(0, bracketSize);
+
+  return result.sort((a, b) => {
+    if (a.round !== b.round) return a.round - b.round;
+    return (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0);
+  });
 }
-
-/**
- * Move o vencedor para a próxima partida do bracket
- */
-function advanceWinnerToNextMatch(
-  matches: MatchModel[],
-  currentMatch: MatchModel,
-  winnerId: string,
-): void {
-  if (!currentMatch.nextMatchId) return;
-
-  const nextMatch = matches.find((m) => m.id === currentMatch.nextMatchId);
-  if (!nextMatch) return;
-
-  // Determinar se o vencedor vai para home ou away baseado na posição
-  const bracketPos = currentMatch.bracketPosition ?? 0;
-  if (bracketPos % 2 === 0) {
-    nextMatch.homeTeamId = winnerId;
-  } else {
-    nextMatch.awayTeamId = winnerId;
-  }
-}
-
 /**
  * Atualiza o bracket após uma partida ser finalizada
  * Retorna o match atualizado da próxima fase (se houver)
@@ -315,7 +295,6 @@ export function generateGroupStageFixtures(
   });
 
   // Gerar partidas dentro de cada grupo (todos contra todos)
-  let roundOffset = 0;
   for (const groupId of groupLabels) {
     const groupTeams = groups[groupId];
     const list: Array<Team | null> = [...groupTeams];

@@ -44,7 +44,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
-import { calculateStandings } from '../../services/statsService';
+import { calculateStandings, getSuspendedPlayers } from '../../services/statsService';
 import { updateDocument, setDocument, getDocument, getCollection } from '../../services/index';
 import { respondToRequest, removePlayerFromRoster } from '../../services/inviteService';
 import { Player, MatchModel, Team, TeamStanding, PlayerStatus, JoinRequest } from '../../types';
@@ -392,6 +392,17 @@ export function CaptainDashboardScreen() {
     () => myTeam ? standings.find((s) => s.teamId === myTeam.id) : null,
     [standings, myTeam]
   );
+
+  // Desfalques por suspensão na PRÓXIMA rodada. Fonte por evento (sem flag
+  // persistida) — evita escalar quem está suspenso e tomar W.O.
+  const suspendedNextRound = useMemo(() => {
+    if (!championship || !myTeam) return [];
+    const champMatches = matches.filter((m) => m.championshipId === championship.id);
+    const champEvents = events.filter((e) => champMatches.some((m) => m.id === e.matchId));
+    const champTeams = teams.filter((t) => t.championshipId === championship.id);
+    return getSuspendedPlayers(champMatches, champEvents, roster, champTeams, championship.rules)
+      .filter((s) => s.teamId === myTeam.id);
+  }, [championship, myTeam, matches, events, teams, roster]);
 
   const myPosition = useMemo(
     () => myTeam ? standings.findIndex((s) => s.teamId === myTeam.id) + 1 : 0,
@@ -806,6 +817,28 @@ export function CaptainDashboardScreen() {
                 </View>
               )}
             </AppCard>
+
+            {suspendedNextRound.length > 0 && (
+              <View style={styles.suspWarnCard}>
+                <View style={styles.suspWarnHeader}>
+                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                  <Text style={styles.suspWarnTitle}>
+                    {suspendedNextRound.length === 1
+                      ? 'Desfalque por suspensão'
+                      : `${suspendedNextRound.length} desfalques por suspensão`}
+                  </Text>
+                </View>
+                {suspendedNextRound.map((s) => (
+                  <View key={s.playerId} style={styles.suspWarnRow}>
+                    <Ionicons name="person-remove-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.suspWarnName} numberOfLines={1}>{s.playerName}</Text>
+                    <Text style={styles.suspWarnReason}>
+                      {s.reason === 'cartao_vermelho' ? 'Cartão vermelho' : 'Amarelos acumulados'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -1323,6 +1356,42 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Bold',
     fontSize: 14,
     color: colors.accent,
+  },
+  suspWarnCard: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,59,71,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,59,71,0.28)',
+  },
+  suspWarnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  suspWarnTitle: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+    color: colors.danger,
+  },
+  suspWarnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 5,
+  },
+  suspWarnName: {
+    flex: 1,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  suspWarnReason: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 11,
+    color: colors.textSecondary,
   },
   inviteCard: {
     padding: 20,

@@ -1,6 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 
 function mockImageUrl(kind: string, id: string): string {
   return `https://placehold.co/512x512/111827/F5A623?text=${encodeURIComponent(`${kind}-${id}`)}`;
@@ -31,7 +31,7 @@ export async function uploadPlayerPhoto(
   localUri: string,
   playerId: string
 ): Promise<string> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return mockImageUrl('player', playerId);
   }
   const path = `players/${playerId}/photo_${Date.now()}.jpg`;
@@ -45,7 +45,7 @@ export async function uploadUserPhoto(
   localUri: string,
   userId: string
 ): Promise<string> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return mockImageUrl('user', userId);
   }
   const path = `users/${userId}/avatar.jpg`;
@@ -59,7 +59,7 @@ export async function uploadTeamLogo(
   localUri: string,
   teamId: string
 ): Promise<string> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return mockImageUrl('team', teamId);
   }
   const path = `teams/${teamId}/logo_${Date.now()}.jpg`;

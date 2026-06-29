@@ -20,7 +20,7 @@ import {
   UserRole,
 } from '../types';
 import { getTokensForChampionship, getTokensForUsers, sendPushNotification } from './notificationService';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 import {
   addDocument,
   getCollection,
@@ -43,7 +43,7 @@ export async function createAnnouncement(data: {
   targetTeamId?: string;
   priority: AnnouncementPriority;
 }): Promise<string> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return addDocument(COL, {
       ...data,
       readBy: [],
@@ -114,7 +114,7 @@ export function listenToAnnouncements(
   role: UserRole,
   onChange: (announcements: Announcement[]) => void,
 ): () => void {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return subscribeToCollection<Announcement>(
       COL,
       [{ field: 'championshipId', operator: '==', value: championshipId }],
@@ -189,7 +189,7 @@ export async function markAnnouncementAsRead(
   announcementId: string,
   userId: string,
 ): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     const current = await getCollection<Announcement>(COL, [
       { field: 'id', operator: '==', value: announcementId },
     ]);

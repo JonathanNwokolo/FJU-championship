@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { saveInAppNotification } from './inAppNotifications';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 
 const EAS_PROJECT_ID = '5ec2467f-8312-4bc0-94a4-704fa0700e99';
 const TOKENS_KEY = 'push_tokens';
@@ -63,7 +63,7 @@ async function writeTokenStore(store: Record<string, TokenRecord>): Promise<void
 }
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  if (USE_MOCK_DATA) return null;
+  if (USE_MOCK) return null;
   if (!userId) return null;
   if (Platform.OS === 'web') return null;
   if (isRunningInExpoGo()) return null;
@@ -110,7 +110,7 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 }
 
 export async function saveTokenToFirestore(userId: string, token: string): Promise<void> {
-  if (USE_MOCK_DATA) return;
+  if (USE_MOCK) return;
   try {
     const store = await readTokenStore();
     store[userId] = { token, updatedAt: Date.now() };
@@ -128,7 +128,7 @@ export async function saveTokenToFirestore(userId: string, token: string): Promi
 }
 
 export async function removeTokenFromFirestore(userId: string): Promise<void> {
-  if (USE_MOCK_DATA) return;
+  if (USE_MOCK) return;
   try {
     const store = await readTokenStore();
     delete store[userId];
@@ -147,7 +147,7 @@ function isExpoPushToken(value: unknown): value is string {
 }
 
 export async function getTokensForUsers(userIds: string[]): Promise<string[]> {
-  if (USE_MOCK_DATA) return [];
+  if (USE_MOCK) return [];
   const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueUserIds.length === 0) return [];
 
@@ -172,7 +172,7 @@ export async function getTokensForUsers(userIds: string[]): Promise<string[]> {
 }
 
 export async function getTokensForChampionship(championshipId: string): Promise<string[]> {
-  if (USE_MOCK_DATA) return [];
+  if (USE_MOCK) return [];
   try {
     const userIds = new Set<string>();
 
@@ -209,7 +209,7 @@ export async function sendPushNotification(
   body: string,
   data: PushData = {},
 ): Promise<void> {
-  if (USE_MOCK_DATA) return;
+  if (USE_MOCK) return;
   const uniqueTokens = Array.from(new Set(tokens.filter(isExpoPushToken)));
   if (uniqueTokens.length === 0) return;
 

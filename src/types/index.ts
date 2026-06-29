@@ -56,6 +56,8 @@ export interface Championship {
   isOfficial?: boolean;
   maxPlayers?: number;
   maxTeams?: number;
+  registeredTeamsCount?: number;
+  lastTeamRegistrationId?: string;
   matchVerse?: boolean;
   liveMode?: boolean;
   // Campos para grupos + mata-mata
@@ -108,7 +110,7 @@ export interface Player {
   status?: PlayerStatus;
   joinedAt?: string;
   leftAt?: string | null;
-  suspendedRound?: number;   // rodada em que o jogador está suspenso (não pode jogar)
+  suspendedRound?: number | null;   // rodada em que o jogador está suspenso (não pode jogar)
   yellowCards?: number;       // amarelos acumulados no ciclo atual
   guestPlayer?: boolean;      // true = adicionado manualmente pelo capitão, sem userId
 }
@@ -172,6 +174,9 @@ export interface MatchModel {
   groupId?: string;
   homePenaltyScore?: number | null;
   awayPenaltyScore?: number | null;
+  correctionVersion?: number;
+  lastCorrectionId?: string | null;
+  correctedAt?: string | null;
 }
 
 export type MatchEventType = 'gol' | 'assistencia' | 'cartao_amarelo' | 'cartao_vermelho';
@@ -192,6 +197,51 @@ export interface MatchEvent {
   // o cálculo faz fallback para o player/team atual.
   playerName?: string;
   teamName?: string;
+  lastCorrectionId?: string | null;
+  correctedAt?: string | null;
+  removedAt?: string | null;
+  removedByCorrectionId?: string | null;
+  correctionVersion?: number;
+}
+
+export interface MatchCorrectionEventSnapshot {
+  id: string;
+  type: MatchEventType;
+  teamId: string;
+  playerId: string;
+  playerName?: string;
+  teamName?: string;
+  minute: number;
+}
+
+export interface MatchCorrectionScoreSnapshot {
+  homeScore: number | null;
+  awayScore: number | null;
+}
+
+export interface MatchCorrection {
+  id: string;
+  championshipId: string;
+  matchId: string;
+  organizerId: string;
+  reason: string;
+  createdAt: string;
+  previousScore: MatchCorrectionScoreSnapshot;
+  newScore: MatchCorrectionScoreSnapshot;
+  previousWinnerId: string | null;
+  newWinnerId: string | null;
+  eventsAdded: MatchCorrectionEventSnapshot[];
+  eventsRemoved: MatchCorrectionEventSnapshot[];
+  eventsChanged: Array<{
+    before: MatchCorrectionEventSnapshot;
+    after: MatchCorrectionEventSnapshot;
+  }>;
+  round: number;
+  championshipFormat: ChampionshipFormat;
+  derivedEffects: string[];
+  previousMatchVersion: number;
+  newMatchVersion: number;
+  previousMatch: MatchModel;
 }
 
 export interface PlayerHistoryEntry {

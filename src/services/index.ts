@@ -15,3 +15,6 @@ export {
   subscribeToCollection,
   subscribeToDocument,
 } from './firestore';
+
+export { applyMatchCorrection } from './matchCorrectionService';
+export type { MatchCorrectionContext, MatchCorrectionResult } from './matchCorrectionService';

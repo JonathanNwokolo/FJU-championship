@@ -10,7 +10,7 @@ let seeded = false;
  * pelos grants do achievementService; na demo, semeamos as conquistas do
  * dataset para PlayerCard/AthleteProfile/PlayerAchievements não ficarem vazios.
  *
- * No-op quando USE_MOCK_DATA = false.
+ * No-op quando USE_MOCK = false.
  */
 export function seedMockStores(): void {
   if (!MOCK_DATA_ENABLED || seeded) return;

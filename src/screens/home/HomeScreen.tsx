@@ -393,6 +393,88 @@ function ResultCard({ match, teams }: { match: MatchModel; teams: Team[] }) {
   );
 }
 
+function NextMatchHighlight({
+  match,
+  teams,
+  myTeamId,
+  onPress,
+}: {
+  match: MatchModel;
+  teams: Team[];
+  myTeamId: string;
+  onPress: () => void;
+}) {
+  const home = getTeam(teams, match.homeTeamId);
+  const away = getTeam(teams, match.awayTeamId);
+  const isLive = match.status === 'ao_vivo';
+  const today = !isLive && isToday(match.scheduledAt);
+  const tomorrow = !isLive && !today && isTomorrow(match.scheduledAt);
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="SEU PRÓXIMO JOGO" />
+      <Pressable onPress={onPress} style={styles.nextMatchPress}>
+        <LinearGradient
+          colors={[colors.bg300, colors.bg200]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.nextMatchCard}
+        >
+          <View style={styles.nextMatchAccent} />
+          <View style={styles.nextMatchTop}>
+            <Text style={styles.micro}>Rodada {match.round}</Text>
+            {isLive && <Badge label="AO VIVO" variant="live" />}
+            {today && <Badge label="HOJE" variant="gold" />}
+            {tomorrow && <Badge label="AMANHÃ" variant="pending" />}
+          </View>
+          <View style={styles.nextMatchTeams}>
+            <View style={styles.nextMatchTeam}>
+              <TeamColorDot color={home?.primaryColor ?? colors.textMuted} size={14} />
+              <Text
+                style={[
+                  styles.nextMatchTeamName,
+                  match.homeTeamId === myTeamId && styles.nextMatchMine,
+                ]}
+                numberOfLines={1}
+              >
+                {home?.name ?? 'Time A'}
+              </Text>
+            </View>
+            <Text style={styles.nextMatchVs}>VS</Text>
+            <View style={[styles.nextMatchTeam, styles.nextMatchTeamRight]}>
+              <Text
+                style={[
+                  styles.nextMatchTeamName,
+                  styles.nextMatchTeamNameRight,
+                  match.awayTeamId === myTeamId && styles.nextMatchMine,
+                ]}
+                numberOfLines={1}
+              >
+                {away?.name ?? 'Time B'}
+              </Text>
+              <TeamColorDot color={away?.primaryColor ?? colors.textMuted} size={14} />
+            </View>
+          </View>
+          <View style={styles.nextMatchFooter}>
+            <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.nextMatchDate} numberOfLines={1}>
+              {formatScheduledAt(match.scheduledAt)}
+            </Text>
+            {!!match.location && (
+              <>
+                <Text style={styles.nextMatchDot}>·</Text>
+                <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+                <Text style={styles.nextMatchDate} numberOfLines={1}>{match.location}</Text>
+              </>
+            )}
+            <Ionicons name="chevron-forward" size={16} color={colors.accent} style={styles.nextMatchChevron} />
+          </View>
+        </LinearGradient>
+      </Pressable>
+    </View>
+  );
+}
+
 function TeamSection({
   role,
   activeChampionship,
@@ -912,6 +994,34 @@ export function HomeScreen() {
     .sort((a, b) => b.round - a.round)
     .slice(0, 5);
 
+  // "Seu próximo jogo": time do usuário (capitão = seu time; atleta = vínculo ativo).
+  const myTeamId = useMemo(() => {
+    if (captainTeam) return captainTeam.id;
+    const active = players.find((p) => p.userId === user?.id && isActiveRosterPlayer(p));
+    return active?.teamId ?? null;
+  }, [captainTeam, players, user?.id]);
+
+  const myNextMatch = useMemo(() => {
+    if (!myTeamId) return undefined;
+    return championshipMatches
+      .filter(
+        (m) =>
+          m.status !== 'finalizado' &&
+          (m.homeTeamId === myTeamId || m.awayTeamId === myTeamId),
+      )
+      .sort((a, b) => {
+        // Ao vivo primeiro; depois por data (sem data vai para o fim); empate por rodada.
+        if (a.status === 'ao_vivo' && b.status !== 'ao_vivo') return -1;
+        if (b.status === 'ao_vivo' && a.status !== 'ao_vivo') return 1;
+        if (a.scheduledAt && !b.scheduledAt) return -1;
+        if (!a.scheduledAt && b.scheduledAt) return 1;
+        if (a.scheduledAt && b.scheduledAt) {
+          return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+        }
+        return a.round - b.round;
+      })[0];
+  }, [myTeamId, championshipMatches]);
+
   // Finished championships (history)
   const finishedChampionships = useMemo(
     () => championships.filter((c) => c.status === 'finalizado').slice(0, 6),
@@ -999,6 +1109,15 @@ export function HomeScreen() {
           </View>
         ) : (
           <HeroCard championship={activeChampionship} teamsCount={championshipTeams.length} />
+        )}
+
+        {!isLoading && (role === 'atleta' || role === 'capitao') && myNextMatch && myTeamId && (
+          <NextMatchHighlight
+            match={myNextMatch}
+            teams={teams}
+            myTeamId={myTeamId}
+            onPress={() => navigateToTab(navigation, 'Confrontos')}
+          />
         )}
 
         {!isLoading && role === 'organizador' && (
@@ -1440,6 +1559,87 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-SemiBold',
     fontSize: 22,
     color: colors.accent,
+  },
+  // Próximo jogo em destaque (U3)
+  nextMatchPress: {
+    marginTop: 12,
+  },
+  nextMatchCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: 16,
+    overflow: 'hidden',
+  },
+  nextMatchAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: colors.accent,
+  },
+  nextMatchTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  nextMatchTeams: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  nextMatchTeam: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  nextMatchTeamRight: {
+    justifyContent: 'flex-end',
+  },
+  nextMatchTeamName: {
+    flex: 1,
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  nextMatchTeamNameRight: {
+    textAlign: 'right',
+  },
+  nextMatchMine: {
+    fontFamily: 'Barlow-Bold',
+    color: colors.accent,
+  },
+  nextMatchVs: {
+    fontFamily: 'Barlow-Black',
+    fontSize: 13,
+    color: colors.textMuted,
+    letterSpacing: 1,
+  },
+  nextMatchFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  nextMatchDate: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 12,
+    color: colors.textSecondary,
+    flexShrink: 1,
+  },
+  nextMatchDot: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  nextMatchChevron: {
+    marginLeft: 'auto',
   },
   rankingHistCard: {
     marginHorizontal: 20,

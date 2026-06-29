@@ -10,6 +10,7 @@ import {
   calculatePlayerDisciplineRanking,
   calculateTopScorers,
 } from '../services/statsService';
+import { activeMatchEvents } from './matchRules';
 
 export interface PlayerAssistRanking {
   playerId: string;
@@ -33,12 +34,13 @@ export function calculateAssistRanking(
   players: Player[],
   teams: Team[],
 ): PlayerAssistRanking[] {
+  const activeEvents = activeMatchEvents(events);
   const assistMap: Record<
     string,
     { assists: number; teamId: string; snapName?: string; snapTeamName?: string }
   > = {};
 
-  for (const event of events) {
+  for (const event of activeEvents) {
     if (event.type !== 'assistencia') continue;
     const current = assistMap[event.playerId] ?? { assists: 0, teamId: event.teamId };
     current.assists += 1;

@@ -13,11 +13,56 @@ service firebase.storage {
         request.resource.contentType.matches('image/.*');
     }
 
+    function isOrganizer() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'organizador';
+    }
+
+    function isTeamCaptain(teamId) {
+      return firestore.get(/databases/(default)/documents/teams/$(teamId)).data.captainId == request.auth.uid;
+    }
+
+    function isChampionshipOrganizer(champId) {
+      return firestore.get(/databases/(default)/documents/championships/$(champId)).data.organizerId == request.auth.uid;
+    }
+
+    function canWriteTeamAsset(teamId) {
+      let team = firestore.get(/databases/(default)/documents/teams/$(teamId)).data;
+      return isTeamCaptain(teamId) || isChampionshipOrganizer(team.championshipId);
+    }
+
+    function canWritePlayerAsset(playerId) {
+      let player = firestore.get(/databases/(default)/documents/players/$(playerId)).data;
+      return player.userId == request.auth.uid ||
+        isTeamCaptain(player.teamId) ||
+        isChampionshipOrganizer(player.championshipId);
+    }
+
     // Championship assets (team/player/profile photos) are publicly readable so
-    // they render without auth; writes require a signed-in user and a valid image.
+    // they render without auth; writes are scoped to the owning user/team/player.
     match /{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && isImageUnder5MB();
+      allow write: if false;
+    }
+
+    match /users/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        request.auth.uid == userId &&
+        isImageUnder5MB();
+    }
+
+    match /teams/{teamId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        canWriteTeamAsset(teamId) &&
+        isImageUnder5MB();
+    }
+
+    match /players/{playerId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        canWritePlayerAsset(playerId) &&
+        isImageUnder5MB();
     }
   }
 }

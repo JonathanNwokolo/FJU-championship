@@ -1,4 +1,4 @@
-﻿import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -33,7 +33,7 @@ import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useAuthStore } from '../../stores/authStore';
 import { Championship, MatchEvent, MatchEventType, MatchModel } from '../../types';
-import { addDocument, updateDocument, deleteDocument } from '../../services/index';
+import { addDocument, updateDocument, deleteDocument, applyMatchCorrection } from '../../services/index';
 import { db } from '../../services/firebase';
 import { collection, doc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
@@ -49,25 +49,26 @@ import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
 import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
 import { isPlayerInTeamActive } from '../../utils/teamRules';
+import { activeMatchEvents, canEditMatchEvents } from '../../utils/matchRules';
 import { useVotingStore } from '../../stores/votingStore';
 import { generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../../config/appConfig';
 
 type RouteT = RouteProp<FixturesStackParamList, 'MatchRegistration'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
 
 const EVENT_ICON: Record<MatchEventType, string> = {
-  gol: '⚽',
-  assistencia: '👟',
-  cartao_amarelo: '🟨',
-  cartao_vermelho: '🟥',
+  gol: '?',
+  assistencia: '??',
+  cartao_amarelo: '??',
+  cartao_vermelho: '??',
 };
 
 const TYPE_DEFS: Array<{ value: MatchEventType; label: string; color: string }> = [
-  { value: 'gol', label: '⚽ Gol', color: colors.accent },
-  { value: 'assistencia', label: '👟 Assistência', color: colors.success },
-  { value: 'cartao_amarelo', label: '🟨 Amarelo', color: colors.warning },
-  { value: 'cartao_vermelho', label: '🟥 Vermelho', color: colors.danger },
+  { value: 'gol', label: '? Gol', color: colors.accent },
+  { value: 'assistencia', label: '?? Assistência', color: colors.success },
+  { value: 'cartao_amarelo', label: '?? Amarelo', color: colors.warning },
+  { value: 'cartao_vermelho', label: '?? Vermelho', color: colors.danger },
 ];
 
 type GroupKnockoutPlan = {
@@ -89,6 +90,14 @@ type FinalizeTransactionResult = {
   groupKnockoutMatches: MatchModel[];
   groupChampionshipUpdate: GroupKnockoutPlan['championshipUpdate'] | null;
 };
+
+function makeCorrectionId(): string {
+  return `corr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function makeLocalEventId(): string {
+  return `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function EventTypePill({ type }: { type: MatchEventType }) {
   const background =
@@ -112,7 +121,7 @@ export function MatchRegistrationScreen() {
   const route = useRoute<RouteT>();
   const { matchId } = route.params;
 
-  const { matches, events, addEvent, removeEvent, updateMatch, startMatch } = useMatchStore();
+  const { matches, events, addEvent, removeEvent, updateMatch, startMatch, setEvents } = useMatchStore();
   const { teams, players } = useTeamStore();
   const { championships, updateChampionship } = useChampionshipStore();
   const user = useAuthStore((s) => s.user);
@@ -127,10 +136,18 @@ export function MatchRegistrationScreen() {
   const [addingEvent, setAddingEvent] = useState(false);
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
   const [startingMatch, setStartingMatch] = useState(false);
+  const [correctionMode, setCorrectionMode] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionHomeScore, setCorrectionHomeScore] = useState('');
+  const [correctionAwayScore, setCorrectionAwayScore] = useState('');
+  const [correctionEvents, setCorrectionEvents] = useState<MatchEvent[]>([]);
+  const [editingCorrectionEventId, setEditingCorrectionEventId] = useState<string | null>(null);
+  const [savingCorrection, setSavingCorrection] = useState(false);
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
 
   const match = matches.find((m) => m.id === matchId);
-  const matchEvents = events
-    .filter((e) => e.matchId === matchId)
+  const persistedMatchEvents = activeMatchEvents(events).filter((e) => e.matchId === matchId);
+  const matchEvents = (correctionMode ? correctionEvents : persistedMatchEvents)
     .sort((a, b) => a.minute - b.minute);
 
   const homeTeam = teams.find((t) => t.id === match?.homeTeamId);
@@ -140,6 +157,18 @@ export function MatchRegistrationScreen() {
     user?.role === 'organizador' && matchChampionship?.organizerId === user?.id;
 
   const isLive = match?.status === 'ao_vivo';
+  // P-08: partida finalizada não aceita edição de eventos. Adicionar/remover gols
+  // aqui não recalcularia o placar (não é ao vivo), dessincronizando placar ×
+  // artilharia. Por isso bloqueamos as ações e escondemos os controles.
+  const isFinalized = match?.status === 'finalizado';
+  const canEditEvents = canManageMatch && canEditMatchEvents(match);
+
+  const showFinalizedMatchBlockedMessage = () => {
+    Alert.alert(
+      'Partida finalizada',
+      'Nao e possivel criar, editar ou excluir eventos depois que a partida foi finalizada.',
+    );
+  };
 
   const liveHomeScore = matchEvents.filter(
     (e) => e.teamId === match?.homeTeamId && e.type === 'gol',
@@ -195,7 +224,11 @@ export function MatchRegistrationScreen() {
   // Atletas removidos (AUD-04) mantêm teamId para preservar histórico, mas NÃO
   // podem receber novos eventos — por isso são excluídos do seletor.
   const bsPlayers = bsTeamId
-    ? players.filter((p) => isPlayerInTeamActive(p, bsTeamId) && !checkSuspended(p))
+    ? players.filter((p) =>
+        correctionMode
+          ? p.teamId === bsTeamId
+          : isPlayerInTeamActive(p, bsTeamId) && !checkSuspended(p),
+      )
     : [];
 
   const suspendedWarning = useMemo(
@@ -211,6 +244,130 @@ export function MatchRegistrationScreen() {
     [players, match, checkSuspended],
   );
 
+  useEffect(() => {
+    if (!correctionMode) return;
+    setCorrectionEvents(persistedMatchEvents);
+    setCorrectionHomeScore(match?.homeScore != null ? String(match.homeScore) : '');
+    setCorrectionAwayScore(match?.awayScore != null ? String(match.awayScore) : '');
+  }, [correctionMode, match?.id]);
+
+  const openCorrectionMode = () => {
+    if (!canManageMatch || !match || !isFinalized) return;
+    if (matchChampionship?.status === 'finalizado') {
+      Alert.alert(
+        'Correção bloqueada',
+        'Este campeonato já foi encerrado definitivamente. O reprocessamento completo ficará para um bloco administrativo futuro.',
+      );
+      return;
+    }
+    setCorrectionReason('');
+    setCorrectionHomeScore(match.homeScore != null ? String(match.homeScore) : '');
+    setCorrectionAwayScore(match.awayScore != null ? String(match.awayScore) : '');
+    setCorrectionEvents(persistedMatchEvents);
+    setCorrectionMode(true);
+    setShowCorrectionModal(true);
+  };
+
+  const cancelCorrectionMode = () => {
+    setCorrectionMode(false);
+    setShowCorrectionModal(false);
+    setCorrectionReason('');
+    setEditingCorrectionEventId(null);
+    setCorrectionEvents([]);
+  };
+
+  const openCorrectionEventEditor = (event?: MatchEvent) => {
+    if (!canEditCorrectionDraft || !match) return;
+    setEditingCorrectionEventId(event?.id ?? null);
+    setBsType(event?.type ?? 'gol');
+    setBsTeamId(event?.teamId ?? '');
+    setBsPlayerId(event?.playerId ?? '');
+    setBsMinute(event?.minute != null ? String(event.minute) : '');
+    bottomSheetRef.current?.expand();
+  };
+
+  const handleRemoveCorrectionEvent = (eventId: string) => {
+    if (!canEditCorrectionDraft) return;
+    setCorrectionEvents((current) => current.filter((event) => event.id !== eventId));
+  };
+
+  const saveCorrection = async () => {
+    if (!canEditCorrectionDraft || !match || !matchChampionship || !user || savingCorrection) return;
+    if (
+      correctionHomeScoreNum == null ||
+      correctionAwayScoreNum == null ||
+      correctionHomeScoreNum < 0 ||
+      correctionAwayScoreNum < 0
+    ) {
+      Alert.alert('Placar inválido', 'Informe um placar antes e depois consistente.');
+      return;
+    }
+    if (correctionReason.trim().length < 5) {
+      Alert.alert('Motivo obrigatório', 'Informe o motivo da correção.');
+      return;
+    }
+
+    const draftHomeGoals = correctionEvents.filter(
+      (event) => event.type === 'gol' && event.teamId === match.homeTeamId,
+    ).length;
+    const draftAwayGoals = correctionEvents.filter(
+      (event) => event.type === 'gol' && event.teamId === match.awayTeamId,
+    ).length;
+    if (draftHomeGoals !== correctionHomeScoreNum || draftAwayGoals !== correctionAwayScoreNum) {
+      Alert.alert(
+        'Placar e eventos divergentes',
+        `O rascunho tem ${draftHomeGoals}x${draftAwayGoals} gols registrados. Ajuste os eventos ou o placar antes de salvar.`,
+      );
+      return;
+    }
+
+    setSavingCorrection(true);
+    try {
+      const result = await applyMatchCorrection({
+        correctionId: makeCorrectionId(),
+        organizerId: user.id,
+        reason: correctionReason,
+        match,
+        championship: matchChampionship,
+        allMatches: matches,
+        allEvents: events,
+        players,
+        nextHomeScore: correctionHomeScoreNum,
+        nextAwayScore: correctionAwayScoreNum,
+        nextEvents: correctionEvents,
+        expectedCorrectionVersion: match.correctionVersion ?? 0,
+      });
+
+      updateMatch(match.id, result.updatedMatch);
+      if (result.nextMatchIdToUpdate && result.nextMatchUpdate) {
+        updateMatch(result.nextMatchIdToUpdate, result.nextMatchUpdate);
+      }
+      for (const update of result.playerUpdates) {
+        useTeamStore.getState().updatePlayer(update.playerId, update.updates);
+      }
+      setEvents([
+        ...events.filter((event) => event.matchId !== match.id),
+        ...result.activeMatchEvents,
+      ]);
+      cancelCorrectionMode();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Toast.show({
+        type: 'success',
+        text1: 'Resultado corrigido',
+        text2: 'Log de auditoria registrado.',
+        visibilityTime: 3000,
+      });
+    } catch (err) {
+      console.error('[MatchRegistration] correction error:', err);
+      Alert.alert(
+        'Correção bloqueada',
+        err instanceof Error ? err.message : 'Não foi possível aplicar a correção.',
+      );
+    } finally {
+      setSavingCorrection(false);
+    }
+  };
+
   const handleTeamSelect = (teamId: string) => {
     setBsTeamId(teamId);
     setBsPlayerId('');
@@ -218,6 +375,14 @@ export function MatchRegistrationScreen() {
 
   const openBottomSheet = () => {
     if (!canManageMatch) return;
+    if (correctionMode) {
+      openCorrectionEventEditor();
+      return;
+    }
+    if (!canEditMatchEvents(match)) {
+      showFinalizedMatchBlockedMessage();
+      return;
+    }
     setBsType('gol');
     setBsTeamId('');
     setBsPlayerId('');
@@ -226,8 +391,12 @@ export function MatchRegistrationScreen() {
   };
 
   const handleAddEvent = async () => {
-    // FE-01: bloqueia double-submit
+    // FE-01: bloqueia double-submit · P-08: e edição em partida finalizada
     if (!canManageMatch || addingEvent) return;
+    if (!canEditMatchEvents(match)) {
+      showFinalizedMatchBlockedMessage();
+      return;
+    }
     const minute = parseInt(bsMinute, 10);
     if (!bsTeamId || !bsPlayerId || !minute || !match) return;
     if (minute < 1 || minute > 120) {
@@ -236,6 +405,32 @@ export function MatchRegistrationScreen() {
     }
 
     bottomSheetRef.current?.close();
+
+    if (correctionMode && match) {
+      const playerSnapshot = players.find((p) => p.id === bsPlayerId);
+      const teamSnapshot = teams.find((t) => t.id === bsTeamId);
+      const draftEvent: MatchEvent = {
+        id: editingCorrectionEventId ?? makeLocalEventId(),
+        matchId,
+        championshipId: match.championshipId,
+        type: bsType,
+        teamId: bsTeamId,
+        playerId: bsPlayerId,
+        playerName: playerSnapshot?.name ?? '',
+        teamName: teamSnapshot?.name ?? '',
+        minute,
+        createdAt: new Date().toISOString(),
+      };
+      setCorrectionEvents((current) => {
+        if (!editingCorrectionEventId) return [...current, draftEvent];
+        return current.map((event) =>
+          event.id === editingCorrectionEventId ? { ...event, ...draftEvent } : event,
+        );
+      });
+      setEditingCorrectionEventId(null);
+      return;
+    }
+
     setAddingEvent(true);
 
     try {
@@ -262,7 +457,7 @@ export function MatchRegistrationScreen() {
         const newHome = liveHomeScore + (bsTeamId === match.homeTeamId ? 1 : 0);
         const newAway = liveAwayScore + (bsTeamId === match.awayTeamId ? 1 : 0);
 
-        if (USE_MOCK_DATA) {
+        if (USE_MOCK) {
           const firestoreId = await addDocument('match_events', eventData);
           await updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway });
           const event: MatchEvent = {
@@ -361,8 +556,16 @@ export function MatchRegistrationScreen() {
   };
 
   const handleRemoveEvent = (eventId: string) => {
-    // FE-01: bloqueia se já está removendo outro evento
+    if (correctionMode) {
+      handleRemoveCorrectionEvent(eventId);
+      return;
+    }
+    // FE-01: bloqueia se já está removendo outro evento · P-08: e partida finalizada
     if (!canManageMatch || removingEventId) return;
+    if (!canEditMatchEvents(match)) {
+      showFinalizedMatchBlockedMessage();
+      return;
+    }
     Alert.alert('Remover evento', 'Remover este evento da partida?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -379,7 +582,7 @@ export function MatchRegistrationScreen() {
               const newHome = Math.max(0, liveHomeScore - (removing.teamId === match.homeTeamId ? 1 : 0));
               const newAway = Math.max(0, liveAwayScore - (removing.teamId === match.awayTeamId ? 1 : 0));
 
-              if (USE_MOCK_DATA) {
+              if (USE_MOCK) {
                 await deleteDocument('match_events', eventId);
                 await updateDocument('matches', matchId, { homeScore: newHome, awayScore: newAway });
                 removeEvent(eventId);
@@ -418,6 +621,10 @@ export function MatchRegistrationScreen() {
 
   const homeScoreNum = homeScore === '' ? null : parseInt(homeScore, 10);
   const awayScoreNum = awayScore === '' ? null : parseInt(awayScore, 10);
+  const correctionHomeScoreNum =
+    correctionHomeScore === '' ? null : parseInt(correctionHomeScore, 10);
+  const correctionAwayScoreNum =
+    correctionAwayScore === '' ? null : parseInt(correctionAwayScore, 10);
 
   const homeGoalsRegistered = matchEvents.filter(
     (e) => e.teamId === match?.homeTeamId && e.type === 'gol',
@@ -433,8 +640,9 @@ export function MatchRegistrationScreen() {
   const bsMinuteNumber = parseInt(bsMinute, 10);
   const isBsMinuteValid =
     Number.isInteger(bsMinuteNumber) && bsMinuteNumber >= 1 && bsMinuteNumber <= 120;
+  const canEditCorrectionDraft = correctionMode && canManageMatch && isFinalized;
   const canAddBsEvent =
-    canManageMatch &&
+    (canEditEvents || canEditCorrectionDraft) &&
     bsTeamId.length > 0 &&
     bsPlayerId.length > 0 &&
     bsMinute.length > 0 &&
@@ -610,7 +818,7 @@ export function MatchRegistrationScreen() {
         status: 'finalizado',
       };
 
-      if (USE_MOCK_DATA) {
+      if (USE_MOCK) {
         await updateDocument('matches', matchId, updatedMatchData);
         updateMatch(matchId, updatedMatchData);
 
@@ -916,7 +1124,7 @@ export function MatchRegistrationScreen() {
 
         Toast.show({
           type: 'success',
-          text1: '⚽ Fase de Grupos Encerrada!',
+          text1: '? Fase de Grupos Encerrada!',
           text2: 'As eliminatórias foram geradas.',
           visibilityTime: 3500,
         });
@@ -931,7 +1139,7 @@ export function MatchRegistrationScreen() {
             updateChampionship(match.championshipId, { status: 'finalizado' });
             Toast.show({
               type: 'success',
-              text1: '🏆 Campeonato Finalizado!',
+              text1: '?? Campeonato Finalizado!',
               text2: `${teams.find((t) => t.id === winnerId)?.name} é o campeão!`,
               visibilityTime: 4000,
             });
@@ -1081,6 +1289,76 @@ export function MatchRegistrationScreen() {
         </View>
       </Modal>
 
+      <Modal
+        visible={showCorrectionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCorrectionModal(false)}
+      >
+        <View style={correctionStyles.overlay}>
+          <View style={correctionStyles.sheet}>
+            <Text style={correctionStyles.title}>Corrigir resultado</Text>
+            <Text style={correctionStyles.subtitle}>
+              Antes: {match.homeScore ?? 0} x {match.awayScore ?? 0}
+            </Text>
+
+            <View style={correctionStyles.scoreRow}>
+              <TextInput
+                style={correctionStyles.scoreInput}
+                value={correctionHomeScore}
+                onChangeText={(t) => setCorrectionHomeScore(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={2}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+              />
+              <Text style={correctionStyles.scoreDivider}>x</Text>
+              <TextInput
+                style={correctionStyles.scoreInput}
+                value={correctionAwayScore}
+                onChangeText={(t) => setCorrectionAwayScore(t.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={2}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+
+            <TextInput
+              style={correctionStyles.reasonInput}
+              value={correctionReason}
+              onChangeText={setCorrectionReason}
+              placeholder="Motivo obrigatório"
+              placeholderTextColor={colors.textMuted}
+              multiline
+            />
+
+            <Text style={correctionStyles.impactText}>
+              A correção recalcula classificação, artilharia, assistências, cartões e suspensões. O log será imutável.
+            </Text>
+
+            <View style={correctionStyles.actions}>
+              <TouchableOpacity
+                style={[correctionStyles.btn, correctionStyles.btnCancel]}
+                onPress={() => setShowCorrectionModal(false)}
+                disabled={savingCorrection}
+              >
+                <Text style={correctionStyles.btnCancelText}>Fechar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[correctionStyles.btn, correctionStyles.btnConfirm]}
+                onPress={saveCorrection}
+                disabled={savingCorrection}
+              >
+                <Text style={correctionStyles.btnConfirmText}>
+                  {savingCorrection ? 'Salvando...' : 'Salvar correção'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <SafeAreaView style={styles.header} edges={['top']}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
@@ -1165,7 +1443,7 @@ export function MatchRegistrationScreen() {
 
         {suspendedWarning.length > 0 && (
           <View style={styles.suspensionBanner}>
-            <Text style={styles.suspensionBannerTitle}>🚫 Jogadores suspensos nesta rodada</Text>
+            <Text style={styles.suspensionBannerTitle}>?? Jogadores suspensos nesta rodada</Text>
             {suspendedWarning.map((p) => (
               <Text key={p.id} style={styles.suspensionBannerItem}>
                 • {p.name} ({teams.find((t) => t.id === p.teamId)?.name ?? ''})
@@ -1177,8 +1455,41 @@ export function MatchRegistrationScreen() {
         {(homeGoalMismatch || awayGoalMismatch) && (
           <View style={styles.warningBanner}>
             <Text style={styles.warningText}>
-              ⚠️ Gols registrados ({homeGoalsRegistered + awayGoalsRegistered}) não conferem com o placar ({(homeScoreNum ?? 0) + (awayScoreNum ?? 0)})
+              ?? Gols registrados ({homeGoalsRegistered + awayGoalsRegistered}) não conferem com o placar ({(homeScoreNum ?? 0) + (awayScoreNum ?? 0)})
             </Text>
+          </View>
+        )}
+
+        {canManageMatch && isFinalized && (
+          <View style={styles.correctionCallout}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.correctionTitle}>
+                {correctionMode ? 'Correção em andamento' : 'Resultado finalizado'}
+              </Text>
+              <Text style={styles.correctionText}>
+                {correctionMode
+                  ? 'Edite os eventos abaixo e confirme o motivo no modal aberto.'
+                  : 'Use correção controlada para ajustar placar e eventos com auditoria.'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.correctionButton}
+              onPress={correctionMode ? () => setShowCorrectionModal(true) : openCorrectionMode}
+              disabled={savingCorrection}
+            >
+              <Text style={styles.correctionButtonText}>
+                {correctionMode ? 'Revisar' : 'Corrigir resultado'}
+              </Text>
+            </TouchableOpacity>
+            {correctionMode && (
+              <TouchableOpacity
+                style={[styles.correctionButton, styles.correctionCancelButton]}
+                onPress={cancelCorrectionMode}
+                disabled={savingCorrection}
+              >
+                <Text style={styles.correctionCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1205,17 +1516,24 @@ export function MatchRegistrationScreen() {
                           <Text style={styles.eventPlayer}>{player?.name ?? '—'}</Text>
                           <Text style={styles.eventTeam}>{team?.name ?? '—'}</Text>
                         </View>
-                        {canManageMatch && (
-                          <TouchableOpacity
-                            onPress={() => handleRemoveEvent(event.id)}
-                            disabled={removingEventId === event.id}
-                          >
-                            {removingEventId === event.id ? (
-                              <Text style={{ fontSize: 12, color: colors.textMuted }}>...</Text>
-                            ) : (
-                              <Ionicons name="close" size={18} color={colors.textMuted} />
+                        {(canEditEvents || canEditCorrectionDraft) && (
+                          <View style={styles.eventActions}>
+                            {canEditCorrectionDraft && (
+                              <TouchableOpacity onPress={() => openCorrectionEventEditor(event)}>
+                                <Ionicons name="create-outline" size={18} color={colors.accent} />
+                              </TouchableOpacity>
                             )}
-                          </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleRemoveEvent(event.id)}
+                              disabled={removingEventId === event.id}
+                            >
+                              {removingEventId === event.id ? (
+                                <Text style={{ fontSize: 12, color: colors.textMuted }}>...</Text>
+                              ) : (
+                                <Ionicons name="close" size={18} color={colors.textMuted} />
+                              )}
+                            </TouchableOpacity>
+                          </View>
                         )}
                       </View>
                     </AppCard>
@@ -1225,7 +1543,7 @@ export function MatchRegistrationScreen() {
             </View>
           )}
 
-          {canManageMatch && (
+          {(canEditEvents || canEditCorrectionDraft) && (
             <TouchableOpacity
               style={[styles.addButton, addingEvent && { opacity: 0.5 }]}
               onPress={openBottomSheet}
@@ -1238,10 +1556,10 @@ export function MatchRegistrationScreen() {
           )}
         </View>
 
-        {canManageMatch && <View style={styles.bottomSpacer} />}
+        {canManageMatch && !isFinalized && <View style={styles.bottomSpacer} />}
       </ScrollView>
 
-      {canManageMatch && (
+      {canManageMatch && !isFinalized && (
         <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
           <Text style={styles.bottomInfo}>{matchEvents.length} eventos registrados</Text>
           {match.status === 'agendado' ? (
@@ -1281,7 +1599,9 @@ export function MatchRegistrationScreen() {
           contentContainerStyle={bsStyles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={bsStyles.title}>Registrar evento</Text>
+          <Text style={bsStyles.title}>
+            {editingCorrectionEventId ? 'Editar evento' : 'Registrar evento'}
+          </Text>
 
           <View style={bsStyles.typeRow}>
             {TYPE_DEFS.map((type) => {
@@ -1360,7 +1680,13 @@ export function MatchRegistrationScreen() {
           />
 
           <AppButton
-            title={addingEvent ? "REGISTRANDO..." : "REGISTRAR EVENTO"}
+            title={
+              addingEvent
+                ? 'REGISTRANDO...'
+                : editingCorrectionEventId
+                ? 'ATUALIZAR EVENTO'
+                : 'REGISTRAR EVENTO'
+            }
             onPress={handleAddEvent}
             disabled={!canAddBsEvent || addingEvent}
             loading={addingEvent}
@@ -1527,6 +1853,52 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.warning,
   },
+  correctionCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  correctionTitle: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  correctionText: {
+    marginTop: 2,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+  },
+  correctionButton: {
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  correctionButtonText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.textOnAccent,
+  },
+  correctionCancelButton: {
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  correctionCancelText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   eventsSection: {
     marginTop: 24,
   },
@@ -1572,6 +1944,11 @@ const styles = StyleSheet.create({
   },
   eventCopy: {
     flex: 1,
+  },
+  eventActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   eventPlayer: {
     fontFamily: 'Barlow-Bold',
@@ -1743,6 +2120,107 @@ const bsStyles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 20,
+  },
+});
+
+const correctionStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+  sheet: {
+    width: '100%',
+    borderRadius: 18,
+    padding: 20,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  title: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 20,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  subtitle: {
+    marginTop: 4,
+    fontFamily: 'Barlow-Medium',
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  scoreRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  scoreInput: {
+    width: 64,
+    height: 58,
+    borderRadius: 12,
+    backgroundColor: colors.bg300,
+    fontFamily: 'Barlow-Black',
+    fontSize: 28,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  scoreDivider: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 18,
+    color: colors.textMuted,
+  },
+  reasonInput: {
+    marginTop: 16,
+    minHeight: 86,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: colors.bg300,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 14,
+    color: colors.textPrimary,
+    textAlignVertical: 'top',
+  },
+  impactText: {
+    marginTop: 12,
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textSecondary,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  btn: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnCancel: {
+    backgroundColor: colors.bg300,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  btnCancelText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  btnConfirm: {
+    backgroundColor: colors.accent,
+  },
+  btnConfirmText: {
+    fontFamily: 'Barlow-Bold',
+    fontSize: 14,
+    color: colors.textOnAccent,
   },
 });
 

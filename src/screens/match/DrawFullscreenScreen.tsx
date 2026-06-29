@@ -27,7 +27,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-// @ts-ignore
 import ConfettiCannon from 'react-native-confetti-cannon';
 
 import * as Haptics from 'expo-haptics';

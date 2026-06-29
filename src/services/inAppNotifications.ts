@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { InAppNotification, InAppNotificationType } from '../types';
-import { MOCK_DATA_ENABLED as USE_MOCK_DATA } from '../config/appConfig';
+import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 import { addDocument, getCollection, subscribeToCollection, updateDocument } from './firestore';
 
 const COL = 'in_app_notifications';
@@ -27,7 +27,7 @@ export async function saveInAppNotification(
   data: Record<string, string | number> = {},
 ): Promise<void> {
   if (userIds.length === 0) return;
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     await Promise.all(
       userIds.map((userId) =>
         addDocument('in_app_notifications', {
@@ -68,7 +68,7 @@ export function listenToNotifications(
   userId: string,
   onChange: (notifications: InAppNotification[]) => void,
 ): () => void {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     return subscribeToCollection<InAppNotification>(
       COL,
       [{ field: 'userId', operator: '==', value: userId }],
@@ -118,7 +118,7 @@ export function listenToNotifications(
 }
 
 export async function markAsRead(notificationId: string): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     await updateDocument(COL, notificationId, { read: true });
     return;
   }
@@ -130,7 +130,7 @@ export async function markAsRead(notificationId: string): Promise<void> {
 }
 
 export async function markAllAsRead(userId: string): Promise<void> {
-  if (USE_MOCK_DATA) {
+  if (USE_MOCK) {
     const unread = await getCollection<InAppNotification>(COL, [
       { field: 'userId', operator: '==', value: userId },
       { field: 'read', operator: '==', value: false },
