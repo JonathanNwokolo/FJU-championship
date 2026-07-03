@@ -9,6 +9,9 @@ import { LiveMatchScreen } from '../screens/match/LiveMatchScreen';
 import { VotingScreen } from '../screens/match/VotingScreen';
 import { RoundAwardScreen } from '../screens/match/RoundAwardScreen';
 import { PreMatchScreen } from '../screens/match/PreMatchScreen';
+import { GroupFixturesScreen } from '../screens/match/GroupFixturesScreen';
+import { GroupsOverviewScreen } from '../screens/championship/GroupsOverviewScreen';
+import { GroupStageReviewScreen } from '../screens/championship/GroupStageReviewScreen';
 import { colors } from '../theme/colors';
 
 export type FixturesStackParamList = {
@@ -19,6 +22,10 @@ export type FixturesStackParamList = {
   LiveMatch: { matchId: string };
   Voting: { championshipId: string; round: number };
   RoundAward: { championshipId: string; round: number };
+  // Bloco 10.4 — Grupos + mata-mata
+  GroupsOverview: { championshipId: string };
+  GroupFixtures: { championshipId: string; groupId?: 'A' | 'B' };
+  GroupStageReview: { championshipId: string };
 };
 
 const Stack = createNativeStackNavigator<FixturesStackParamList>();
@@ -79,6 +86,21 @@ export function FixturesStackNavigator() {
         name="RoundAward"
         component={RoundAwardScreen}
         options={{ headerShown: false, animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="GroupsOverview"
+        component={GroupsOverviewScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GroupFixtures"
+        component={GroupFixturesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GroupStageReview"
+        component={GroupStageReviewScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

@@ -26,10 +26,12 @@ import { CareerCardScreen } from '../screens/player/CareerCardScreen';
 import { AnnouncementsScreen } from '../screens/championship/AnnouncementsScreen';
 import { AllTimeRankingsScreen } from '../screens/player/AllTimeRankingsScreen';
 import { SeasonScreen } from '../screens/championship/SeasonScreen';
+import { PendingCenterScreen } from '../screens/home/PendingCenterScreen';
 import { colors } from '../theme/colors';
 
 export type HomeStackParamList = {
   HomeMain: undefined;
+  PendingCenter: undefined;
   CreateChampionship: undefined;
   ChampionshipDashboard: { championshipId: string };
   AvailableChampionships: undefined;
@@ -189,6 +191,11 @@ export function HomeStackNavigator() {
       <Stack.Screen
         name="Season"
         component={SeasonScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PendingCenter"
+        component={PendingCenterScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

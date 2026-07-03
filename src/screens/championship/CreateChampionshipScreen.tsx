@@ -31,6 +31,17 @@ import { colors } from '../../theme/colors';
 import { generateInviteCode } from '../../utils/generateInviteCode';
 import { setDocument } from '../../services/index';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
+import {
+  buildCreationGroupStageConfig,
+  DEFAULT_CREATION_QUALIFIERS_PER_GROUP,
+} from '../../utils/groupStageCreation';
+
+// Bloco 10.4 — Habilitação do formato "Grupos + mata-mata" na criação.
+// Fase 4: ligado após todo o fluxo visual (criação, dashboard, grupos, fixtures,
+// revisão, chave, pendências e notificações) estar coberto por testes automatizados.
+// Quando false, o card do formato permanece "Em breve" e a criação não oferece
+// `groupStageConfig`; formatos antigos não são afetados por esta flag.
+export const GROUPS_FORMAT_UI_ENABLED = true;
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'CreateChampionship'>;
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -88,7 +99,7 @@ const FORMAT_OPTIONS: Array<{
     title: 'Grupos + mata-mata',
     desc: 'Grupos e depois eliminatória',
     icon: 'layers-outline',
-    disabled: true,
+    disabled: !GROUPS_FORMAT_UI_ENABLED,
   },
 ];
 
@@ -124,6 +135,10 @@ export function CreateChampionshipScreen() {
   const [season, setSeason] = useState(new Date().getFullYear().toString());
   const [edition, setEdition] = useState('1');
   const [isOfficial, setIsOfficial] = useState(true);
+  // Bloco 10.4 — Config de grupos (só aplicada quando format === grupos_e_mata_mata).
+  const [qualifiersPerGroup, setQualifiersPerGroup] = useState(
+    DEFAULT_CREATION_QUALIFIERS_PER_GROUP,
+  );
 
   const handleDeadlineDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -161,9 +176,24 @@ export function CreateChampionshipScreen() {
       return;
     }
 
+    const maxT = parseInt(maxTeams) || 8;
+
+    // Bloco 10.4 — Config de grupos validada antes de salvar (reusa o domínio).
+    let groupStageConfig: Championship['groupStageConfig'];
+    if (format === 'grupos_e_mata_mata') {
+      const result = buildCreationGroupStageConfig({ qualifiersPerGroup, maxTeams: maxT });
+      if (!result.valid) {
+        Alert.alert(
+          'Configuração de grupos inválida',
+          result.errors[0]?.message ?? 'Revise a configuração da fase de grupos.',
+        );
+        return;
+      }
+      groupStageConfig = result.config;
+    }
+
     setSaving(true);
     try {
-      const maxT = parseInt(maxTeams) || 8;
       const totalRounds =
         format === 'mata_mata'
           ? Math.ceil(Math.log2(maxT))
@@ -210,6 +240,14 @@ export function CreateChampionshipScreen() {
         season: season.trim() || new Date().getFullYear().toString(),
         edition: parseInt(edition) || 1,
         isOfficial,
+        ...(groupStageConfig
+          ? {
+              groupStageConfig,
+              groupStageStatus: 'not_generated' as const,
+              knockoutStageStatus: 'not_generated' as const,
+              groupStructureVersion: 1 as const,
+            }
+          : {}),
       };
 
       const createdChampionshipId = await setDocument('championships', champId, championship);
@@ -317,6 +355,13 @@ export function CreateChampionshipScreen() {
                 onPress={() => !opt.disabled && setFormat(opt.value)}
                 activeOpacity={opt.disabled ? 1 : 0.8}
                 disabled={opt.disabled}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  opt.disabled
+                    ? `${opt.title}. Em breve, indisponível.`
+                    : `${opt.title}. ${opt.desc}.`
+                }
+                accessibilityState={{ selected, disabled: !!opt.disabled }}
               >
                 {/* Icon box */}
                 <View style={styles.formatIconBox}>
@@ -347,6 +392,69 @@ export function CreateChampionshipScreen() {
             );
           })}
         </View>
+
+        {/* ── 2b. Configuração de grupos (Bloco 10.4) ── */}
+        {format === 'grupos_e_mata_mata' && (
+          <>
+            <View style={styles.sectionGap}>
+              <SectionHeader
+                title="FASE DE GRUPOS"
+                subtitle="2 grupos por sorteio, depois mata-mata"
+              />
+            </View>
+            <View style={styles.card}>
+              <View style={styles.inlineRow}>
+                <Text style={styles.inlineLabel}>Grupos</Text>
+                <Text
+                  style={styles.groupFixedValue}
+                  accessibilityLabel="Quantidade de grupos: 2, valor fixo"
+                >
+                  2 (fixo)
+                </Text>
+              </View>
+              <View
+                style={[styles.inlineRow, styles.inlineRowBorder]}
+                accessibilityLabel={`Classificados por grupo: ${qualifiersPerGroup}`}
+              >
+                <Text style={styles.inlineLabel}>Classificados por grupo</Text>
+                <View style={styles.stepper}>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => setQualifiersPerGroup((n) => Math.max(1, n - 1))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Diminuir classificados por grupo"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="remove" size={18} color={colors.accent} />
+                  </TouchableOpacity>
+                  <Text style={styles.stepperValue}>{qualifiersPerGroup}</Text>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => setQualifiersPerGroup((n) => Math.min(8, n + 1))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Aumentar classificados por grupo"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="add" size={18} color={colors.accent} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={[styles.inlineRow, styles.inlineRowBorder]}>
+                <Text style={styles.inlineLabel}>Distribuição</Text>
+                <Text style={styles.groupFixedValue}>Sorteio aleatório</Text>
+              </View>
+              <Text style={styles.groupExplain}>
+                Os times serão divididos em 2 grupos e todos jogam contra todos dentro do
+                grupo. Os melhores de cada grupo avançam, e o mata-mata é gerado depois que
+                a fase de grupos termina.
+              </Text>
+              <Text style={styles.groupExplainMuted}>
+                Desempate: pontos, vitórias, saldo de gols, gols marcados, confronto direto,
+                fair play e, por fim, critério técnico.
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* ── 3. Pontuação ── */}
         <View style={styles.sectionGap}>
@@ -906,6 +1014,50 @@ const styles = StyleSheet.create({
 
   submitButton: {
     marginTop: 32,
+  },
+
+  // ─── Group stage config (Bloco 10.4) ───
+  groupFixedValue: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stepperBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: colors.bg300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    minWidth: 24,
+    textAlign: 'center',
+    fontFamily: 'Barlow-Bold',
+    fontSize: 18,
+    color: colors.textPrimary,
+  },
+  groupExplain: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    paddingTop: 14,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.border,
+  },
+  groupExplainMuted: {
+    fontFamily: 'Barlow-Regular',
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
+    paddingTop: 8,
+    paddingBottom: 14,
   },
 
   // ─── Deadline ───

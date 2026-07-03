@@ -18,6 +18,7 @@ import Toast, { BaseToast, ErrorToast, InfoToast, ToastConfig } from 'react-nati
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { colors } from './src/theme/colors';
+import { APP_CONFIG } from './src/config/appConfig';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -89,6 +90,39 @@ const toastStyles = StyleSheet.create({
   },
 });
 
+function EnvironmentBadge() {
+  if (APP_CONFIG.isProduction) {
+    return null;
+  }
+
+  const label = APP_CONFIG.firebaseEmulator.enabled ? 'DEV EMULATOR' : APP_CONFIG.appEnv.toUpperCase();
+
+  return (
+    <View pointerEvents="none" style={envBadgeStyles.badge}>
+      <Text style={envBadgeStyles.text}>{label}</Text>
+    </View>
+  );
+}
+
+const envBadgeStyles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: 48,
+    right: 12,
+    zIndex: 50,
+    borderRadius: 6,
+    backgroundColor: 'rgba(245, 166, 35, 0.88)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  text: {
+    color: '#080E17',
+    fontFamily: 'Barlow-Bold',
+    fontSize: 10,
+    letterSpacing: 0,
+  },
+});
+
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     'Barlow-Regular': Barlow_400Regular,
@@ -120,6 +154,7 @@ export default function App() {
         <ErrorBoundary>
           <AppNavigator />
         </ErrorBoundary>
+        <EnvironmentBadge />
         <Toast config={toastConfig} />
       </SafeAreaProvider>
     </GestureHandlerRootView>

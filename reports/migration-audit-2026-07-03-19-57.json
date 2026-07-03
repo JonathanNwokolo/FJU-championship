@@ -1,0 +1,3438 @@
+{
+  "migrationVersion": "block-6-legacy-data-v1",
+  "generatedAt": "2026-07-03T19:57:35.396Z",
+  "projectId": "fju-operational-emulator",
+  "environment": "emulator",
+  "mode": "dry-run",
+  "collectionsAnalyzed": [
+    "legacyConvocations",
+    "users",
+    "championships",
+    "teams",
+    "players",
+    "team_memberships",
+    "matches",
+    "match_events",
+    "match_convocations",
+    "match_attendance",
+    "round_awards",
+    "championship_results",
+    "career_stats",
+    "player_history",
+    "all_time_rankings",
+    "organizer_allowlist",
+    "match_status_changes",
+    "match_corrections",
+    "achievements",
+    "group_assignment_logs",
+    "group_fixture_logs",
+    "group_stage_snapshots",
+    "group_transition_logs"
+  ],
+  "totalDocuments": 177,
+  "collectionCounts": {
+    "legacyConvocations": 0,
+    "users": 16,
+    "championships": 6,
+    "teams": 28,
+    "players": 42,
+    "team_memberships": 33,
+    "matches": 24,
+    "match_events": 7,
+    "match_convocations": 2,
+    "match_attendance": 4,
+    "round_awards": 1,
+    "championship_results": 1,
+    "career_stats": 1,
+    "player_history": 1,
+    "all_time_rankings": 1,
+    "organizer_allowlist": 2,
+    "match_status_changes": 3,
+    "match_corrections": 1,
+    "achievements": 0,
+    "group_assignment_logs": 1,
+    "group_fixture_logs": 1,
+    "group_stage_snapshots": 1,
+    "group_transition_logs": 1
+  },
+  "categories": {
+    "team-memberships": {
+      "total": 41,
+      "issues": [
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p1",
+          "message": "Player ativo sem team_memberships/ov_c_team_1_ov_ath_01.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_1_ov_ath_01 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p1",
+            "teamId": "ov_c_team_1",
+            "userId": "ov_ath_01"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p2",
+          "message": "Player ativo sem team_memberships/ov_c_team_1_ov_ath_02.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_1_ov_ath_02 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p2",
+            "teamId": "ov_c_team_1",
+            "userId": "ov_ath_02"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p3",
+          "message": "Player ativo sem team_memberships/ov_c_team_2_ov_ath_03.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_2_ov_ath_03 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p3",
+            "teamId": "ov_c_team_2",
+            "userId": "ov_ath_03"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p4",
+          "message": "Player ativo sem team_memberships/ov_c_team_2_ov_ath_04.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_2_ov_ath_04 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p4",
+            "teamId": "ov_c_team_2",
+            "userId": "ov_ath_04"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p5",
+          "message": "Player ativo sem team_memberships/ov_c_team_3_ov_ath_05.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_3_ov_ath_05 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p5",
+            "teamId": "ov_c_team_3",
+            "userId": "ov_ath_05"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p6",
+          "message": "Player ativo sem team_memberships/ov_c_team_3_ov_ath_06.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_3_ov_ath_06 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p6",
+            "teamId": "ov_c_team_3",
+            "userId": "ov_ath_06"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p7",
+          "message": "Player ativo sem team_memberships/ov_c_team_4_ov_ath_07.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_4_ov_ath_07 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p7",
+            "teamId": "ov_c_team_4",
+            "userId": "ov_ath_07"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/ov_c_p8",
+          "message": "Player ativo sem team_memberships/ov_c_team_4_ov_ath_08.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/ov_c_team_4_ov_ath_08 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "ov_c_p8",
+            "teamId": "ov_c_team_4",
+            "userId": "ov_ath_08"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_1_ov_ath_01",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_1_ov_ath_01"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_1_ov_ath_02",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_1_ov_ath_02"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_1_ov_ath_injured",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_1_ov_ath_injured"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_1_ov_ath_removed",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_1_ov_ath_removed"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_1_ov_ath_suspended",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_1_ov_ath_suspended"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_2_ov_ath_03",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_2_ov_ath_03"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_2_ov_ath_04",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_2_ov_ath_04"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_3_ov_ath_05",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_3_ov_ath_05"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_3_ov_ath_06",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_3_ov_ath_06"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_4_ov_ath_07",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_4_ov_ath_07"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_a_team_4_ov_ath_08",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_a_team_4_ov_ath_08"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_1_ov_ath_01",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_1_ov_ath_01"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_1_ov_ath_02",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_1_ov_ath_02"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_2_ov_ath_03",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_2_ov_ath_03"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_2_ov_ath_04",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_2_ov_ath_04"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_3_ov_ath_05",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_3_ov_ath_05"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_3_ov_ath_06",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_3_ov_ath_06"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_4_ov_ath_07",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_4_ov_ath_07"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_4_ov_ath_08",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_4_ov_ath_08"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_5_ov_ath_injured",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_5_ov_ath_injured"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_5_ov_ath_suspended",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_5_ov_ath_suspended"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_6_ov_b_guest_11",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente",
+            "user_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_6_ov_b_guest_11"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_b_team_6_ov_b_guest_12",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente",
+            "user_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_b_team_6_ov_b_guest_12"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_d_team_1_ov_ath_01",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_d_team_1_ov_ath_01"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_d_team_2_ov_ath_02",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_d_team_2_ov_ath_02"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_d_team_3_ov_ath_03",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_d_team_3_ov_ath_03"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_d_team_4_ov_ath_04",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_d_team_4_ov_ath_04"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_d_team_5_ov_ath_05",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_d_team_5_ov_ath_05"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_d_team_6_ov_ath_06",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_d_team_6_ov_ath_06"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_e_team_1_ov_ath_01",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_e_team_1_ov_ath_01"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_e_team_2_ov_ath_02",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_e_team_2_ov_ath_02"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_e_team_3_ov_ath_03",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_e_team_3_ov_ath_03"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "CRITICAL",
+          "documentPath": "team_memberships/ov_e_team_4_ov_ath_04",
+          "message": "Membership inconsistente com documentos fonte.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_inexistente"
+          ],
+          "details": {
+            "membershipId": "ov_e_team_4_ov_ath_04"
+          }
+        }
+      ],
+      "autoFixable": 8,
+      "manualReview": 33
+    },
+    "approved-player-counts": {
+      "total": 4,
+      "issues": [
+        {
+          "category": "approved-player-counts",
+          "severity": "MEDIUM",
+          "documentPath": "teams/ov_f_team_1",
+          "message": "approvedPlayersCount divergente do elenco real.",
+          "autoFixable": true,
+          "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+          "conflicts": [],
+          "details": {
+            "realCount": 0,
+            "current": 1
+          }
+        },
+        {
+          "category": "approved-player-counts",
+          "severity": "MEDIUM",
+          "documentPath": "teams/ov_f_team_2",
+          "message": "approvedPlayersCount divergente do elenco real.",
+          "autoFixable": true,
+          "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+          "conflicts": [],
+          "details": {
+            "realCount": 0,
+            "current": 1
+          }
+        },
+        {
+          "category": "approved-player-counts",
+          "severity": "MEDIUM",
+          "documentPath": "teams/ov_f_team_3",
+          "message": "approvedPlayersCount divergente do elenco real.",
+          "autoFixable": true,
+          "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+          "conflicts": [],
+          "details": {
+            "realCount": 0,
+            "current": 1
+          }
+        },
+        {
+          "category": "approved-player-counts",
+          "severity": "MEDIUM",
+          "documentPath": "teams/ov_f_team_4",
+          "message": "approvedPlayersCount divergente do elenco real.",
+          "autoFixable": true,
+          "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+          "conflicts": [],
+          "details": {
+            "realCount": 0,
+            "current": 1
+          }
+        }
+      ],
+      "autoFixable": 4,
+      "manualReview": 0
+    },
+    "registered-team-counts": {
+      "total": 0,
+      "issues": [],
+      "autoFixable": 0,
+      "manualReview": 0
+    },
+    "orphan-players": {
+      "total": 11,
+      "issues": [
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_a_removed",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisao manual obrigatoria.",
+          "conflicts": [
+            "player_removido_deve_ser_ignorado_em_contador"
+          ],
+          "details": {
+            "playerId": "ov_a_removed",
+            "userId": "ov_ath_removed",
+            "teamId": "ov_a_team_1"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "HIGH",
+          "documentPath": "players/ov_b_p11",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisao manual obrigatoria.",
+          "conflicts": [
+            "user_inexistente"
+          ],
+          "details": {
+            "playerId": "ov_b_p11",
+            "userId": "ov_b_guest_11",
+            "teamId": "ov_b_team_6"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "HIGH",
+          "documentPath": "players/ov_b_p12",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisao manual obrigatoria.",
+          "conflicts": [
+            "user_inexistente"
+          ],
+          "details": {
+            "playerId": "ov_b_p12",
+            "userId": "ov_b_guest_12",
+            "teamId": "ov_b_team_6"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p1",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p1",
+            "userId": "ov_ath_01",
+            "teamId": "ov_c_team_1"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p2",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p2",
+            "userId": "ov_ath_02",
+            "teamId": "ov_c_team_1"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p3",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p3",
+            "userId": "ov_ath_03",
+            "teamId": "ov_c_team_2"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p4",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p4",
+            "userId": "ov_ath_04",
+            "teamId": "ov_c_team_2"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p5",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p5",
+            "userId": "ov_ath_05",
+            "teamId": "ov_c_team_3"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p6",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p6",
+            "userId": "ov_ath_06",
+            "teamId": "ov_c_team_3"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p7",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p7",
+            "userId": "ov_ath_07",
+            "teamId": "ov_c_team_4"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/ov_c_p8",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "ov_c_p8",
+            "userId": "ov_ath_08",
+            "teamId": "ov_c_team_4"
+          }
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 11
+    },
+    "captains": {
+      "total": 37,
+      "issues": [
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_a_team_1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_a_team_2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_a_team_3",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_a_team_4",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_b_team_1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_b_team_2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_b_team_3",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_b_team_4",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_b_team_5",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_b_team_6",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_c_team_1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_c_team_2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_c_team_3",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_c_team_4",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_d_team_1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_d_team_2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_d_team_3",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_d_team_4",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_d_team_5",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_d_team_6",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_e_team_1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_e_team_2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_e_team_3",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_e_team_4",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_f_team_1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_f_team_2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_f_team_3",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/ov_f_team_4",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_a_ov_cap_alpha",
+            "teamIds": [
+              "ov_a_team_1",
+              "ov_a_team_3",
+              "ov_a_team_4"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_b_ov_cap_alpha",
+            "teamIds": [
+              "ov_b_team_1",
+              "ov_b_team_3",
+              "ov_b_team_5"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_b_ov_cap_beta",
+            "teamIds": [
+              "ov_b_team_2",
+              "ov_b_team_4",
+              "ov_b_team_6"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_c_ov_cap_alpha",
+            "teamIds": [
+              "ov_c_team_1",
+              "ov_c_team_3"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_c_ov_cap_beta",
+            "teamIds": [
+              "ov_c_team_2",
+              "ov_c_team_4"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_d_ov_cap_alpha",
+            "teamIds": [
+              "ov_d_team_1",
+              "ov_d_team_2",
+              "ov_d_team_3",
+              "ov_d_team_4",
+              "ov_d_team_5",
+              "ov_d_team_6"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_e_ov_cap_beta",
+            "teamIds": [
+              "ov_e_team_1",
+              "ov_e_team_2",
+              "ov_e_team_3",
+              "ov_e_team_4"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_f_ov_cap_alpha",
+            "teamIds": [
+              "ov_f_team_1",
+              "ov_f_team_2"
+            ]
+          }
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "ov_champ_f_ov_cap_beta",
+            "teamIds": [
+              "ov_f_team_3",
+              "ov_f_team_4"
+            ]
+          }
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 37
+    },
+    "legacy-convocations": {
+      "total": 0,
+      "issues": [],
+      "autoFixable": 0,
+      "manualReview": 0
+    },
+    "current-convocations-attendance": {
+      "total": 1,
+      "issues": [
+        {
+          "category": "current-convocations-attendance",
+          "severity": "HIGH",
+          "documentPath": "match_attendance/ov_d_a12_ov_d_p1",
+          "message": "match_attendance inconsistente.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "presenca_ativa_em_partida_fechada"
+          ],
+          "details": {}
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 1
+    },
+    "matches": {
+      "total": 0,
+      "issues": [],
+      "autoFixable": 0,
+      "manualReview": 0
+    },
+    "round-awards": {
+      "total": 0,
+      "issues": [],
+      "autoFixable": 0,
+      "manualReview": 0
+    },
+    "derived-results": {
+      "total": 0,
+      "issues": [],
+      "autoFixable": 0,
+      "manualReview": 0
+    },
+    "groups": {
+      "total": 11,
+      "issues": [
+        {
+          "category": "groups",
+          "severity": "INFO",
+          "documentPath": "matches/ov_d_b13",
+          "message": "Partida de grupo cancelada/adiada bloqueia a conclusão até resolução administrativa.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [],
+          "details": {
+            "status": "adiado"
+          }
+        },
+        {
+          "category": "groups",
+          "severity": "INFO",
+          "documentPath": "matches/ov_d_b23",
+          "message": "Partida de grupo cancelada/adiada bloqueia a conclusão até resolução administrativa.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [],
+          "details": {
+            "status": "cancelado"
+          }
+        },
+        {
+          "category": "groups",
+          "severity": "HIGH",
+          "documentPath": "championships/ov_champ_f",
+          "message": "Campeonato grupos + mata-mata sem groupStageConfig.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "group_config_ausente"
+          ],
+          "details": {}
+        },
+        {
+          "category": "groups",
+          "severity": "LOW",
+          "documentPath": "championships/ov_champ_f",
+          "message": "stage ausente em campeonato de grupos já iniciado.",
+          "autoFixable": true,
+          "suggestedRepair": "Preencher stage conservador 'knockout'.",
+          "conflicts": [],
+          "details": {
+            "conservativeStage": "knockout"
+          }
+        },
+        {
+          "category": "groups",
+          "severity": "HIGH",
+          "documentPath": "teams/ov_f_team_2",
+          "message": "Time aprovado sem groupId após sorteio dos grupos.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "time_sem_grupo"
+          ],
+          "details": {}
+        },
+        {
+          "category": "groups",
+          "severity": "HIGH",
+          "documentPath": "teams/ov_f_team_4",
+          "message": "groupId inválido (não normaliza para A/B).",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "group_id_invalido"
+          ],
+          "details": {
+            "groupId": "ZZ"
+          }
+        },
+        {
+          "category": "groups",
+          "severity": "HIGH",
+          "documentPath": "matches/ov_f_cross",
+          "message": "Partida de grupo entre times de grupos diferentes.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "partida_cross_group"
+          ],
+          "details": {
+            "home": "A",
+            "away": "B"
+          }
+        },
+        {
+          "category": "groups",
+          "severity": "CRITICAL",
+          "documentPath": "championships/ov_champ_f",
+          "message": "Mata-mata gerado sem snapshot de classificados.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "snapshot_ausente"
+          ],
+          "details": {}
+        },
+        {
+          "category": "groups",
+          "severity": "MEDIUM",
+          "documentPath": "matches/ov_f_ko",
+          "message": "Partida de mata-mata sem originSnapshotVersion.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "knockout_sem_origin_snapshot"
+          ],
+          "details": {}
+        },
+        {
+          "category": "groups",
+          "severity": "MEDIUM",
+          "documentPath": "championships/ov_champ_f",
+          "message": "groupStageLockedAt ausente após a transição.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "group_stage_locked_at_ausente"
+          ],
+          "details": {}
+        },
+        {
+          "category": "groups",
+          "severity": "MEDIUM",
+          "documentPath": "championships/ov_champ_f",
+          "message": "knockoutGeneratedAt ausente após a transição.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "knockout_generated_at_ausente"
+          ],
+          "details": {}
+        }
+      ],
+      "autoFixable": 1,
+      "manualReview": 10
+    }
+  },
+  "issues": [
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p1",
+      "message": "Player ativo sem team_memberships/ov_c_team_1_ov_ath_01.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_1_ov_ath_01 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p1",
+        "teamId": "ov_c_team_1",
+        "userId": "ov_ath_01"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p2",
+      "message": "Player ativo sem team_memberships/ov_c_team_1_ov_ath_02.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_1_ov_ath_02 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p2",
+        "teamId": "ov_c_team_1",
+        "userId": "ov_ath_02"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p3",
+      "message": "Player ativo sem team_memberships/ov_c_team_2_ov_ath_03.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_2_ov_ath_03 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p3",
+        "teamId": "ov_c_team_2",
+        "userId": "ov_ath_03"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p4",
+      "message": "Player ativo sem team_memberships/ov_c_team_2_ov_ath_04.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_2_ov_ath_04 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p4",
+        "teamId": "ov_c_team_2",
+        "userId": "ov_ath_04"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p5",
+      "message": "Player ativo sem team_memberships/ov_c_team_3_ov_ath_05.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_3_ov_ath_05 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p5",
+        "teamId": "ov_c_team_3",
+        "userId": "ov_ath_05"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p6",
+      "message": "Player ativo sem team_memberships/ov_c_team_3_ov_ath_06.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_3_ov_ath_06 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p6",
+        "teamId": "ov_c_team_3",
+        "userId": "ov_ath_06"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p7",
+      "message": "Player ativo sem team_memberships/ov_c_team_4_ov_ath_07.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_4_ov_ath_07 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p7",
+        "teamId": "ov_c_team_4",
+        "userId": "ov_ath_07"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/ov_c_p8",
+      "message": "Player ativo sem team_memberships/ov_c_team_4_ov_ath_08.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/ov_c_team_4_ov_ath_08 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "ov_c_p8",
+        "teamId": "ov_c_team_4",
+        "userId": "ov_ath_08"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_1_ov_ath_01",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_1_ov_ath_01"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_1_ov_ath_02",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_1_ov_ath_02"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_1_ov_ath_injured",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_1_ov_ath_injured"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_1_ov_ath_removed",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_1_ov_ath_removed"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_1_ov_ath_suspended",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_1_ov_ath_suspended"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_2_ov_ath_03",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_2_ov_ath_03"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_2_ov_ath_04",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_2_ov_ath_04"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_3_ov_ath_05",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_3_ov_ath_05"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_3_ov_ath_06",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_3_ov_ath_06"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_4_ov_ath_07",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_4_ov_ath_07"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_a_team_4_ov_ath_08",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_a_team_4_ov_ath_08"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_1_ov_ath_01",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_1_ov_ath_01"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_1_ov_ath_02",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_1_ov_ath_02"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_2_ov_ath_03",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_2_ov_ath_03"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_2_ov_ath_04",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_2_ov_ath_04"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_3_ov_ath_05",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_3_ov_ath_05"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_3_ov_ath_06",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_3_ov_ath_06"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_4_ov_ath_07",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_4_ov_ath_07"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_4_ov_ath_08",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_4_ov_ath_08"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_5_ov_ath_injured",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_5_ov_ath_injured"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_5_ov_ath_suspended",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_5_ov_ath_suspended"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_6_ov_b_guest_11",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente",
+        "user_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_6_ov_b_guest_11"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_b_team_6_ov_b_guest_12",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente",
+        "user_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_b_team_6_ov_b_guest_12"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_d_team_1_ov_ath_01",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_d_team_1_ov_ath_01"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_d_team_2_ov_ath_02",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_d_team_2_ov_ath_02"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_d_team_3_ov_ath_03",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_d_team_3_ov_ath_03"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_d_team_4_ov_ath_04",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_d_team_4_ov_ath_04"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_d_team_5_ov_ath_05",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_d_team_5_ov_ath_05"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_d_team_6_ov_ath_06",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_d_team_6_ov_ath_06"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_e_team_1_ov_ath_01",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_e_team_1_ov_ath_01"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_e_team_2_ov_ath_02",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_e_team_2_ov_ath_02"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_e_team_3_ov_ath_03",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_e_team_3_ov_ath_03"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "CRITICAL",
+      "documentPath": "team_memberships/ov_e_team_4_ov_ath_04",
+      "message": "Membership inconsistente com documentos fonte.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_inexistente"
+      ],
+      "details": {
+        "membershipId": "ov_e_team_4_ov_ath_04"
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "MEDIUM",
+      "documentPath": "teams/ov_f_team_1",
+      "message": "approvedPlayersCount divergente do elenco real.",
+      "autoFixable": true,
+      "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+      "conflicts": [],
+      "details": {
+        "realCount": 0,
+        "current": 1
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "MEDIUM",
+      "documentPath": "teams/ov_f_team_2",
+      "message": "approvedPlayersCount divergente do elenco real.",
+      "autoFixable": true,
+      "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+      "conflicts": [],
+      "details": {
+        "realCount": 0,
+        "current": 1
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "MEDIUM",
+      "documentPath": "teams/ov_f_team_3",
+      "message": "approvedPlayersCount divergente do elenco real.",
+      "autoFixable": true,
+      "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+      "conflicts": [],
+      "details": {
+        "realCount": 0,
+        "current": 1
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "MEDIUM",
+      "documentPath": "teams/ov_f_team_4",
+      "message": "approvedPlayersCount divergente do elenco real.",
+      "autoFixable": true,
+      "suggestedRepair": "Atualizar approvedPlayersCount para 0.",
+      "conflicts": [],
+      "details": {
+        "realCount": 0,
+        "current": 1
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_a_removed",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisao manual obrigatoria.",
+      "conflicts": [
+        "player_removido_deve_ser_ignorado_em_contador"
+      ],
+      "details": {
+        "playerId": "ov_a_removed",
+        "userId": "ov_ath_removed",
+        "teamId": "ov_a_team_1"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "HIGH",
+      "documentPath": "players/ov_b_p11",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisao manual obrigatoria.",
+      "conflicts": [
+        "user_inexistente"
+      ],
+      "details": {
+        "playerId": "ov_b_p11",
+        "userId": "ov_b_guest_11",
+        "teamId": "ov_b_team_6"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "HIGH",
+      "documentPath": "players/ov_b_p12",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisao manual obrigatoria.",
+      "conflicts": [
+        "user_inexistente"
+      ],
+      "details": {
+        "playerId": "ov_b_p12",
+        "userId": "ov_b_guest_12",
+        "teamId": "ov_b_team_6"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p1",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p1",
+        "userId": "ov_ath_01",
+        "teamId": "ov_c_team_1"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p2",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p2",
+        "userId": "ov_ath_02",
+        "teamId": "ov_c_team_1"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p3",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p3",
+        "userId": "ov_ath_03",
+        "teamId": "ov_c_team_2"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p4",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p4",
+        "userId": "ov_ath_04",
+        "teamId": "ov_c_team_2"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p5",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p5",
+        "userId": "ov_ath_05",
+        "teamId": "ov_c_team_3"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p6",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p6",
+        "userId": "ov_ath_06",
+        "teamId": "ov_c_team_3"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p7",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p7",
+        "userId": "ov_ath_07",
+        "teamId": "ov_c_team_4"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/ov_c_p8",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "ov_c_p8",
+        "userId": "ov_ath_08",
+        "teamId": "ov_c_team_4"
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_a_team_1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_a_team_2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_a_team_3",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_a_team_4",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_b_team_1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_b_team_2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_b_team_3",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_b_team_4",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_b_team_5",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_b_team_6",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_c_team_1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_c_team_2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_c_team_3",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_c_team_4",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_d_team_1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_d_team_2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_d_team_3",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_d_team_4",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_d_team_5",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_d_team_6",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_e_team_1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_e_team_2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_e_team_3",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_e_team_4",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_f_team_1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_f_team_2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_f_team_3",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/ov_f_team_4",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_a_ov_cap_alpha",
+        "teamIds": [
+          "ov_a_team_1",
+          "ov_a_team_3",
+          "ov_a_team_4"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_b_ov_cap_alpha",
+        "teamIds": [
+          "ov_b_team_1",
+          "ov_b_team_3",
+          "ov_b_team_5"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_b_ov_cap_beta",
+        "teamIds": [
+          "ov_b_team_2",
+          "ov_b_team_4",
+          "ov_b_team_6"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_c_ov_cap_alpha",
+        "teamIds": [
+          "ov_c_team_1",
+          "ov_c_team_3"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_c_ov_cap_beta",
+        "teamIds": [
+          "ov_c_team_2",
+          "ov_c_team_4"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_d_ov_cap_alpha",
+        "teamIds": [
+          "ov_d_team_1",
+          "ov_d_team_2",
+          "ov_d_team_3",
+          "ov_d_team_4",
+          "ov_d_team_5",
+          "ov_d_team_6"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_e_ov_cap_beta",
+        "teamIds": [
+          "ov_e_team_1",
+          "ov_e_team_2",
+          "ov_e_team_3",
+          "ov_e_team_4"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_f_ov_cap_alpha",
+        "teamIds": [
+          "ov_f_team_1",
+          "ov_f_team_2"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "ov_champ_f_ov_cap_beta",
+        "teamIds": [
+          "ov_f_team_3",
+          "ov_f_team_4"
+        ]
+      }
+    },
+    {
+      "category": "current-convocations-attendance",
+      "severity": "HIGH",
+      "documentPath": "match_attendance/ov_d_a12_ov_d_p1",
+      "message": "match_attendance inconsistente.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "presenca_ativa_em_partida_fechada"
+      ],
+      "details": {}
+    },
+    {
+      "category": "groups",
+      "severity": "INFO",
+      "documentPath": "matches/ov_d_b13",
+      "message": "Partida de grupo cancelada/adiada bloqueia a conclusão até resolução administrativa.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [],
+      "details": {
+        "status": "adiado"
+      }
+    },
+    {
+      "category": "groups",
+      "severity": "INFO",
+      "documentPath": "matches/ov_d_b23",
+      "message": "Partida de grupo cancelada/adiada bloqueia a conclusão até resolução administrativa.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [],
+      "details": {
+        "status": "cancelado"
+      }
+    },
+    {
+      "category": "groups",
+      "severity": "HIGH",
+      "documentPath": "championships/ov_champ_f",
+      "message": "Campeonato grupos + mata-mata sem groupStageConfig.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "group_config_ausente"
+      ],
+      "details": {}
+    },
+    {
+      "category": "groups",
+      "severity": "LOW",
+      "documentPath": "championships/ov_champ_f",
+      "message": "stage ausente em campeonato de grupos já iniciado.",
+      "autoFixable": true,
+      "suggestedRepair": "Preencher stage conservador 'knockout'.",
+      "conflicts": [],
+      "details": {
+        "conservativeStage": "knockout"
+      }
+    },
+    {
+      "category": "groups",
+      "severity": "HIGH",
+      "documentPath": "teams/ov_f_team_2",
+      "message": "Time aprovado sem groupId após sorteio dos grupos.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "time_sem_grupo"
+      ],
+      "details": {}
+    },
+    {
+      "category": "groups",
+      "severity": "HIGH",
+      "documentPath": "teams/ov_f_team_4",
+      "message": "groupId inválido (não normaliza para A/B).",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "group_id_invalido"
+      ],
+      "details": {
+        "groupId": "ZZ"
+      }
+    },
+    {
+      "category": "groups",
+      "severity": "HIGH",
+      "documentPath": "matches/ov_f_cross",
+      "message": "Partida de grupo entre times de grupos diferentes.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "partida_cross_group"
+      ],
+      "details": {
+        "home": "A",
+        "away": "B"
+      }
+    },
+    {
+      "category": "groups",
+      "severity": "CRITICAL",
+      "documentPath": "championships/ov_champ_f",
+      "message": "Mata-mata gerado sem snapshot de classificados.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "snapshot_ausente"
+      ],
+      "details": {}
+    },
+    {
+      "category": "groups",
+      "severity": "MEDIUM",
+      "documentPath": "matches/ov_f_ko",
+      "message": "Partida de mata-mata sem originSnapshotVersion.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "knockout_sem_origin_snapshot"
+      ],
+      "details": {}
+    },
+    {
+      "category": "groups",
+      "severity": "MEDIUM",
+      "documentPath": "championships/ov_champ_f",
+      "message": "groupStageLockedAt ausente após a transição.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "group_stage_locked_at_ausente"
+      ],
+      "details": {}
+    },
+    {
+      "category": "groups",
+      "severity": "MEDIUM",
+      "documentPath": "championships/ov_champ_f",
+      "message": "knockoutGeneratedAt ausente após a transição.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "knockout_generated_at_ausente"
+      ],
+      "details": {}
+    }
+  ],
+  "proposedChanges": [
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_1_ov_ath_01",
+      "collection": "team_memberships",
+      "id": "ov_c_team_1_ov_ath_01",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_1",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_01",
+        "playerId": "ov_c_p1",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p1",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_1_ov_ath_02",
+      "collection": "team_memberships",
+      "id": "ov_c_team_1_ov_ath_02",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_1",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_02",
+        "playerId": "ov_c_p2",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p2",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_2_ov_ath_03",
+      "collection": "team_memberships",
+      "id": "ov_c_team_2_ov_ath_03",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_2",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_03",
+        "playerId": "ov_c_p3",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p3",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_2_ov_ath_04",
+      "collection": "team_memberships",
+      "id": "ov_c_team_2_ov_ath_04",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_2",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_04",
+        "playerId": "ov_c_p4",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p4",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_3_ov_ath_05",
+      "collection": "team_memberships",
+      "id": "ov_c_team_3_ov_ath_05",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_3",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_05",
+        "playerId": "ov_c_p5",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p5",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_3_ov_ath_06",
+      "collection": "team_memberships",
+      "id": "ov_c_team_3_ov_ath_06",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_3",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_06",
+        "playerId": "ov_c_p6",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p6",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_4_ov_ath_07",
+      "collection": "team_memberships",
+      "id": "ov_c_team_4_ov_ath_07",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_4",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_07",
+        "playerId": "ov_c_p7",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p7",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/ov_c_team_4_ov_ath_08",
+      "collection": "team_memberships",
+      "id": "ov_c_team_4_ov_ath_08",
+      "before": null,
+      "after": {
+        "teamId": "ov_c_team_4",
+        "championshipId": "ov_champ_c",
+        "userId": "ov_ath_08",
+        "playerId": "ov_c_p8",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-03T19:57:35.401Z",
+        "sourcePlayerId": "ov_c_p8",
+        "updatedAt": "2026-07-03T19:57:35.401Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "approved-player-counts",
+      "operation": "update",
+      "documentPath": "teams/ov_f_team_1",
+      "collection": "teams",
+      "id": "ov_f_team_1",
+      "before": {
+        "approvedPlayersCount": 1
+      },
+      "after": {
+        "approvedPlayersCount": 0
+      },
+      "reason": "Recalculo seguro do contador denormalizado de atletas."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "approved-player-counts",
+      "operation": "update",
+      "documentPath": "teams/ov_f_team_2",
+      "collection": "teams",
+      "id": "ov_f_team_2",
+      "before": {
+        "approvedPlayersCount": 1
+      },
+      "after": {
+        "approvedPlayersCount": 0
+      },
+      "reason": "Recalculo seguro do contador denormalizado de atletas."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "approved-player-counts",
+      "operation": "update",
+      "documentPath": "teams/ov_f_team_3",
+      "collection": "teams",
+      "id": "ov_f_team_3",
+      "before": {
+        "approvedPlayersCount": 1
+      },
+      "after": {
+        "approvedPlayersCount": 0
+      },
+      "reason": "Recalculo seguro do contador denormalizado de atletas."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "approved-player-counts",
+      "operation": "update",
+      "documentPath": "teams/ov_f_team_4",
+      "collection": "teams",
+      "id": "ov_f_team_4",
+      "before": {
+        "approvedPlayersCount": 1
+      },
+      "after": {
+        "approvedPlayersCount": 0
+      },
+      "reason": "Recalculo seguro do contador denormalizado de atletas."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "groups",
+      "operation": "update",
+      "documentPath": "championships/ov_champ_f",
+      "collection": "championships",
+      "id": "ov_champ_f",
+      "before": {
+        "stage": null
+      },
+      "after": {
+        "stage": "knockout"
+      },
+      "reason": "Preenchimento conservador de stage para campeonato de grupos já iniciado."
+    }
+  ],
+  "summary": {
+    "critical": 71,
+    "high": 15,
+    "medium": 16,
+    "low": 1,
+    "info": 2,
+    "autoFixable": 13,
+    "manualReview": 92,
+    "totalIssues": 105,
+    "totalProposedChanges": 13
+  }
+}

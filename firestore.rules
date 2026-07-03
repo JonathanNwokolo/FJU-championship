@@ -485,7 +485,10 @@ service cloud.firestore {
 
     match /match_events/{eventId} {
       function matchIsStillEditable(matchId) {
-        return get(/databases/$(database)/documents/matches/$(matchId)).data.status != 'finalizado';
+        // Bloco 5 — Fase A: eventos só podem ser criados/editados/excluídos enquanto a
+        // partida está agendada ou ao vivo. Finalizada usa correção controlada;
+        // adiada/cancelada/W.O. não aceitam eventos novos.
+        return get(/databases/$(database)/documents/matches/$(matchId)).data.status in ['agendado', 'ao_vivo'];
       }
 
       function finalizedEventCorrectionIsSafe(data) {
@@ -550,7 +553,180 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── /match_status_changes (Bloco 5 — Fase A: auditoria W.O./adiamento/cancelamento) ──
+
+    match /championship_reprocess_logs/{reprocessId} {
+      function reprocessLogHasRequiredFields() {
+        let d = request.resource.data;
+        let correctionPath = /databases/$(database)/documents/match_corrections/$(d.sourceCorrectionId);
+        return d.id == reprocessId &&
+          d.reprocessId == reprocessId &&
+          d.championshipId is string &&
+          d.sourceCorrectionId is string &&
+          d.sourceMatchId is string &&
+          d.reason is string &&
+          d.reason.size() >= 5 &&
+          d.createdBy == uid() &&
+          d.previousResultsDigest is string &&
+          d.newResultsDigest is string &&
+          d.changed is bool &&
+          d.changedFields is list &&
+          d.affectedUserIds is list &&
+          d.historyDeltas is list &&
+          d.achievementGrants is list &&
+          d.achievementRevocations is list &&
+          d.careerStatsAffected is list &&
+          d.rankingsAffected is list &&
+          d.idempotencyKey == reprocessId &&
+          d.reprocessVersion is int &&
+          d.reprocessVersion > 0 &&
+          exists(correctionPath) &&
+          get(correctionPath).data.championshipId == d.championshipId &&
+          get(correctionPath).data.organizerId == uid();
+      }
+
+      allow read: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId);
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        reprocessLogHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/championship_reprocess_logs/$(reprocessId));
+      allow update, delete: if false;
+    }
+
+    match /match_status_changes/{changeId} {
+      function statusChangeHasRequiredFields() {
+        let d = request.resource.data;
+        return d.championshipId is string &&
+          d.matchId is string &&
+          d.organizerId == uid() &&
+          d.reason is string &&
+          d.reason.size() >= 5 &&
+          d.type in ['wo', 'adiamento', 'cancelamento', 'reativacao'] &&
+          d.beforeStatus is string &&
+          d.afterStatus is string &&
+          d.beforeScore is map &&
+          d.afterScore is map &&
+          d.version is int &&
+          d.derivedEffects is list;
+      }
+
+      allow read: if isSignedIn() && isChampionshipOrganizer(resource.data.championshipId);
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        statusChangeHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/match_status_changes/$(changeId));
+      // Logs são imutáveis.
+      allow update, delete: if false;
+    }
+
     // ── /join_requests ────────────────────────────────────────────────────────
+
+    // Bloco 10.2: snapshot imutavel dos classificados da fase de grupos.
+    match /group_stage_snapshots/{snapshotId} {
+      function snapshotHasRequiredFields() {
+        let d = request.resource.data;
+        return d.id == snapshotId &&
+          d.version is int &&
+          d.version >= 1 &&
+          d.championshipId is string &&
+          d.groupGenerationVersion is int &&
+          d.groupFixturesVersion is int &&
+          d.structureVersion == 1 &&
+          d.configVersion == 1 &&
+          d.qualifiersPerGroup is int &&
+          d.qualifiersPerGroup >= 1 &&
+          d.qualifiers is list &&
+          d.standingsDigest is string &&
+          d.standingsDigest.size() > 0 &&
+          d.generatedBy == uid() &&
+          d.generatedAt is timestamp;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        snapshotHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/group_stage_snapshots/$(snapshotId));
+      allow update, delete: if false;
+    }
+
+    // Bloco 10.2: log imutavel da transicao grupos -> mata-mata.
+    match /group_transition_logs/{logId} {
+      function transitionLogHasRequiredFields() {
+        let d = request.resource.data;
+        return d.id == logId &&
+          d.championshipId is string &&
+          d.transitionVersion is int &&
+          d.transitionVersion >= 1 &&
+          d.snapshotId is string &&
+          d.snapshotDigest is string &&
+          d.snapshotDigest.size() > 0 &&
+          d.knockoutGenerationVersion is int &&
+          d.knockoutGenerationVersion >= 1 &&
+          d.qualifierIds is list &&
+          d.fixtureIds is list &&
+          d.createdBy == uid() &&
+          d.createdAt is timestamp;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        transitionLogHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/group_transition_logs/$(logId));
+      allow update, delete: if false;
+    }
+
+    // Bloco 10.5: log imutavel do sorteio dos grupos (distribuicao A/B).
+    match /group_assignment_logs/{logId} {
+      function assignmentLogHasRequiredFields() {
+        let d = request.resource.data;
+        return d.id == logId &&
+          d.championshipId is string &&
+          d.generationVersion is int &&
+          d.generationVersion >= 1 &&
+          d.algorithmVersion == 1 &&
+          d.drawSeed is string &&
+          d.drawSeed.size() > 0 &&
+          d.assignments is list &&
+          d.createdBy == uid() &&
+          d.createdAt is timestamp;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        assignmentLogHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/group_assignment_logs/$(logId));
+      allow update, delete: if false;
+    }
+
+    // Bloco 10.5: log imutavel da geracao das partidas de grupo.
+    match /group_fixture_logs/{logId} {
+      function fixtureLogHasRequiredFields() {
+        let d = request.resource.data;
+        return d.id == logId &&
+          d.championshipId is string &&
+          d.fixturesVersion is int &&
+          d.fixturesVersion >= 1 &&
+          d.groupGenerationVersion is int &&
+          d.groupGenerationVersion >= 1 &&
+          d.structureVersion == 1 &&
+          d.fixtureIds is list &&
+          d.fixtureCount is int &&
+          d.groupCounts is map &&
+          d.createdBy == uid() &&
+          d.createdAt is timestamp;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId) &&
+        fixtureLogHasRequiredFields() &&
+        !exists(/databases/$(database)/documents/group_fixture_logs/$(logId));
+      allow update, delete: if false;
+    }
 
     match /join_requests/{requestId} {
       allow read: if isSignedIn() && (
@@ -648,9 +824,13 @@ service cloud.firestore {
 
     match /player_history/{entryId} {
       allow read: if isSignedIn();
-      // Written only by the championship finisher (organizer context)
-      allow create: if isSignedIn() && isOrganizer();
-      allow update, delete: if false;
+      // Written by the championship finisher/reprocessor in the owning organizer context.
+      allow create: if isSignedIn() &&
+        isChampionshipOrganizer(request.resource.data.championshipId);
+      allow update: if isSignedIn() &&
+        isChampionshipOrganizer(resource.data.championshipId) &&
+        request.resource.data.championshipId == resource.data.championshipId;
+      allow delete: if false;
     }
 
     // ── /career_stats ─────────────────────────────────────────────────────────
@@ -763,10 +943,136 @@ service cloud.firestore {
     }
 
     // ── Convocations (subcollection of teams) ────────────────────────────────
+    // LEGADO (Bloco 5 — Fase B): convocação por rodada. Mantida por compatibilidade;
+    // a fonte de verdade por PARTIDA passou para /match_convocations.
 
     match /teams/{teamId}/convocations/{round} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && isTeamCaptain(teamId);
+    }
+
+    // ── /match_convocations (Bloco 5 — Fase B) ───────────────────────────────
+    // ID determinístico: {matchId}_{teamId}. Capitão cria/edita só com a partida
+    // ainda aberta; organizador dono administra (inclusive a propagação de status
+    // quando a partida já fechou). Versão é estritamente monotônica.
+
+    match /match_convocations/{convId} {
+      function convIdMatches(d) {
+        return convId == d.matchId + '_' + d.teamId;
+      }
+      function matchIsOpenForConvocation(matchId) {
+        let status = get(/databases/$(database)/documents/matches/$(matchId)).data.status;
+        return status == 'agendado' || status == 'adiado';
+      }
+      function convIdsImmutable() {
+        return request.resource.data.matchId == resource.data.matchId &&
+          request.resource.data.teamId == resource.data.teamId &&
+          request.resource.data.championshipId == resource.data.championshipId;
+      }
+
+      allow read: if isSignedIn();
+
+      // Criação: capitão do time (partida aberta) ou organizador dono. Versão = 1.
+      allow create: if isSignedIn() &&
+        convIdMatches(request.resource.data) &&
+        request.resource.data.version == 1 &&
+        request.resource.data.status == 'open' &&
+        (
+          (
+            isTeamCaptain(request.resource.data.teamId) &&
+            matchIsOpenForConvocation(request.resource.data.matchId)
+          ) ||
+          isChampionshipOrganizer(request.resource.data.championshipId)
+        );
+
+      // Edição: capitão (partida aberta, status open/closed) ou organizador (admin,
+      // inclusive cancelado/concluído na propagação). IDs imutáveis, versão += 1.
+      allow update: if isSignedIn() &&
+        convIdsImmutable() &&
+        request.resource.data.version == resource.data.version + 1 &&
+        (
+          (
+            isTeamCaptain(resource.data.teamId) &&
+            matchIsOpenForConvocation(resource.data.matchId) &&
+            request.resource.data.status in ['open', 'closed']
+          ) ||
+          isChampionshipOrganizer(resource.data.championshipId)
+        );
+
+      // Convocações não são apagadas fisicamente.
+      allow delete: if false;
+    }
+
+    // ── /match_attendance (Bloco 5 — Fase B) ─────────────────────────────────
+    // ID determinístico: {matchId}_{playerId}. O ATLETA responde apenas por si e
+    // somente se convocado, com a partida aberta. O organizador NÃO falsifica
+    // presença: só pode marcar reconfirmação (sem tocar na resposta).
+
+    match /match_attendance/{attId} {
+      function attIdMatches(d) {
+        return attId == d.matchId + '_' + d.playerId;
+      }
+      function matchOpenForAttendance(matchId) {
+        let status = get(/databases/$(database)/documents/matches/$(matchId)).data.status;
+        return status == 'agendado' || status == 'adiado';
+      }
+      function convocationAllowsResponse(d) {
+        let conv = get(
+          /databases/$(database)/documents/match_convocations/$(d.matchId + '_' + d.teamId)
+        ).data;
+        return conv != null && conv.status == 'open' && (d.playerId in conv.playerIds);
+      }
+      function isSelfPlayer(d) {
+        let player = get(/databases/$(database)/documents/players/$(d.playerId)).data;
+        return player != null && player.userId == uid() && player.teamId == d.teamId;
+      }
+      function attIdsImmutable() {
+        return request.resource.data.matchId == resource.data.matchId &&
+          request.resource.data.teamId == resource.data.teamId &&
+          request.resource.data.playerId == resource.data.playerId &&
+          request.resource.data.championshipId == resource.data.championshipId &&
+          request.resource.data.userId == resource.data.userId;
+      }
+
+      allow read: if isSignedIn();
+
+      // Criação: só o próprio atleta convocado, partida aberta, versão = 1.
+      allow create: if isSignedIn() &&
+        attIdMatches(request.resource.data) &&
+        request.resource.data.version == 1 &&
+        request.resource.data.userId == uid() &&
+        request.resource.data.response in ['confirmed', 'declined'] &&
+        isSelfPlayer(request.resource.data) &&
+        matchOpenForAttendance(request.resource.data.matchId) &&
+        convocationAllowsResponse(request.resource.data);
+
+      // Edição: (a) o próprio atleta altera a resposta antes do prazo; ou
+      //         (b) o organizador APENAS marca reconfirmação (não toca na resposta).
+      allow update: if isSignedIn() &&
+        attIdsImmutable() &&
+        request.resource.data.version == resource.data.version + 1 &&
+        (
+          (
+            request.resource.data.userId == uid() &&
+            isSelfPlayer(resource.data) &&
+            matchOpenForAttendance(resource.data.matchId) &&
+            convocationAllowsResponse(resource.data) &&
+            request.resource.data.response in ['confirmed', 'declined']
+          ) ||
+          (
+            isChampionshipOrganizer(resource.data.championshipId) &&
+            request.resource.data.response == resource.data.response &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'reconfirmationRequired',
+              'previousResponse',
+              'version',
+              'updatedAt'
+            ])
+          )
+        );
+
+      // Respostas não são apagadas fisicamente.
+      allow delete: if false;
     }
   }
 }

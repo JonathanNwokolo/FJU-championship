@@ -21,8 +21,6 @@ import {
   RoundAward,
   ChampionshipResultData,
   CareerStats,
-  AllTimeRankingPlayer,
-  AllTimeRankingTeam,
   PlayerHistoryEntry,
 } from '../types';
 import {
@@ -38,6 +36,15 @@ import { hasAchievement, grantAchievement } from './achievementService';
 import { getTokensForChampionship, sendPushNotification } from './notificationService';
 import { calculateOverall } from '../utils/playerOverall';
 import { isActiveRosterPlayer } from '../utils/teamRules';
+import { matchCountsForStandings, isMatchSettled } from '../utils/matchRules';
+import {
+  dedupeRoundAwards,
+  computeCareerStatsTotals,
+  buildAllTimeRankingDocs,
+} from '../utils/championshipReprocessing';
+
+// Reexportado para compatibilidade: a definição pura vive em utils/championshipReprocessing.
+export { dedupeRoundAwards };
 
 interface FinishChampionshipResult {
   success: boolean;
@@ -57,7 +64,9 @@ const BRACKET_ROUND_RANK: Record<string, number> = {
 
 function getFinalizedKnockoutFinal(matches: MatchModel[]): MatchModel | null {
   return [...matches]
-    .filter((match) => match.status === 'finalizado' && !!match.winnerId)
+    // Bloco 5 — Fase A: uma final decidida por W.O. (status 'wo' com winnerId) também
+    // define o campeão.
+    .filter((match) => matchCountsForStandings(match.status) && !!match.winnerId)
     .sort((a, b) => {
       const rankDiff =
         (BRACKET_ROUND_RANK[b.bracketRound ?? ''] ?? 0) -
@@ -72,35 +81,11 @@ function getFinalizedKnockoutFinal(matches: MatchModel[]): MatchModel | null {
  * não contam). Cobre agendadas e ao vivo.
  */
 function getPendingMatches(matches: MatchModel[]): MatchModel[] {
+  // Bloco 5 — Fase A: partidas liquidadas por W.O. ou cancelamento NÃO são pendentes
+  // (já têm desfecho definitivo) e não bloqueiam o encerramento.
   return matches.filter(
-    (m) => m.status !== 'finalizado' && !!m.homeTeamId && !!m.awayTeamId,
+    (m) => !isMatchSettled(m.status) && !!m.homeTeamId && !!m.awayTeamId,
   );
-}
-
-export function dedupeRoundAwards(roundAwards: RoundAward[]): RoundAward[] {
-  const byRound = new Map<string, RoundAward[]>();
-  for (const award of roundAwards) {
-    const key = `${award.championshipId}_${award.round}`;
-    byRound.set(key, [...(byRound.get(key) ?? []), award]);
-  }
-
-  return [...byRound.entries()].map(([key, awards]) => {
-    const deterministic = awards.find((award) => award.id === key);
-    if (deterministic) return deterministic;
-
-    const winnerIds = new Set(awards.map((award) => award.winnerPlayerId));
-    if (winnerIds.size > 1) {
-      console.warn(
-        `[championshipFinisher] conflicting legacy round_awards for ${key}; using oldest closedAt then id`,
-      );
-    }
-
-    return [...awards].sort((a, b) => {
-      const closedAtDiff = (a.closedAt ?? '').localeCompare(b.closedAt ?? '');
-      if (closedAtDiff !== 0) return closedAtDiff;
-      return a.id.localeCompare(b.id);
-    })[0];
-  });
 }
 
 export interface FinishChampionshipOptions {
@@ -167,18 +152,22 @@ export async function finishChampionship(
 
     const matchIds = new Set(matches.map((m) => m.id));
     const champEvents = events.filter((e) => matchIds.has(e.matchId));
+    // Bloco 5 — Fase A: jogos que contam para classificação/total = jogados + W.O.
+    // `finishedMatches` (apenas 'finalizado') segue valendo para estatística INDIVIDUAL
+    // (jogos disputados por atleta), pois W.O. não gera estatística individual.
+    const standingsMatches = matches.filter((m) => matchCountsForStandings(m.status));
     const finishedMatches = matches.filter((m) => m.status === 'finalizado');
     const uniqueRoundAwards = dedupeRoundAwards(roundAwards);
 
     // 2. Calculate final results
-    const standings = calculateStandings(finishedMatches, champEvents, teams, championship.rules);
+    const standings = calculateStandings(standingsMatches, champEvents, teams, championship.rules);
     const topScorers = calculateTopScorers(champEvents, players, teams);
 
     const winner = standings[0];
     const runnerUp = standings[1];
 
     const finalMatch =
-      championship.format === 'mata_mata' ? getFinalizedKnockoutFinal(finishedMatches) : null;
+      championship.format === 'mata_mata' ? getFinalizedKnockoutFinal(standingsMatches) : null;
     const knockoutWinnerTeam = finalMatch?.winnerId
       ? teams.find((t) => t.id === finalMatch.winnerId)
       : undefined;
@@ -231,7 +220,7 @@ export async function finishChampionship(
       format: championship.format,
       totalTeams: teams.length,
       totalPlayers: players.length,
-      totalMatches: finishedMatches.length,
+      totalMatches: standingsMatches.length,
       totalGoals,
       winnerId: winnerTeam?.id ?? '',
       winnerName: winnerTeam?.name ?? '',
@@ -433,46 +422,14 @@ async function recalcCareerStats(
   const history = await getCollection<PlayerHistoryEntry>('player_history', [
     { field: 'userId', operator: '==', value: userId },
   ]);
-  if (history.length === 0) return;
-
-  let totalGoals = 0;
-  let totalAssists = 0;
-  let totalMatches = 0;
-  let totalTitles = 0;
-  let totalMvps = 0;
-  let bestOverall = 0;
-  let bestSeasonGoals = 0;
-  let bestSeason = history[0].season;
-  let firstSeasonYear = history[0].season;
-
-  for (const h of history) {
-    totalGoals += h.goals ?? 0;
-    totalAssists += h.assists ?? 0;
-    totalMatches += h.matchesPlayed ?? 0;
-    totalTitles += h.isChampion ? 1 : 0;
-    totalMvps += h.roundMvpCount ?? 0;
-    bestOverall = Math.max(bestOverall, h.overall ?? 0);
-    if ((h.goals ?? 0) > bestSeasonGoals) {
-      bestSeasonGoals = h.goals ?? 0;
-      bestSeason = h.season;
-    }
-    if (h.season < firstSeasonYear) firstSeasonYear = h.season;
-  }
+  const totals = computeCareerStatsTotals(history);
+  if (!totals) return;
 
   await upsertDocument<Omit<CareerStats, 'id'>>('career_stats', userId, {
     userId,
     name,
     lastTeamName,
-    totalGoals,
-    totalAssists,
-    totalMatches,
-    totalTitles,
-    totalMvps,
-    totalChampionships: history.length,
-    bestOverall,
-    bestSeason,
-    bestSeasonGoals,
-    firstSeasonYear,
+    ...totals,
     updatedAt: now,
   });
 }
@@ -486,67 +443,18 @@ async function rebuildAllTimeRankings(): Promise<void> {
     getCollection<PlayerHistoryEntry>('player_history'),
   ]);
 
-  const toPlayer = (s: CareerStats): Omit<AllTimeRankingPlayer, 'goals' | 'titles' | 'matches' | 'mvps'> => ({
-    userId: s.userId,
-    name: s.name,
-    teamName: s.lastTeamName,
-    seasons: s.totalChampionships,
+  const docs = buildAllTimeRankingDocs({
+    careerStats: allCareerStats,
+    results: allResults,
+    playerHistory: allPlayerHistory,
   });
-
-  const topScorers: AllTimeRankingPlayer[] = [...allCareerStats]
-    .sort((a, b) => b.totalGoals - a.totalGoals)
-    .slice(0, 10)
-    .map((s) => ({ ...toPlayer(s), goals: s.totalGoals }));
-
-  const topTitles: AllTimeRankingPlayer[] = [...allCareerStats]
-    .sort((a, b) => b.totalTitles - a.totalTitles)
-    .slice(0, 10)
-    .map((s) => ({ ...toPlayer(s), titles: s.totalTitles }));
-
-  const topMatches: AllTimeRankingPlayer[] = [...allCareerStats]
-    .sort((a, b) => b.totalMatches - a.totalMatches)
-    .slice(0, 10)
-    .map((s) => ({ ...toPlayer(s), matches: s.totalMatches }));
-
-  const topMvps: AllTimeRankingPlayer[] = [...allCareerStats]
-    .sort((a, b) => b.totalMvps - a.totalMvps)
-    .slice(0, 10)
-    .map((s) => ({ ...toPlayer(s), mvps: s.totalMvps }));
-
-  // Team titles: group by winner name across all results
-  const teamTitleMap: Record<string, { teamId: string; name: string; titles: number }> = {};
-  for (const result of allResults) {
-    if (!result.winnerId || !result.winnerName) continue;
-    const key = result.winnerName;
-    if (!teamTitleMap[key]) {
-      teamTitleMap[key] = { teamId: result.winnerId, name: result.winnerName, titles: 0 };
-    }
-    teamTitleMap[key].titles += 1;
-  }
-
-  const teamParticipationMap: Record<string, Set<string>> = {};
-  for (const entry of allPlayerHistory) {
-    if (!entry.teamName || !entry.championshipId) continue;
-    teamParticipationMap[entry.teamName] ??= new Set<string>();
-    teamParticipationMap[entry.teamName].add(entry.championshipId);
-  }
-
-  const topTeams: AllTimeRankingTeam[] = Object.values(teamTitleMap)
-    .sort((a, b) => b.titles - a.titles)
-    .slice(0, 10)
-    .map((t) => ({
-      teamId: t.teamId,
-      name: t.name,
-      titles: t.titles,
-      participations: teamParticipationMap[t.name]?.size ?? t.titles,
-    }));
 
   // IDs sem prefixo 'top_' para bater com useAllTimeRankings (category → docId)
   await Promise.all([
-    upsertDocument('all_time_rankings', 'scorers', { players: topScorers }),
-    upsertDocument('all_time_rankings', 'titles', { players: topTitles }),
-    upsertDocument('all_time_rankings', 'matches', { players: topMatches }),
-    upsertDocument('all_time_rankings', 'mvps', { players: topMvps }),
-    upsertDocument('all_time_rankings', 'teams', { teams: topTeams }),
+    upsertDocument('all_time_rankings', 'scorers', docs.scorers),
+    upsertDocument('all_time_rankings', 'titles', docs.titles),
+    upsertDocument('all_time_rankings', 'matches', docs.matches),
+    upsertDocument('all_time_rankings', 'mvps', docs.mvps),
+    upsertDocument('all_time_rankings', 'teams', docs.teams),
   ]);
 }

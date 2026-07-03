@@ -12,10 +12,12 @@ import { AthleteProfileScreen } from '../screens/home/AthleteProfileScreen';
 import { EditProfileScreen } from '../screens/home/EditProfileScreen';
 import { CareerCardScreen } from '../screens/player/CareerCardScreen';
 import { AnnouncementsScreen } from '../screens/championship/AnnouncementsScreen';
+import { PendingCenterScreen } from '../screens/home/PendingCenterScreen';
 import { colors } from '../theme/colors';
 
 export type CaptainStackParamList = {
   CaptainDashboard: undefined;
+  PendingCenter: undefined;
   ManageRoster: { teamId: string };
   InviteShare: { teamId: string };
   PlayerCard: { playerId: string; championshipId: string };
@@ -99,6 +101,11 @@ export function CaptainStackNavigator() {
       <Stack.Screen
         name="Announcements"
         component={AnnouncementsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PendingCenter"
+        component={PendingCenterScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

@@ -1,19 +1,30 @@
 import {
+  collectionGroup,
   doc,
   getDoc,
+  getDocs,
+  query,
   runTransaction,
   serverTimestamp,
+  where,
 } from 'firebase/firestore';
 import {
+  Achievement,
+  CareerStats,
   Championship,
+  ChampionshipResultData,
   MatchCorrection,
   MatchCorrectionEventSnapshot,
   MatchEvent,
   MatchModel,
   Player,
+  PlayerHistoryEntry,
+  RoundAward,
+  Team,
 } from '../types';
 import { db } from './firebase';
 import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
+import { getCollection, getDocument } from './firestore';
 import {
   addMockDocument,
   getMockDocument,
@@ -21,7 +32,76 @@ import {
   updateMockDocument,
 } from '../mocks/mockDb';
 import { activeMatchEvents, getMatchWinnerId } from '../utils/matchRules';
+import { hasGeneratedKnockout, normalizeMatchStage } from '../utils/groupStageStructure';
 import { getPlayerSuspensionReason } from './statsService';
+import {
+  getReprocessErrorMessage,
+  reprocessClosedChampionship,
+  ReprocessResult,
+  ReprocessServiceInput,
+} from './championshipReprocessService';
+import { ReprocessError, reprocessIdFor } from '../utils/championshipReprocessing';
+
+// Códigos estáveis para cada motivo de bloqueio da correção controlada. Permitem
+// mapear o erro para uma mensagem amigável na UI sem expor texto técnico cru e
+// servem de contrato testável para o serviço.
+export type CorrectionErrorCode =
+  | 'reason_required'
+  | 'not_finalized'
+  | 'not_owner'
+  | 'unsupported_format'
+  | 'championship_missing'
+  | 'championship_closed'
+  | 'championship_results_missing'
+  | 'closed_championship_reprocess_required'
+  | 'closed_championship_reprocess_unavailable'
+  | 'score_mismatch'
+  | 'event_mismatch'
+  | 'stale_version'
+  | 'stale_reprocess_version'
+  | 'next_match_missing'
+  | 'next_match_locked'
+  | 'group_stage_locked_after_knockout_generation'
+  | 'match_not_found';
+
+export class CorrectionError extends Error {
+  code: CorrectionErrorCode;
+  constructor(code: CorrectionErrorCode, message: string) {
+    super(message);
+    this.name = 'CorrectionError';
+    this.code = code;
+  }
+}
+
+/**
+ * Converte qualquer erro lançado pelo fluxo de correção em uma mensagem amigável.
+ * Erros de negócio conhecidos (CorrectionError) já têm texto próprio; erros crus
+ * do Firebase são classificados por `code` para nunca chegarem ao usuário como
+ * stack/technical string. Casos desconhecidos caem em uma mensagem genérica.
+ */
+export function getCorrectionErrorMessage(err: unknown): string {
+  if (err instanceof CorrectionError) return err.message;
+  if (err instanceof ReprocessError) return getReprocessErrorMessage(err);
+
+  const code =
+    err && typeof err === 'object' && 'code' in err
+      ? String((err as { code: unknown }).code)
+      : '';
+
+  switch (code) {
+    case 'permission-denied':
+      return 'Você não tem permissão para corrigir este resultado.';
+    case 'unavailable':
+    case 'deadline-exceeded':
+    case 'network-request-failed':
+      return 'Falha de conexão. Verifique sua internet e tente novamente.';
+    case 'aborted':
+    case 'failed-precondition':
+      return 'A partida mudou enquanto você corrigia. Recarregue e tente novamente.';
+    default:
+      return 'Ocorreu um erro inesperado ao corrigir o resultado. Tente novamente.';
+  }
+}
 
 export interface MatchCorrectionContext {
   correctionId: string;
@@ -38,6 +118,20 @@ export interface MatchCorrectionContext {
   expectedCorrectionVersion: number;
 }
 
+export interface IntegratedMatchCorrectionContext extends MatchCorrectionContext {
+  expectedReprocessVersion?: number;
+}
+
+export interface MatchCorrectionReprocessSummary {
+  reprocessId: string;
+  reprocessVersion: number;
+  changedFields: string[];
+  affectedUserIds: string[];
+  achievementGrants: ReprocessResult['plan']['achievementGrants'];
+  achievementRevocations: ReprocessResult['plan']['achievementRevocations'];
+  idempotent: boolean;
+}
+
 export interface MatchCorrectionResult {
   correction: MatchCorrection;
   updatedMatch: Partial<MatchModel>;
@@ -46,6 +140,7 @@ export interface MatchCorrectionResult {
   activeMatchEvents: MatchEvent[];
   playerUpdates: Array<{ playerId: string; updates: Partial<Player> }>;
   idempotent: boolean;
+  reprocess?: MatchCorrectionReprocessSummary;
 }
 
 function snapshotEvent(event: MatchEvent): MatchCorrectionEventSnapshot {
@@ -80,6 +175,7 @@ function countGoals(events: MatchEvent[], teamId: string): number {
 function buildCorrection(
   ctx: MatchCorrectionContext,
   now: string,
+  options: { allowClosedChampionshipReprocess?: boolean } = {},
 ): {
   correction: MatchCorrection;
   updatedMatch: Partial<MatchModel>;
@@ -91,35 +187,68 @@ function buildCorrection(
   removedEvents: MatchEvent[];
   nextVersion: number;
 } {
+  if (!ctx.match) {
+    throw new CorrectionError('match_not_found', 'Partida não encontrada.');
+  }
+  if (!ctx.championship) {
+    throw new CorrectionError('championship_missing', 'Campeonato não encontrado para a correção.');
+  }
   if (ctx.reason.trim().length < 5) {
-    throw new Error('Informe um motivo com pelo menos 5 caracteres.');
+    throw new CorrectionError('reason_required', 'Informe um motivo com pelo menos 5 caracteres.');
   }
   if (ctx.match.status !== 'finalizado') {
-    throw new Error('A correção controlada só vale para partida finalizada.');
+    throw new CorrectionError('not_finalized', 'A correção controlada só vale para partida finalizada.');
   }
   if (ctx.championship.organizerId !== ctx.organizerId) {
-    throw new Error('Somente o organizador dono do campeonato pode corrigir.');
+    throw new CorrectionError('not_owner', 'Somente o organizador dono do campeonato pode corrigir.');
   }
-  if (ctx.championship.format === 'grupos_e_mata_mata') {
-    throw new Error('Grupos + mata-mata fica fora do Bloco 4.');
+  const normalizedMatch = normalizeMatchStage(ctx.match, ctx.championship);
+  if (
+    ctx.championship.format === 'grupos_e_mata_mata' &&
+    normalizedMatch.stage === 'group' &&
+    hasGeneratedKnockout(ctx.championship)
+  ) {
+    throw new CorrectionError(
+      'group_stage_locked_after_knockout_generation',
+      'Correção bloqueada: a fase de grupos já foi congelada para gerar o mata-mata.',
+    );
   }
 
   const resultExists = !USE_MOCK
     ? false
     : !!getMockDocument('championship_results', ctx.championship.id);
-  if (ctx.championship.status === 'finalizado' || resultExists) {
-    throw new Error('Campeonato com fechamento definitivo não pode ser corrigido neste bloco.');
+  if (
+    (ctx.championship.status === 'finalizado' || resultExists) &&
+    !options.allowClosedChampionshipReprocess
+  ) {
+    throw new CorrectionError(
+      'championship_closed',
+      'Campeonato com fechamento definitivo não pode ser corrigido neste bloco.',
+    );
   }
 
+  const foreignEvent = ctx.nextEvents.find(
+    (event) => !event.id.startsWith('local-') && event.matchId !== ctx.match.id,
+  );
+  if (foreignEvent) {
+    throw new CorrectionError('event_mismatch', 'Há eventos que não pertencem a esta partida.');
+  }
+
+  if (ctx.nextHomeScore < 0 || ctx.nextAwayScore < 0) {
+    throw new CorrectionError('score_mismatch', 'Placar e eventos de gol precisam ficar consistentes.');
+  }
   const homeGoals = countGoals(ctx.nextEvents, ctx.match.homeTeamId);
   const awayGoals = countGoals(ctx.nextEvents, ctx.match.awayTeamId);
   if (homeGoals !== ctx.nextHomeScore || awayGoals !== ctx.nextAwayScore) {
-    throw new Error('Placar e eventos de gol precisam ficar consistentes.');
+    throw new CorrectionError('score_mismatch', 'Placar e eventos de gol precisam ficar consistentes.');
   }
 
   const previousVersion = ctx.match.correctionVersion ?? 0;
   if (previousVersion !== ctx.expectedCorrectionVersion) {
-    throw new Error('A partida mudou desde que a tela foi aberta. Recarregue e tente novamente.');
+    throw new CorrectionError(
+      'stale_version',
+      'A partida mudou desde que a tela foi aberta. Recarregue e tente novamente.',
+    );
   }
 
   const previousWinnerId = ctx.match.winnerId ?? getMatchWinnerId(ctx.match);
@@ -174,10 +303,13 @@ function buildCorrection(
     if (ctx.match.nextMatchId) {
       const nextMatch = ctx.allMatches.find((item) => item.id === ctx.match.nextMatchId);
       if (!nextMatch) {
-        throw new Error('Próxima partida do mata-mata não encontrada.');
+        throw new CorrectionError('next_match_missing', 'Próxima partida do mata-mata não encontrada.');
       }
       if (nextMatch.status !== 'agendado') {
-        throw new Error('Correção bloqueada: a próxima partida já começou ou terminou.');
+        throw new CorrectionError(
+          'next_match_locked',
+          'Correção bloqueada: a próxima partida já começou ou terminou.',
+        );
       }
       const slot = (ctx.match.bracketPosition ?? 0) % 2 === 0 ? 'homeTeamId' : 'awayTeamId';
       nextMatchIdToUpdate = nextMatch.id;
@@ -231,6 +363,7 @@ function buildCorrection(
     winnerId: nextWinnerId,
     lastCorrectionId: ctx.correctionId,
     correctedAt: now,
+    updatedAt: now,
     correctionVersion: nextVersion,
   };
 
@@ -292,8 +425,15 @@ function buildCorrection(
 export async function applyMatchCorrection(
   ctx: MatchCorrectionContext,
 ): Promise<MatchCorrectionResult> {
+  return applyMatchCorrectionInternal(ctx);
+}
+
+async function applyMatchCorrectionInternal(
+  ctx: MatchCorrectionContext,
+  options: { allowClosedChampionshipReprocess?: boolean } = {},
+): Promise<MatchCorrectionResult> {
   const now = new Date().toISOString();
-  const built = buildCorrection(ctx, now);
+  const built = buildCorrection(ctx, now, options);
 
   if (USE_MOCK) {
     const existing = getMockDocument<MatchCorrection>('match_corrections', ctx.correctionId);
@@ -349,82 +489,250 @@ export async function applyMatchCorrection(
 
   const resultRef = doc(db, 'championship_results', ctx.championship.id);
   const resultSnap = await getDoc(resultRef);
-  if (resultSnap.exists()) {
-    throw new Error('Campeonato com fechamento definitivo não pode ser corrigido neste bloco.');
+  if (resultSnap.exists() && !options.allowClosedChampionshipReprocess) {
+    throw new CorrectionError(
+      'championship_closed',
+      'Campeonato com fechamento definitivo não pode ser corrigido neste bloco.',
+    );
   }
 
-  const correction = await runTransaction<MatchCorrection>(db, async (transaction) => {
-    const matchRef = doc(db, 'matches', ctx.match.id);
-    const correctionRef = doc(db, 'match_corrections', ctx.correctionId);
-    const nextMatchRef = built.nextMatchIdToUpdate
-      ? doc(db, 'matches', built.nextMatchIdToUpdate)
-      : null;
-    const correctionSnap = await transaction.get(correctionRef);
-    if (correctionSnap.exists()) {
-      return { id: correctionSnap.id, ...correctionSnap.data() } as MatchCorrection;
-    }
-
-    const matchSnap = await transaction.get(matchRef);
-    const nextMatchSnap = nextMatchRef ? await transaction.get(nextMatchRef) : null;
-    if (!matchSnap.exists()) throw new Error('Partida não encontrada.');
-    const persistedMatch = { id: matchSnap.id, ...matchSnap.data() } as MatchModel;
-    if ((persistedMatch.correctionVersion ?? 0) !== ctx.expectedCorrectionVersion) {
-      throw new Error('A partida mudou desde que a tela foi aberta. Recarregue e tente novamente.');
-    }
-    if (nextMatchRef) {
-      if (!nextMatchSnap?.exists()) throw new Error('Próxima partida do mata-mata não encontrada.');
-      const persistedNextMatch = { id: nextMatchSnap.id, ...nextMatchSnap.data() } as MatchModel;
-      if (persistedNextMatch.status !== 'agendado') {
-        throw new Error('Correção bloqueada: a próxima partida já começou ou terminou.');
+  const txResult = await runTransaction<{ correction: MatchCorrection; idempotent: boolean }>(
+    db,
+    async (transaction) => {
+      const matchRef = doc(db, 'matches', ctx.match.id);
+      const correctionRef = doc(db, 'match_corrections', ctx.correctionId);
+      const nextMatchRef = built.nextMatchIdToUpdate
+        ? doc(db, 'matches', built.nextMatchIdToUpdate)
+        : null;
+      const correctionSnap = await transaction.get(correctionRef);
+      if (correctionSnap.exists()) {
+        return {
+          correction: { id: correctionSnap.id, ...correctionSnap.data() } as MatchCorrection,
+          idempotent: true,
+        };
       }
-    }
 
-    transaction.set(correctionRef, {
-      ...built.correction,
-      createdAt: serverTimestamp(),
-    });
-    transaction.update(matchRef, built.updatedMatch);
+      const matchSnap = await transaction.get(matchRef);
+      const nextMatchSnap = nextMatchRef ? await transaction.get(nextMatchRef) : null;
+      if (!matchSnap.exists()) throw new CorrectionError('match_not_found', 'Partida não encontrada.');
+      const persistedMatch = { id: matchSnap.id, ...matchSnap.data() } as MatchModel;
+      if ((persistedMatch.correctionVersion ?? 0) !== ctx.expectedCorrectionVersion) {
+        throw new CorrectionError(
+          'stale_version',
+          'A partida mudou desde que a tela foi aberta. Recarregue e tente novamente.',
+        );
+      }
+      if (nextMatchRef) {
+        if (!nextMatchSnap?.exists()) {
+          throw new CorrectionError('next_match_missing', 'Próxima partida do mata-mata não encontrada.');
+        }
+        const persistedNextMatch = { id: nextMatchSnap.id, ...nextMatchSnap.data() } as MatchModel;
+        if (persistedNextMatch.status !== 'agendado') {
+          throw new CorrectionError(
+            'next_match_locked',
+            'Correção bloqueada: a próxima partida já começou ou terminou.',
+          );
+        }
+      }
 
-    if (built.nextMatchIdToUpdate && built.nextMatchUpdate) {
-      transaction.update(doc(db, 'matches', built.nextMatchIdToUpdate), built.nextMatchUpdate);
-    }
-
-    for (const event of built.addedEvents) {
-      const eventRef = doc(db, 'match_events', event.id);
-      transaction.set(eventRef, {
-        ...event,
+      transaction.set(correctionRef, {
+        ...built.correction,
         createdAt: serverTimestamp(),
-        correctedAt: serverTimestamp(),
       });
-    }
-    for (const event of built.changedEvents) {
-      transaction.update(doc(db, 'match_events', event.before.id), {
-        ...event.after,
-        correctedAt: serverTimestamp(),
-      });
-    }
-    for (const event of built.removedEvents) {
-      transaction.update(doc(db, 'match_events', event.id), {
-        removedAt: serverTimestamp(),
-        removedByCorrectionId: ctx.correctionId,
-        lastCorrectionId: ctx.correctionId,
-        correctionVersion: built.nextVersion,
-      });
-    }
-    for (const update of built.playerUpdates) {
-      transaction.update(doc(db, 'players', update.playerId), update.updates);
-    }
+      transaction.update(matchRef, { ...built.updatedMatch, updatedAt: serverTimestamp() });
 
-    return built.correction;
-  });
+      if (built.nextMatchIdToUpdate && built.nextMatchUpdate) {
+        transaction.update(doc(db, 'matches', built.nextMatchIdToUpdate), built.nextMatchUpdate);
+      }
+
+      for (const event of built.addedEvents) {
+        const eventRef = doc(db, 'match_events', event.id);
+        transaction.set(eventRef, {
+          ...event,
+          createdAt: serverTimestamp(),
+          correctedAt: serverTimestamp(),
+        });
+      }
+      for (const event of built.changedEvents) {
+        transaction.update(doc(db, 'match_events', event.before.id), {
+          ...event.after,
+          correctedAt: serverTimestamp(),
+        });
+      }
+      for (const event of built.removedEvents) {
+        transaction.update(doc(db, 'match_events', event.id), {
+          removedAt: serverTimestamp(),
+          removedByCorrectionId: ctx.correctionId,
+          lastCorrectionId: ctx.correctionId,
+          correctionVersion: built.nextVersion,
+        });
+      }
+      for (const update of built.playerUpdates) {
+        transaction.update(doc(db, 'players', update.playerId), update.updates);
+      }
+
+      return { correction: built.correction, idempotent: false };
+    },
+  );
 
   return {
-    correction,
+    correction: txResult.correction,
     updatedMatch: built.updatedMatch,
     nextMatchIdToUpdate: built.nextMatchIdToUpdate,
     nextMatchUpdate: built.nextMatchUpdate,
     activeMatchEvents: activeMatchEvents(ctx.nextEvents),
     playerUpdates: built.playerUpdates,
-    idempotent: correction.id !== built.correction.id,
+    idempotent: txResult.idempotent,
+  };
+}
+
+function isClosedChampionship(
+  championship: Championship,
+  frozenResult: ChampionshipResultData | null,
+): boolean {
+  return championship.status === 'finalizado' || frozenResult !== null;
+}
+
+function toReprocessSummary(result: ReprocessResult): MatchCorrectionReprocessSummary {
+  return {
+    reprocessId: result.reprocessId,
+    reprocessVersion: result.reprocessVersion,
+    changedFields: result.plan.changedFields,
+    affectedUserIds: result.plan.affectedUserIds,
+    achievementGrants: result.plan.achievementGrants,
+    achievementRevocations: result.plan.achievementRevocations,
+    idempotent: result.idempotent,
+  };
+}
+
+async function loadChampionshipAchievements(
+  championshipId: string,
+  players: Player[],
+): Promise<Achievement[]> {
+  const playerIds = new Set(players.map((player) => player.id));
+  if (USE_MOCK) {
+    const perPlayer = await Promise.all(
+      players.map((player) => getCollection<Achievement>(`players/${player.id}/achievements`)),
+    );
+    return perPlayer.flat().filter((achievement) => achievement.championshipId === championshipId);
+  }
+
+  const snap = await getDocs(
+    query(collectionGroup(db, 'achievements'), where('championshipId', '==', championshipId)),
+  );
+  return snap.docs
+    .map((item) => ({ id: item.id, ...item.data() }) as Achievement & { id?: string })
+    .filter((achievement) => playerIds.has(achievement.playerId));
+}
+
+async function loadReprocessInputAfterCorrection(
+  ctx: IntegratedMatchCorrectionContext,
+  frozenResult: ChampionshipResultData,
+  sourceMatch: MatchModel,
+): Promise<ReprocessServiceInput> {
+  const championshipId = ctx.championship.id;
+  const [
+    teams,
+    players,
+    matches,
+    events,
+    roundAwards,
+    frozenHistory,
+    allPlayerHistory,
+    allCareerStats,
+    allResults,
+  ] = await Promise.all([
+    getCollection<Team>('teams', [{ field: 'championshipId', operator: '==', value: championshipId }]),
+    getCollection<Player>('players', [{ field: 'championshipId', operator: '==', value: championshipId }]),
+    getCollection<MatchModel>('matches', [{ field: 'championshipId', operator: '==', value: championshipId }]),
+    getCollection<MatchEvent>('match_events', [{ field: 'championshipId', operator: '==', value: championshipId }]),
+    getCollection<RoundAward>('round_awards', [{ field: 'championshipId', operator: '==', value: championshipId }]),
+    getCollection<PlayerHistoryEntry>('player_history', [
+      { field: 'championshipId', operator: '==', value: championshipId },
+    ]),
+    getCollection<PlayerHistoryEntry>('player_history'),
+    getCollection<CareerStats>('career_stats'),
+    getCollection<ChampionshipResultData>('championship_results'),
+  ]);
+  const frozenAchievements = await loadChampionshipAchievements(championshipId, players);
+
+  return {
+    reason: ctx.reason,
+    organizerId: ctx.organizerId,
+    sourceCorrectionId: ctx.correctionId,
+    sourceMatch,
+    expectedReprocessVersion: ctx.expectedReprocessVersion ?? 0,
+    championship: ctx.championship,
+    frozenResult,
+    teams,
+    players,
+    matches,
+    events,
+    roundAwards,
+    frozenHistory,
+    frozenAchievements,
+    allPlayerHistory,
+    allCareerStats,
+    allResults,
+  };
+}
+
+export async function applyMatchCorrectionWithClosedChampionshipReprocess(
+  ctx: IntegratedMatchCorrectionContext,
+): Promise<MatchCorrectionResult> {
+  const frozenResult = await getDocument<ChampionshipResultData>(
+    'championship_results',
+    ctx.championship.id,
+  );
+  const closed = isClosedChampionship(ctx.championship, frozenResult);
+
+  if (!closed) {
+    return applyMatchCorrection(ctx);
+  }
+
+  if (!frozenResult) {
+    throw new CorrectionError(
+      'championship_results_missing',
+      'Campeonato encerrado sem resultado congelado nao pode ser corrigido.',
+    );
+  }
+  if (ctx.expectedReprocessVersion == null) {
+    throw new CorrectionError(
+      'closed_championship_reprocess_required',
+      'Campeonato encerrado exige reprocessamento imediato para corrigir.',
+    );
+  }
+  if ((frozenResult.reprocessVersion ?? 0) !== ctx.expectedReprocessVersion) {
+    const retryLogId = reprocessIdFor(
+      ctx.championship.id,
+      ctx.correctionId,
+      ctx.expectedReprocessVersion + 1,
+    );
+    const existingRetryLog = await getDocument('championship_reprocess_logs', retryLogId);
+    if (!existingRetryLog) {
+      throw new CorrectionError(
+        'stale_reprocess_version',
+        'O campeonato mudou desde que a tela foi aberta. Recarregue e tente novamente.',
+      );
+    }
+  }
+
+  const correctionResult = await applyMatchCorrectionInternal(ctx, {
+    allowClosedChampionshipReprocess: true,
+  });
+  const sourceMatch = await getDocument<MatchModel>('matches', ctx.match.id);
+  if (!sourceMatch || sourceMatch.lastCorrectionId !== correctionResult.correction.id) {
+    throw new CorrectionError(
+      'closed_championship_reprocess_unavailable',
+      'A correcao foi registrada, mas nao foi possivel confirmar o estado para reprocessar.',
+    );
+  }
+
+  const reprocessInput = await loadReprocessInputAfterCorrection(ctx, frozenResult, sourceMatch);
+  const reprocess = await reprocessClosedChampionship(reprocessInput);
+
+  return {
+    ...correctionResult,
+    reprocess: toReprocessSummary(reprocess),
   };
 }

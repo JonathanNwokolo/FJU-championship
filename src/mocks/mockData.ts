@@ -22,7 +22,12 @@ import {
   Championship,
   ChampionshipResultData,
   ChampionshipRules,
+  Convocation,
+  GroupAssignmentLog,
+  GroupFixturesLog,
+  GroupStageQualificationSnapshot,
   InAppNotification,
+  MatchAttendance,
   JoinRequest,
   MatchEvent,
   MatchEventType,
@@ -37,6 +42,7 @@ import {
   TeamInvite,
   UserRole,
 } from '../types';
+import { getGroupSnapshotId } from '../utils/groupStageIds';
 
 // Âncora relativa ao tempo real: o dataset de demo descreve um campeonato "agora".
 // Usar uma data fixa fazia as deadlines (daysFromNow > 0) "vencerem" com o passar do
@@ -50,6 +56,23 @@ const CHAMP_2026 = 'champ-copa-2026';
 const CHAMP_OPEN = 'champ-vila-re';
 const CHAMP_RETRO = 'champ-retro-2025';
 const CHAMP_CLOSED = 'champ-jd-brasil';
+// Bloco 10.5 — formato grupos + mata-mata: D em andamento, E com transição concluída.
+const CHAMP_GROUPS_D = 'champ-grupos-d';
+const CHAMP_GROUPS_E = 'champ-grupos-e';
+
+const GROUP_STAGE_CONFIG_2Q: import('../types').GroupStageConfig = {
+  version: 1,
+  groupCount: 2,
+  qualifiersPerGroup: 2,
+  includeBestThirdPlaced: false,
+  bestThirdPlacedCount: 0,
+  drawMethod: 'random',
+  tiebreakers: ['points', 'wins', 'goal_difference', 'goals_for', 'head_to_head', 'fewest_cards', 'deterministic_draw'],
+};
+const GROUP_STAGE_CONFIG_1Q: import('../types').GroupStageConfig = {
+  ...GROUP_STAGE_CONFIG_2Q,
+  qualifiersPerGroup: 1,
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -274,6 +297,63 @@ export const mockChampionships: Championship[] = [
     fixturesGenerated: false,
     season: '2026',
     rules: { ...baseRules, yellowCardLimit: 3 },
+  },
+  {
+    // Bloco 10.5 — Campeonato D: grupos em andamento (fixtures geradas, parcial).
+    id: CHAMP_GROUPS_D,
+    name: 'Copa FJU Grupos (em andamento)',
+    format: 'grupos_e_mata_mata',
+    status: 'em_andamento',
+    currentRound: 1,
+    totalRounds: 4,
+    organizerId: mockUsers.organizador.id,
+    inviteCode: 'GRUPD1',
+    createdAt: daysFromNow(-20),
+    fixturesGenerated: true,
+    season: '2026',
+    edition: 1,
+    isOfficial: true,
+    maxTeams: 8,
+    registrationSettings: { approvalRequired: true },
+    rules: baseRules,
+    stage: 'group_stage',
+    groupStageConfig: GROUP_STAGE_CONFIG_2Q,
+    groupStageStatus: 'fixtures_generated',
+    knockoutStageStatus: 'not_generated',
+    groupGenerationVersion: 1,
+    groupFixturesVersion: 1,
+    groupStructureVersion: 1,
+  },
+  {
+    // Bloco 10.5 — Campeonato E: transição concluída (snapshot + mata-mata gerado).
+    id: CHAMP_GROUPS_E,
+    name: 'Copa FJU Grupos (mata-mata gerado)',
+    format: 'grupos_e_mata_mata',
+    status: 'em_andamento',
+    currentRound: 2,
+    totalRounds: 3,
+    organizerId: mockUsers.organizador.id,
+    inviteCode: 'GRUPE1',
+    createdAt: daysFromNow(-30),
+    fixturesGenerated: true,
+    season: '2026',
+    edition: 1,
+    isOfficial: true,
+    maxTeams: 4,
+    registrationSettings: { approvalRequired: true },
+    rules: baseRules,
+    stage: 'knockout',
+    groupStageConfig: GROUP_STAGE_CONFIG_1Q,
+    groupStageStatus: 'completed',
+    knockoutStageStatus: 'generated',
+    groupGenerationVersion: 1,
+    groupFixturesVersion: 1,
+    groupStructureVersion: 1,
+    groupSnapshotVersion: 1,
+    knockoutGenerationVersion: 1,
+    groupStageComplete: true,
+    groupStageLockedAt: new Date(daysFromNow(-3)),
+    knockoutGeneratedAt: new Date(daysFromNow(-3)),
   },
 ];
 
@@ -939,6 +1019,18 @@ export const mockAnnouncements: Announcement[] = [
 
 // ── Notificações in-app ───────────────────────────────────────────────────────
 
+function notificationActionData(
+  id: string,
+  extra: Record<string, string | number> = {},
+): Record<string, string | number> {
+  return {
+    v: 1,
+    actionId: id,
+    expiresAt: now.getTime() + 5 * 60 * 1000,
+    ...extra,
+  };
+}
+
 export const mockNotifications: InAppNotification[] = [
   // Capitão (Lucas)
   { id: 'n-cap-pedido', userId: mockUsers.capitao.id, type: 'join_request', title: 'Novo pedido de entrada', body: 'Pedro Henrique Silva quer entrar no Leões da Fé', data: { teamId: 'team-leoes' }, read: false, createdAt: daysFromNow(-1) },
@@ -956,6 +1048,22 @@ export const mockNotifications: InAppNotification[] = [
 ];
 
 // ── Convites e pedidos ────────────────────────────────────────────────────────
+
+export const mockNotificationActionPayloads = [
+  notificationActionData('mock-action-live', {
+    type: 'match_started',
+    championshipId: CHAMP_2026,
+    matchId: 'm-c26-r3-1',
+  }),
+  notificationActionData('mock-action-announcement', {
+    type: 'announcement',
+    championshipId: CHAMP_2026,
+    announcementId: 'a-c26-reuniao',
+  }),
+  notificationActionData('mock-action-center', {
+    type: 'notification_center',
+  }),
+];
 
 export const mockTeamInvites: TeamInvite[] = [
   { id: 'inv-leoes-active', teamId: 'team-leoes', teamName: 'Leões da Fé', championshipId: CHAMP_2026, inviteCode: 'LEOES1', createdBy: mockUsers.capitao.id, usedBy: null, usedAt: null, expiresAt: null, status: 'active' },
@@ -977,6 +1085,330 @@ export const mockLeoesConvocations: Array<{ id: string; playerIds: string[] }> =
   {
     id: '3', // rodada atual — suspenso (Bruno) e lesionado (Carlos) ficam fora
     playerIds: ['p-leoes-lucas', 'p-leoes-andre', 'p-leoes-thiago', 'p-leoes-samuel', 'p-leoes-davi', 'p-leoes-caleb'],
+  },
+];
+
+// ── Convocação/presença POR PARTIDA (Bloco 5 — Fase B) ────────────────────────
+// match_convocations/{matchId}_{teamId} e match_attendance/{matchId}_{playerId}.
+// Demonstra todos os estados pedidos: aberta, fechada, cancelada, concluída (W.O.),
+// confirmado, pendente, recusado e reconfirmação. Obedece às mesmas regras centrais.
+
+const LEOES_ELIGIBLE = [
+  'p-leoes-lucas',
+  'p-leoes-andre',
+  'p-leoes-thiago',
+  'p-leoes-samuel',
+  'p-leoes-davi',
+  'p-leoes-caleb',
+];
+
+export const mockMatchConvocations: Convocation[] = [
+  // Aberta (partida agendada r4) — com respostas variadas + reconfirmação.
+  {
+    id: 'm-c26-r4-1_team-leoes',
+    championshipId: CHAMP_2026,
+    matchId: 'm-c26-r4-1',
+    teamId: 'team-leoes',
+    captainId: mockUsers.capitao.id,
+    playerIds: LEOES_ELIGIBLE,
+    status: 'open',
+    responseDeadline: daysFromNow(6),
+    requiresReconfirmation: false,
+    version: 1,
+    previousVersion: null,
+    createdAt: daysFromNow(-1),
+    updatedAt: daysFromNow(-1),
+    cancelledAt: null,
+    cancellationReason: null,
+  },
+  // Convocação do adversário na mesma partida, já FECHADA pelo capitão.
+  {
+    id: 'm-c26-r4-1_team-alianca',
+    championshipId: CHAMP_2026,
+    matchId: 'm-c26-r4-1',
+    teamId: 'team-alianca',
+    captainId: 'user-nicolas',
+    playerIds: ['p-ali-nicolas', 'p-ali-vitor', 'p-ali-leo', 'p-ali-estevao'],
+    status: 'closed',
+    responseDeadline: daysFromNow(6),
+    requiresReconfirmation: false,
+    version: 2,
+    previousVersion: 1,
+    createdAt: daysFromNow(-2),
+    updatedAt: daysFromNow(-1, 2),
+    cancelledAt: null,
+    cancellationReason: null,
+  },
+  // CANCELADA (propagação de cancelamento de partida) — preserva respostas.
+  {
+    id: 'm-c26-r6-1_team-leoes',
+    championshipId: CHAMP_2026,
+    matchId: 'm-c26-r6-1',
+    teamId: 'team-leoes',
+    captainId: mockUsers.capitao.id,
+    playerIds: LEOES_ELIGIBLE,
+    status: 'cancelled',
+    responseDeadline: daysFromNow(20),
+    requiresReconfirmation: false,
+    version: 2,
+    previousVersion: 1,
+    createdAt: daysFromNow(-1),
+    updatedAt: daysFromNow(0, 1),
+    cancelledAt: daysFromNow(0, 1),
+    cancellationReason: 'Quadra indisponível na data.',
+  },
+  // CONCLUÍDA por W.O. — preserva respostas, sem estatística individual.
+  {
+    id: 'm-c26-r5-1_team-leoes',
+    championshipId: CHAMP_2026,
+    matchId: 'm-c26-r5-1',
+    teamId: 'team-leoes',
+    captainId: mockUsers.capitao.id,
+    playerIds: LEOES_ELIGIBLE,
+    status: 'completed',
+    responseDeadline: daysFromNow(13),
+    requiresReconfirmation: false,
+    version: 2,
+    previousVersion: 1,
+    createdAt: daysFromNow(-1),
+    updatedAt: daysFromNow(0, 2),
+    cancelledAt: null,
+    cancellationReason: null,
+  },
+];
+
+const att = (
+  matchId: string,
+  playerId: string,
+  teamId: string,
+  userId: string,
+  response: MatchAttendance['response'],
+  extra: Partial<MatchAttendance> = {},
+): MatchAttendance => ({
+  id: `${matchId}_${playerId}`,
+  championshipId: CHAMP_2026,
+  matchId,
+  teamId,
+  playerId,
+  userId,
+  response,
+  respondedAt: response === 'pending' ? null : daysFromNow(-1, 3),
+  declineReason: null,
+  version: 1,
+  reconfirmationRequired: false,
+  previousResponse: null,
+  updatedAt: daysFromNow(-1, 3),
+  ...extra,
+});
+
+export const mockMatchAttendance: MatchAttendance[] = [
+  // Confirmado
+  att('m-c26-r4-1', 'p-leoes-andre', 'team-leoes', 'user-andre', 'confirmed'),
+  // Recusado, com motivo
+  att('m-c26-r4-1', 'p-leoes-thiago', 'team-leoes', 'user-thiago', 'declined', {
+    declineReason: 'Compromisso de trabalho.',
+  }),
+  // Reconfirmação necessária (confirmou, mas a partida foi remarcada antes)
+  att('m-c26-r4-1', 'p-leoes-davi', 'team-leoes', 'user-davi', 'confirmed', {
+    reconfirmationRequired: true,
+    previousResponse: 'confirmed',
+    version: 2,
+  }),
+  // Pendente (respondeu mas pode alterar) — samuel ainda não decidiu
+  att('m-c26-r4-1', 'p-leoes-samuel', 'team-leoes', 'user-samuel', 'pending'),
+  // lucas e caleb não têm documento → tratados como pendentes pelo agrupamento.
+];
+
+// ── Bloco 10.5 — Formato grupos + mata-mata (campeonatos D e E) ───────────────
+// Times/players com 1 ativo cada (approvedPlayersCount = 1) e partidas sem gols
+// (0-0 finalizado ou W.O. 3x0), preservando as invariantes de coerência do mock.
+
+function groupsTeam(
+  championshipId: string,
+  id: string,
+  name: string,
+  group: 'A' | 'B',
+  seed: number,
+  color: string,
+): Team {
+  return {
+    id,
+    championshipId,
+    name,
+    primaryColor: color,
+    secondaryColor: '#0F172A',
+    captainId: `user-${id}`,
+    status: 'aprovado',
+    inviteCode: id.slice(-6).toUpperCase(),
+    maxPlayers: 12,
+    registrationOpen: true,
+    approvedPlayersCount: 1,
+    createdAt: daysFromNow(-25),
+    groupId: group,
+    groupSeed: seed,
+    groupAssignmentVersion: 1,
+  };
+}
+
+function groupsPlayer(championshipId: string, teamId: string, name: string): Player {
+  return makePlayer(`p-${teamId}`, championshipId, teamId, name, 'meia', 10, `user-${teamId}`);
+}
+
+const groupsDTeams: Team[] = [
+  groupsTeam(CHAMP_GROUPS_D, 'gd-a1', 'Betel A1', 'A', 1, '#F5A623'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-a2', 'Betel A2', 'A', 2, '#38BDF8'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-a3', 'Betel A3', 'A', 3, '#22C55E'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-a4', 'Betel A4', 'A', 4, '#EF4444'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-b1', 'Betel B1', 'B', 1, '#A855F7'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-b2', 'Betel B2', 'B', 2, '#EC4899'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-b3', 'Betel B3', 'B', 3, '#14B8A6'),
+  groupsTeam(CHAMP_GROUPS_D, 'gd-b4', 'Betel B4', 'B', 4, '#F97316'),
+];
+const groupsETeams: Team[] = [
+  groupsTeam(CHAMP_GROUPS_E, 'ge-a1', 'Siloé A1', 'A', 1, '#F5A623'),
+  groupsTeam(CHAMP_GROUPS_E, 'ge-a2', 'Siloé A2', 'A', 2, '#38BDF8'),
+  groupsTeam(CHAMP_GROUPS_E, 'ge-b1', 'Siloé B1', 'B', 1, '#A855F7'),
+  groupsTeam(CHAMP_GROUPS_E, 'ge-b2', 'Siloé B2', 'B', 2, '#EC4899'),
+];
+
+const groupsDPlayers = groupsDTeams.map((t) => groupsPlayer(CHAMP_GROUPS_D, t.id, `Atleta ${t.name}`));
+const groupsEPlayers = groupsETeams.map((t) => groupsPlayer(CHAMP_GROUPS_E, t.id, `Atleta ${t.name}`));
+
+function groupFixture(
+  id: string,
+  championshipId: string,
+  group: 'A' | 'B',
+  home: string,
+  away: string,
+  status: MatchStatus,
+  extra: Partial<MatchModel> = {},
+): MatchModel {
+  return makeMatch(id, championshipId, 1, home, away, status, daysFromNow(-8), null, null, {
+    stage: 'group',
+    groupId: group,
+    groupRound: 1,
+    structureVersion: 1,
+    groupGenerationVersion: 1,
+    ...extra,
+  });
+}
+
+const groupsDMatches: MatchModel[] = [
+  // Grupo A: finalizados 0-0 (empate em pontos), um W.O., um adiado.
+  groupFixture('gd-a-12', CHAMP_GROUPS_D, 'A', 'gd-a1', 'gd-a2', 'finalizado', { homeScore: 0, awayScore: 0, winnerId: null }),
+  groupFixture('gd-a-34', CHAMP_GROUPS_D, 'A', 'gd-a3', 'gd-a4', 'wo', {
+    homeScore: 3, awayScore: 0, winnerId: 'gd-a3', resultSource: 'wo',
+  }),
+  groupFixture('gd-a-13', CHAMP_GROUPS_D, 'A', 'gd-a1', 'gd-a3', 'adiado', { scheduledAt: daysFromNow(3) }),
+  // Grupo B: um finalizado 0-0, um cancelado, um agendado.
+  groupFixture('gd-b-12', CHAMP_GROUPS_D, 'B', 'gd-b1', 'gd-b2', 'finalizado', { homeScore: 0, awayScore: 0, winnerId: null }),
+  groupFixture('gd-b-34', CHAMP_GROUPS_D, 'B', 'gd-b3', 'gd-b4', 'cancelado'),
+  groupFixture('gd-b-13', CHAMP_GROUPS_D, 'B', 'gd-b1', 'gd-b3', 'agendado', { scheduledAt: daysFromNow(4) }),
+];
+
+const groupsEMatches: MatchModel[] = [
+  // Fase de grupos concluída (0-0), 1 classificado por grupo.
+  groupFixture('ge-a-12', CHAMP_GROUPS_E, 'A', 'ge-a1', 'ge-a2', 'finalizado', { homeScore: 0, awayScore: 0, winnerId: null }),
+  groupFixture('ge-b-12', CHAMP_GROUPS_E, 'B', 'ge-b1', 'ge-b2', 'finalizado', { homeScore: 0, awayScore: 0, winnerId: null }),
+  // Mata-mata gerado: final 1A x 1B, agendada, com origem no snapshot.
+  makeMatch('ge-ko-final', CHAMP_GROUPS_E, 2, 'ge-a1', 'ge-b1', 'agendado', daysFromNow(5), null, null, {
+    stage: 'knockout',
+    groupId: null,
+    knockoutRound: 'final',
+    bracketRound: 'final',
+    structureVersion: 1,
+    originSnapshotVersion: 1,
+    nextMatchId: null,
+  }),
+];
+
+mockTeams.push(...groupsDTeams, ...groupsETeams);
+mockPlayers.push(...groupsDPlayers, ...groupsEPlayers);
+mockMatches.push(...groupsDMatches, ...groupsEMatches);
+
+// Logs/snapshot imutáveis do formato (fonte de leitura da UI).
+const mockGroupAssignmentLogs: GroupAssignmentLog[] = [
+  {
+    id: `group_assignment_${CHAMP_GROUPS_D}_1`,
+    championshipId: CHAMP_GROUPS_D,
+    generationVersion: 1,
+    algorithmVersion: 1,
+    drawSeed: 'mock-seed-d',
+    assignments: groupsDTeams.map((t, i) => ({ teamId: t.id, groupId: t.groupId as string, groupSeed: t.groupSeed as number, assignmentOrder: i })),
+    createdBy: mockUsers.organizador.id,
+    createdAt: daysFromNow(-20),
+  },
+  {
+    id: `group_assignment_${CHAMP_GROUPS_E}_1`,
+    championshipId: CHAMP_GROUPS_E,
+    generationVersion: 1,
+    algorithmVersion: 1,
+    drawSeed: 'mock-seed-e',
+    assignments: groupsETeams.map((t, i) => ({ teamId: t.id, groupId: t.groupId as string, groupSeed: t.groupSeed as number, assignmentOrder: i })),
+    createdBy: mockUsers.organizador.id,
+    createdAt: daysFromNow(-30),
+  },
+];
+
+const mockGroupFixtureLogs: GroupFixturesLog[] = [
+  {
+    id: `group_fixtures_${CHAMP_GROUPS_D}_1`,
+    championshipId: CHAMP_GROUPS_D,
+    fixturesVersion: 1,
+    groupGenerationVersion: 1,
+    structureVersion: 1,
+    fixtureIds: groupsDMatches.map((m) => m.id),
+    fixtureCount: groupsDMatches.length,
+    groupCounts: { groupA: 3, groupB: 3 },
+    createdBy: mockUsers.organizador.id,
+    createdAt: daysFromNow(-20),
+  },
+  {
+    id: `group_fixtures_${CHAMP_GROUPS_E}_1`,
+    championshipId: CHAMP_GROUPS_E,
+    fixturesVersion: 1,
+    groupGenerationVersion: 1,
+    structureVersion: 1,
+    fixtureIds: ['ge-a-12', 'ge-b-12'],
+    fixtureCount: 2,
+    groupCounts: { groupA: 1, groupB: 1 },
+    createdBy: mockUsers.organizador.id,
+    createdAt: daysFromNow(-30),
+  },
+];
+
+const mockGroupStageSnapshots: GroupStageQualificationSnapshot[] = [
+  {
+    id: getGroupSnapshotId(CHAMP_GROUPS_E, 1),
+    version: 1,
+    championshipId: CHAMP_GROUPS_E,
+    generatedAt: new Date(daysFromNow(-3)),
+    configVersion: 1,
+    groupGenerationVersion: 1,
+    groupFixturesVersion: 1,
+    structureVersion: 1,
+    qualifiersPerGroup: 1,
+    standingsDigest: 'mock-digest-e-1',
+    generatedBy: mockUsers.organizador.id,
+    qualifiers: [
+      { teamId: 'ge-a1', groupId: 'A', position: 1, groupPosition: 1, points: 1, wins: 0, goalDifference: 0, goalsFor: 0, deterministicSeed: 'seed-ge-a1' },
+      { teamId: 'ge-b1', groupId: 'B', position: 1, groupPosition: 1, points: 1, wins: 0, goalDifference: 0, goalsFor: 0, deterministicSeed: 'seed-ge-b1' },
+    ],
+  } as GroupStageQualificationSnapshot,
+];
+
+const mockGroupTransitionLogs = [
+  {
+    id: `group_transition_${CHAMP_GROUPS_E}_1`,
+    championshipId: CHAMP_GROUPS_E,
+    transitionVersion: 1,
+    snapshotId: getGroupSnapshotId(CHAMP_GROUPS_E, 1),
+    snapshotDigest: 'mock-digest-e-1',
+    knockoutGenerationVersion: 1,
+    qualifierIds: ['ge-a1', 'ge-b1'],
+    fixtureIds: ['ge-ko-final'],
+    createdBy: mockUsers.organizador.id,
+    createdAt: daysFromNow(-3),
   },
 ];
 
@@ -1006,5 +1438,12 @@ export const mockCollections = {
   career_stats: mockCareerStats,
   all_time_rankings: mockAllTimeRankings,
   'teams/team-leoes/convocations': mockLeoesConvocations,
+  match_convocations: mockMatchConvocations,
+  match_attendance: mockMatchAttendance,
+  // Bloco 10.5 — coleções do formato grupos + mata-mata.
+  group_assignment_logs: mockGroupAssignmentLogs,
+  group_fixture_logs: mockGroupFixtureLogs,
+  group_stage_snapshots: mockGroupStageSnapshots,
+  group_transition_logs: mockGroupTransitionLogs,
   ...achievementSubcollections,
 };

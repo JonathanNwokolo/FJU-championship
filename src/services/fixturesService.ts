@@ -19,6 +19,8 @@ import { useChampionshipStore } from '../stores/championshipStore';
 import { MOCK_DATA_ENABLED as USE_MOCK } from '../config/appConfig';
 
 export const MIN_TEAMS_TO_START = 2;
+export const GROUPS_KNOCKOUT_REQUIRES_GROUP_FIXTURE_SERVICE =
+  'groups_knockout_requires_group_fixture_service';
 export const MATCHES_ALREADY_GENERATED_ERROR = 'Este campeonato já possui partidas geradas.';
 
 export interface StartChampionshipResult {
@@ -39,6 +41,9 @@ export function buildFixtures(championship: Championship, approvedTeams: Team[])
     return generateBracketFixtures(approvedTeams, championship.id);
   }
   // pontos_corridos (e fallback). grupos_e_mata_mata ainda está desabilitado na criação.
+  if (championship.format === 'grupos_e_mata_mata') {
+    throw new Error(GROUPS_KNOCKOUT_REQUIRES_GROUP_FIXTURE_SERVICE);
+  }
   return generateRoundRobinFixtures(approvedTeams, championship.id);
 }
 

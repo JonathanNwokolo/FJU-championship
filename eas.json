@@ -11,7 +11,9 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_ENV": "development"
+        "EXPO_PUBLIC_APP_ENV": "development",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATOR": "true",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fju-operational-emulator"
       }
     },
     "preview": {
@@ -20,7 +22,9 @@
         "buildType": "apk"
       },
       "env": {
-        "APP_ENV": "preview"
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATOR": "false",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fju-championship-staging"
       }
     },
     "production": {
@@ -32,7 +36,9 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "APP_ENV": "production"
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATOR": "false",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fju-championship"
       }
     }
   },

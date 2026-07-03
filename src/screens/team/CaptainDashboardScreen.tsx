@@ -53,6 +53,8 @@ import { POSITION_COLORS, POSITION_LABELS, TEAM_COLORS } from '../../utils/const
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
 import { useTeamWaitlist } from '../../hooks/useTeamWaitlist';
+import { usePendingItemsSummary } from '../../hooks/usePendingItems';
+import { PendingSummaryCard } from '../../components/PendingSummaryCard';
 
 const ORDINALS = ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º', '10º'];
 
@@ -340,6 +342,14 @@ export function CaptainDashboardScreen() {
 
   const { unreadCount: announcementsUnread } = useAnnouncementsBadge(myTeam?.championshipId ?? '');
   const { waitlist } = useTeamWaitlist(myTeam?.id);
+  const {
+    criticalCount: pendingCritical,
+    total: pendingTotal,
+    topItem: pendingTop,
+    isPartial: pendingSummaryPartial,
+    partialReason: pendingPartialReason,
+  } =
+    usePendingItemsSummary();
   const [waitlistActionId, setWaitlistActionId] = useState<string | null>(null);
 
   const nextMatch = useMemo(() => {
@@ -794,6 +804,21 @@ export function CaptainDashboardScreen() {
             <StatCard icon="🛡️" label="Gols contra" value={myStanding?.goalsAgainst ?? 0} />
           </ScrollView>
         </View>
+
+        {/* Pendências summary */}
+        {(pendingTotal > 0 || pendingSummaryPartial) && (
+          <View style={styles.pendingSummaryWrap}>
+            <PendingSummaryCard
+              total={pendingTotal}
+              criticalCount={pendingCritical}
+              topItem={pendingTop}
+              isPartial={pendingSummaryPartial}
+              partialReason={pendingPartialReason}
+              onPress={() => navigation.navigate('PendingCenter')}
+              testID="pending-summary-captain"
+            />
+          </View>
+        )}
 
         {/* Next Match Section */}
         {nextMatch && (
@@ -1283,6 +1308,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Barlow-Bold',
     fontSize: 8,
     color: '#fff',
+  },
+  pendingSummaryWrap: {
+    marginTop: 16,
   },
   section: {
     paddingHorizontal: 20,

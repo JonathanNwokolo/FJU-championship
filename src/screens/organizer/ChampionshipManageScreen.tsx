@@ -77,12 +77,18 @@ const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
   agendado: 'Agendado',
   ao_vivo: 'Ao vivo',
   finalizado: 'Finalizado',
+  adiado: 'Adiado',
+  cancelado: 'Cancelado',
+  wo: 'W.O.',
 };
 
-const MATCH_STATUS_VARIANT: Record<MatchStatus, 'round' | 'live' | 'approved'> = {
+const MATCH_STATUS_VARIANT: Record<MatchStatus, 'round' | 'live' | 'approved' | 'pending' | 'loss'> = {
   agendado: 'round',
   ao_vivo: 'live',
   finalizado: 'approved',
+  adiado: 'pending',
+  cancelado: 'loss',
+  wo: 'approved',
 };
 
 const TIEBREAKER_LABELS: Record<string, string> = {

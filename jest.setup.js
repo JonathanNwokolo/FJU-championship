@@ -1,5 +1,8 @@
-/* eslint-disable no-undef */
 // React Native Testing Library estende matchers automaticamente na v14+
+
+process.env.EXPO_PUBLIC_APP_ENV = process.env.EXPO_PUBLIC_APP_ENV || 'development';
+process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR || 'true';
+process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'fju-operational-emulator';
 
 // Mock do Firebase - evita chamadas reais ao banco
 jest.mock('./src/services/firebase', () => ({
@@ -49,7 +52,6 @@ jest.mock('expo-linear-gradient', () => ({
 
 // Mock do react-native-reanimated
 jest.mock('react-native-reanimated', () => {
-  const React = require('react');
   const RN = require('react-native');
   const chainable = {
     duration: jest.fn(() => chainable),

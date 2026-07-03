@@ -1,21 +1,29 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Platform, View } from 'react-native';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { isRunningInExpoGo } from 'expo';
 import type * as NotificationsType from 'expo-notifications';
 import { useAuthStore } from '../stores/authStore';
+import { useChampionshipStore } from '../stores/championshipStore';
+import { useMatchStore } from '../stores/matchStore';
+import { useTeamStore } from '../stores/teamStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useFirestoreSync } from '../hooks/useFirestoreSync';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabNavigator } from './MainTabNavigator';
 import { registerForPushNotifications } from '../services/notificationService';
+import { registerNotificationActionListeners } from '../services/notificationActionListeners';
+import {
+  getNotificationActionOrchestrator,
+  NotificationActionFlushOptions,
+} from '../services/notificationActionOrchestrator';
+import { NotificationActionDestination, NotificationActionRawPayload } from '../types/notificationActions';
 import { colors } from '../theme/colors';
 import { TAB_NAMES } from './constants';
 
 // Conditional require prevents DevicePushTokenAutoRegistration.fx from running
 // its module-level addPushTokenListener call in Expo Go (throws on Android SDK 53+).
 const isExpoGo = isRunningInExpoGo();
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Notifications = isExpoGo
   ? (null as unknown as typeof NotificationsType)
   : (require('expo-notifications') as typeof NotificationsType);
@@ -32,26 +40,24 @@ if (Platform.OS !== 'web' && !isExpoGo) {
   });
 }
 
-type NotificationData = {
-  type?: string;
-  matchId?: string;
-  championshipId?: string;
-  teamId?: string;
-};
-
-function normalizeType(type?: string) {
-  return (type ?? '').toLowerCase();
-}
-
 export function AppNavigator() {
   const isOnboarded = useAuthStore((s) => s.isOnboarded);
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
   const initialize = useAuthStore((s) => s.initialize);
   const initTheme = useThemeStore((s) => s.initialize);
+  const championships = useChampionshipStore((s) => s.championships);
+  const championshipsLoading = useChampionshipStore((s) => s.loading);
+  const selectedChampionshipId = useChampionshipStore((s) => s.selectedChampionshipId);
+  const setSelectedChampionshipId = useChampionshipStore((s) => s.setSelectedChampionshipId);
+  const teams = useTeamStore((s) => s.teams);
+  const players = useTeamStore((s) => s.players);
+  const teamsLoading = useTeamStore((s) => s.loading);
+  const matches = useMatchStore((s) => s.matches);
+  const matchesLoading = useMatchStore((s) => s.loading);
 
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
-  const pendingNotificationRef = useRef<NotificationData | null>(null);
+  const [navigationReady, setNavigationReady] = useState(false);
 
   useFirestoreSync();
 
@@ -69,98 +75,100 @@ export function AppNavigator() {
     registerForPushNotifications(user.id);
   }, [isOnboarded, user?.id]);
 
-  const navigateFromNotification = useCallback((data: NotificationData | null | undefined) => {
-    if (!data || !user || !isOnboarded || !navigationRef.current?.isReady()) {
-      pendingNotificationRef.current = data ?? null;
-      return;
-    }
+  const runtimeState = useMemo(() => ({
+    user,
+    isOnboarded,
+    authLoading: isLoading,
+    navigationReady,
+    championships,
+    teams,
+    players,
+    matches,
+    selectedChampionshipId,
+    championshipsLoading,
+    teamsLoading,
+    matchesLoading,
+  }), [
+    championships,
+    championshipsLoading,
+    isLoading,
+    isOnboarded,
+    matches,
+    matchesLoading,
+    navigationReady,
+    players,
+    selectedChampionshipId,
+    teams,
+    teamsLoading,
+    user,
+  ]);
 
-    const type = normalizeType(data.type);
+  const navigateFromAction = useCallback((destination: NotificationActionDestination) => {
     const nav = navigationRef.current;
+    if (!nav?.isReady()) return;
 
-    if (
-      data.matchId &&
-      ['goal', 'match_started', 'live_match', 'livematch', 'live', 'partida_ao_vivo'].includes(type)
-    ) {
+    if (destination.stack === 'fixtures') {
       nav.navigate(TAB_NAMES.CONFRONTOS, {
-        screen: 'LiveMatch',
-        params: { matchId: data.matchId },
+        screen: destination.screen,
+        params: destination.params,
       });
       return;
     }
-
-    if (data.matchId && type === 'match_finished') {
-      nav.navigate(TAB_NAMES.CONFRONTOS, {
-        screen: 'MatchSummary',
-        params: { matchId: data.matchId },
+    if (destination.stack === 'captain') {
+      nav.navigate(TAB_NAMES.TIME, {
+        screen: destination.screen,
+        params: destination.params,
       });
       return;
     }
+    nav.navigate(TAB_NAMES.INICIO, {
+      screen: destination.screen,
+      params: destination.params,
+    });
+  }, []);
 
-    if (data.matchId && ['match', 'partida', 'match_scheduled'].includes(type)) {
-      nav.navigate(TAB_NAMES.CONFRONTOS, {
-        screen: 'PreMatch',
-        params: { matchId: data.matchId },
-      });
-      return;
-    }
+  const actionOptions = useMemo<NotificationActionFlushOptions>(() => ({
+    navigate: navigateFromAction,
+    selectChampionship: setSelectedChampionshipId,
+  }), [navigateFromAction, setSelectedChampionshipId]);
 
-    if (data.championshipId && ['announcement', 'announcements', 'anuncio'].includes(type)) {
-      nav.navigate(TAB_NAMES.INICIO, {
-        screen: 'Announcements',
-        params: { championshipId: data.championshipId },
-      });
-      return;
-    }
-
-    if (['team_approved', 'team_rejected', 'teamapproval', 'aprovacao'].includes(type)) {
-      nav.navigate(TAB_NAMES.TIME);
-      return;
-    }
-
-    if (data.championshipId && ['championship', 'campeonato'].includes(type)) {
-      nav.navigate(TAB_NAMES.INICIO, {
-        screen: 'ChampionshipDashboard',
-        params: { championshipId: data.championshipId },
-      });
-    }
-  }, [isOnboarded, user]);
-
-  const flushPendingNotification = useCallback(() => {
-    if (!pendingNotificationRef.current || !user || !isOnboarded || !navigationRef.current?.isReady()) {
-      return;
-    }
-
-    const data = pendingNotificationRef.current;
-    pendingNotificationRef.current = null;
-    navigateFromNotification(data);
-  }, [isOnboarded, navigateFromNotification, user]);
+  const runtimeRef = useRef(runtimeState);
+  const optionsRef = useRef(actionOptions);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' && !isExpoGo) {
-      const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
-        console.log('[notifications] Received in foreground:', notification.request.content.title);
-      });
-
-      const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-        navigateFromNotification(response.notification.request.content.data as NotificationData);
-      });
-
-      const lastResponse = Notifications.getLastNotificationResponse();
-      if (lastResponse?.notification) {
-        pendingNotificationRef.current = lastResponse.notification.request.content.data as NotificationData;
-      }
-
-      return () => {
-        notificationListener.remove();
-        responseListener.remove();
-      };
-    }
-  }, [navigateFromNotification]);
+    runtimeRef.current = runtimeState;
+    optionsRef.current = actionOptions;
+  }, [actionOptions, runtimeState]);
 
   useEffect(() => {
-    flushPendingNotification();
-  }, [flushPendingNotification]);
+    getNotificationActionOrchestrator().flush(runtimeState, actionOptions);
+  }, [actionOptions, runtimeState]);
+
+  useEffect(() => {
+    return registerNotificationActionListeners({
+      notifications: Platform.OS === 'web' || isExpoGo ? null : Notifications,
+      linking: Linking,
+      onNotificationAction: (payload: NotificationActionRawPayload) => {
+        getNotificationActionOrchestrator().handleRaw(
+          payload,
+          'notification',
+          runtimeRef.current,
+          optionsRef.current,
+        );
+      },
+      onDeepLinkAction: (url: string) => {
+        getNotificationActionOrchestrator().handleRaw(
+          url,
+          'deep_link',
+          runtimeRef.current,
+          optionsRef.current,
+        );
+      },
+      onForegroundNotification: (notification) => {
+        console.log('[notifications] Received in foreground:', notification.request?.content?.title);
+      },
+    });
+  }, []);
 
   if (isLoading) {
     return (
@@ -171,7 +179,7 @@ export function AppNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onReady={flushPendingNotification}>
+    <NavigationContainer ref={navigationRef} onReady={() => setNavigationReady(true)}>
       {isOnboarded ? <MainTabNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );

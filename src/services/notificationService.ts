@@ -329,6 +329,155 @@ export async function notifyMatchScheduled(
   }
 }
 
+// ── Bloco 5 — Fase A: mudanças administrativas de status da partida ──────────────
+// Notificam capitães e atletas relacionados (userIds montados pela tela a partir do
+// elenco dos dois times + capitães), seguindo o padrão de notifyMatchScheduled.
+
+function formatMatchDate(value: Date | string): string {
+  const d = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return 'data a definir';
+  const dateStr = d.toLocaleDateString('pt-BR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  });
+  const timeStr = `${d.getHours().toString().padStart(2, '0')}h${d
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}`;
+  return `${dateStr} as ${timeStr}`;
+}
+
+export async function notifyMatchPostponed(
+  championshipId: string,
+  homeTeam: string,
+  awayTeam: string,
+  newScheduledAt: Date | string,
+  matchId: string,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  const title = 'Partida adiada';
+  const body = `${homeTeam} x ${awayTeam} foi adiada para ${formatMatchDate(newScheduledAt)}. Reconfirme sua presenca.`;
+  const data = { type: 'match_postponed', championshipId, matchId };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  if (validIds.length > 0) {
+    await saveInAppNotification(validIds, 'match_postponed', title, body, data);
+  }
+}
+
+export async function notifyMatchCancelled(
+  championshipId: string,
+  homeTeam: string,
+  awayTeam: string,
+  matchId: string,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  const title = 'Partida cancelada';
+  const body = `${homeTeam} x ${awayTeam} foi cancelada pelo organizador.`;
+  const data = { type: 'match_cancelled', championshipId, matchId };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  if (validIds.length > 0) {
+    await saveInAppNotification(validIds, 'match_cancelled', title, body, data);
+  }
+}
+
+export async function notifyWalkover(
+  championshipId: string,
+  homeTeam: string,
+  awayTeam: string,
+  winnerName: string,
+  matchId: string,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  const title = 'Resultado por W.O.';
+  const body = `${homeTeam} x ${awayTeam}: vitoria de ${winnerName} por W.O. (3 x 0).`;
+  const data = { type: 'match_wo', championshipId, matchId };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  if (validIds.length > 0) {
+    await saveInAppNotification(validIds, 'match_wo', title, body, data);
+  }
+}
+
+// ── Bloco 5 — Fase B: convocação / presença ──────────────────────────────────
+
+export async function notifyConvocationReceived(
+  championshipId: string,
+  teamName: string,
+  homeTeam: string,
+  awayTeam: string,
+  matchId: string,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Você foi convocado!';
+  const body = `${teamName}: confirme sua presença em ${homeTeam} x ${awayTeam}.`;
+  const data = { type: 'convocation_received', championshipId, matchId };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'convocation_received', title, body, data);
+}
+
+export async function notifyReconfirmationRequired(
+  championshipId: string,
+  homeTeam: string,
+  awayTeam: string,
+  matchId: string,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Reconfirme sua presença';
+  const body = `${homeTeam} x ${awayTeam} foi remarcada. Reconfirme se vai jogar.`;
+  const data = { type: 'reconfirmation_required', championshipId, matchId };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'reconfirmation_required', title, body, data);
+}
+
+export async function notifyConvocationClosed(
+  championshipId: string,
+  homeTeam: string,
+  awayTeam: string,
+  matchId: string,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Convocação encerrada';
+  const body = `A convocação de ${homeTeam} x ${awayTeam} foi encerrada.`;
+  const data = { type: 'convocation_closed', championshipId, matchId };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'convocation_closed', title, body, data);
+}
+
+/** Aviso ao capitão de que um atleta respondeu (confirmou/recusou). */
+export async function notifyAttendanceResponse(
+  championshipId: string,
+  captainId: string,
+  playerName: string,
+  confirmed: boolean,
+  matchId: string,
+): Promise<void> {
+  if (!captainId) return;
+  const type = confirmed ? 'attendance_confirmed' : 'attendance_declined';
+  const title = confirmed ? 'Presença confirmada' : 'Presença recusada';
+  const body = confirmed
+    ? `${playerName} confirmou presença.`
+    : `${playerName} recusou a convocação.`;
+  const data = { type, championshipId, matchId };
+  const tokens = await getTokensForUsers([captainId]);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification([captainId], type, title, body, data);
+}
+
 export async function notifyJoinRequest(
   captainId: string,
   teamName: string,
@@ -400,4 +549,199 @@ export async function notifyTeamRejected(
 
   await sendPushNotification(tokens, title, body, data);
   await saveInAppNotification([captainId], 'team_rejected', title, body, data);
+}
+
+// ── Bloco 10.4 — Notificações do formato grupos + mata-mata ──────────────────
+// Contrato v1 (payloadVersion: 1). A ação de navegação sai SEMPRE do `type` +
+// ids do payload (nunca do título/body). O `deduplicationKey` é determinístico:
+// retry idempotente reusa a mesma chave; uma versão nova gera nova chave.
+
+const PAYLOAD_VERSION = 1 as const;
+
+export function groupsGeneratedDedupKey(championshipId: string, generationVersion: number): string {
+  return `groups_generated_${championshipId}_${generationVersion}`;
+}
+export function groupFixturesGeneratedDedupKey(championshipId: string, fixturesVersion: number): string {
+  return `group_fixtures_generated_${championshipId}_${fixturesVersion}`;
+}
+export function teamQualifiedDedupKey(championshipId: string, snapshotVersion: number, teamId: string): string {
+  return `team_qualified_${championshipId}_${snapshotVersion}_${teamId}`;
+}
+export function teamEliminatedDedupKey(championshipId: string, snapshotVersion: number, teamId: string): string {
+  return `team_eliminated_${championshipId}_${snapshotVersion}_${teamId}`;
+}
+export function knockoutGeneratedDedupKey(championshipId: string, knockoutGenerationVersion: number): string {
+  return `knockout_generated_${championshipId}_${knockoutGenerationVersion}`;
+}
+export function knockoutMatchDefinedDedupKey(matchId: string, originSnapshotVersion: number): string {
+  return `knockout_match_defined_${matchId}_${originSnapshotVersion}`;
+}
+export function matchCorrectedDedupKey(matchId: string, correctionVersion: number): string {
+  return `match_corrected_${matchId}_${correctionVersion}`;
+}
+
+export async function notifyGroupsGenerated(
+  championshipId: string,
+  userIds: string[],
+  generationVersion: number,
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Grupos sorteados';
+  const body = 'O sorteio dos grupos foi realizado. Confira em qual grupo o seu time ficou.';
+  const data = {
+    type: 'groups_generated',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId,
+    groupGenerationVersion: generationVersion,
+    deduplicationKey: groupsGeneratedDedupKey(championshipId, generationVersion),
+  };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'groups_generated', title, body, data);
+}
+
+export async function notifyGroupFixturesGenerated(
+  championshipId: string,
+  userIds: string[],
+  fixturesVersion: number,
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Tabela da fase de grupos disponível';
+  const body = 'As partidas da fase de grupos foram geradas. Veja os confrontos do seu grupo.';
+  const data = {
+    type: 'group_fixtures_generated',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId,
+    groupFixturesVersion: fixturesVersion,
+    deduplicationKey: groupFixturesGeneratedDedupKey(championshipId, fixturesVersion),
+  };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'group_fixtures_generated', title, body, data);
+}
+
+export async function notifyTeamQualified(
+  championshipId: string,
+  teamId: string,
+  teamName: string,
+  snapshotVersion: number,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Classificado para o mata-mata!';
+  const body = `${teamName} avançou da fase de grupos e está no mata-mata.`;
+  const data = {
+    type: 'team_qualified',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId,
+    teamId,
+    snapshotVersion,
+    deduplicationKey: teamQualifiedDedupKey(championshipId, snapshotVersion, teamId),
+  };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'team_qualified', title, body, data);
+}
+
+export async function notifyTeamEliminated(
+  championshipId: string,
+  teamId: string,
+  teamName: string,
+  snapshotVersion: number,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Fim da fase de grupos';
+  const body = `${teamName} não se classificou para o mata-mata. Obrigado pela participação!`;
+  const data = {
+    type: 'team_eliminated',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId,
+    teamId,
+    snapshotVersion,
+    deduplicationKey: teamEliminatedDedupKey(championshipId, snapshotVersion, teamId),
+  };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'team_eliminated', title, body, data);
+}
+
+export async function notifyKnockoutGenerated(
+  championshipId: string,
+  userIds: string[],
+  knockoutGenerationVersion: number,
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Mata-mata definido';
+  const body = 'O chaveamento do mata-mata foi gerado. Veja os confrontos.';
+  const data = {
+    type: 'knockout_generated',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId,
+    knockoutGenerationVersion,
+    deduplicationKey: knockoutGeneratedDedupKey(championshipId, knockoutGenerationVersion),
+  };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'knockout_generated', title, body, data);
+}
+
+export async function notifyKnockoutMatchDefined(
+  championshipId: string,
+  matchId: string,
+  originSnapshotVersion: number,
+  userIds: string[],
+): Promise<void> {
+  const validIds = Array.from(new Set(userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Adversário definido';
+  const body = 'Sua próxima partida do mata-mata já tem adversário. Prepare o time!';
+  const data = {
+    type: 'knockout_match_defined',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId,
+    matchId,
+    snapshotVersion: originSnapshotVersion,
+    deduplicationKey: knockoutMatchDefinedDedupKey(matchId, originSnapshotVersion),
+  };
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'knockout_match_defined', title, body, data);
+}
+
+/**
+ * Bloco 10.3/10.4 — fecha a ressalva: notifica a correção de resultado. Deve ser
+ * chamada SOMENTE após a transação de correção concluir com sucesso e apenas
+ * quando o resultado NÃO for idempotente (o call site garante isso).
+ */
+export async function notifyMatchCorrected(params: {
+  championshipId: string;
+  matchId: string;
+  stage: 'league' | 'group' | 'knockout';
+  groupId?: 'A' | 'B' | null;
+  correctionVersion: number;
+  userIds: string[];
+}): Promise<void> {
+  const validIds = Array.from(new Set(params.userIds.filter(Boolean)));
+  if (validIds.length === 0) return;
+  const title = 'Resultado corrigido';
+  const body = 'O organizador corrigiu o resultado de uma partida. Confira os detalhes.';
+  const data: PushData = {
+    type: 'match_corrected',
+    payloadVersion: PAYLOAD_VERSION,
+    championshipId: params.championshipId,
+    matchId: params.matchId,
+    stage: params.stage,
+    correctionVersion: params.correctionVersion,
+    deduplicationKey: matchCorrectedDedupKey(params.matchId, params.correctionVersion),
+  };
+  if (params.groupId) data.groupId = params.groupId;
+  const tokens = await getTokensForUsers(validIds);
+  await sendPushNotification(tokens, title, body, data);
+  await saveInAppNotification(validIds, 'match_corrected', title, body, data);
 }

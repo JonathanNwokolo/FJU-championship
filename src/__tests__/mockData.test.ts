@@ -15,6 +15,8 @@ import {
   mockCollections,
   mockJoinRequests,
   mockLeoesConvocations,
+  mockMatchAttendance,
+  mockMatchConvocations,
   mockMatchEvents,
   mockMatches,
   mockNotifications,
@@ -183,6 +185,36 @@ describe('mockData — volume mínimo da demo', () => {
     ).toBeDefined();
   });
 
+  it('convocação/presença por partida (Fase B) cobre todos os estados e obedece às regras', () => {
+    // Todos os status de convocação demonstrados.
+    const convStatuses = new Set(mockMatchConvocations.map((c) => c.status));
+    for (const s of ['open', 'closed', 'cancelled', 'completed']) {
+      expect(convStatuses).toContain(s);
+    }
+    // IDs determinísticos {matchId}_{teamId}.
+    for (const c of mockMatchConvocations) {
+      expect(c.id).toBe(`${c.matchId}_${c.teamId}`);
+    }
+    // Nenhum convocado pode ser suspenso/lesionado/inativo (mesma regra central).
+    const playerById = new Map(mockPlayers.map((p) => [p.id, p]));
+    for (const c of mockMatchConvocations) {
+      for (const pid of c.playerIds) {
+        const p = playerById.get(pid);
+        expect(p).toBeDefined();
+        expect(isActiveRosterPlayer(p!)).toBe(true);
+        expect(['suspenso', 'lesionado']).not.toContain(p!.status);
+      }
+    }
+    // Respostas demonstram confirmado, recusado, pendente e reconfirmação.
+    const responses = new Set(mockMatchAttendance.map((a) => a.response));
+    expect(responses).toContain('confirmed');
+    expect(responses).toContain('declined');
+    expect(mockMatchAttendance.some((a) => a.reconfirmationRequired)).toBe(true);
+    for (const a of mockMatchAttendance) {
+      expect(a.id).toBe(`${a.matchId}_${a.playerId}`);
+    }
+  });
+
   it('tem comunicados, notificações, convites e pedidos para a demo', () => {
     expect(mockAnnouncements.length).toBeGreaterThanOrEqual(4);
     expect(mockAnnouncements.some((a) => a.priority === 'urgente')).toBe(true);
@@ -197,6 +229,66 @@ describe('mockData — volume mínimo da demo', () => {
     expect(requestKinds).toContain('pending:waitlist');
     expect(requestKinds).toContain('approved:request');
     expect(requestKinds).toContain('rejected:request');
+  });
+});
+
+describe('mockData — formato grupos + mata-mata (Bloco 10.5)', () => {
+  it('tem campeonato D (grupos em andamento) e E (transição concluída)', () => {
+    const d = mockChampionships.find((c) => c.id === 'champ-grupos-d');
+    const e = mockChampionships.find((c) => c.id === 'champ-grupos-e');
+    expect(d?.format).toBe('grupos_e_mata_mata');
+    expect(d?.groupStageStatus).toBe('fixtures_generated');
+    expect(d?.knockoutStageStatus).toBe('not_generated');
+    expect(e?.format).toBe('grupos_e_mata_mata');
+    expect(e?.groupStageStatus).toBe('completed');
+    expect(e?.knockoutStageStatus).toBe('generated');
+  });
+
+  it('D tem 8 times distribuídos em 2 grupos com seeds válidos', () => {
+    const teams = mockTeams.filter((t) => t.championshipId === 'champ-grupos-d');
+    expect(teams).toHaveLength(8);
+    const byGroup = { A: 0, B: 0 } as Record<string, number>;
+    for (const t of teams) {
+      expect(['A', 'B']).toContain(t.groupId);
+      expect(t.groupSeed).toBeGreaterThanOrEqual(1);
+      expect(t.groupAssignmentVersion).toBe(1);
+      byGroup[t.groupId as string] += 1;
+    }
+    expect(byGroup).toEqual({ A: 4, B: 4 });
+  });
+
+  it('D demonstra estados de partida de grupo (finalizado/W.O./adiado/cancelado/agendado)', () => {
+    const matches = mockMatches.filter((m) => m.championshipId === 'champ-grupos-d');
+    const statuses = new Set(matches.map((m) => m.status));
+    for (const s of ['finalizado', 'wo', 'adiado', 'cancelado', 'agendado']) {
+      expect(statuses).toContain(s);
+    }
+    for (const m of matches) expect(m.stage).toBe('group');
+  });
+
+  it('E tem snapshot, transition log e partida de mata-mata com origem no snapshot', () => {
+    const snapshots = (mockCollections as Record<string, any[]>).group_stage_snapshots.filter(
+      (s) => s.championshipId === 'champ-grupos-e',
+    );
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0].qualifiers).toHaveLength(2);
+    expect(snapshots[0].standingsDigest).toBeTruthy();
+    const transitions = (mockCollections as Record<string, any[]>).group_transition_logs.filter(
+      (l) => l.championshipId === 'champ-grupos-e',
+    );
+    expect(transitions[0].snapshotDigest).toBe(snapshots[0].standingsDigest);
+    const knockout = mockMatches.filter(
+      (m) => m.championshipId === 'champ-grupos-e' && m.stage === 'knockout',
+    );
+    expect(knockout.length).toBeGreaterThanOrEqual(1);
+    for (const m of knockout) expect(m.originSnapshotVersion).toBe(1);
+  });
+
+  it('expõe logs de sorteio/fixtures do formato para o mockDb', () => {
+    const assignment = (mockCollections as Record<string, any[]>).group_assignment_logs;
+    const fixtures = (mockCollections as Record<string, any[]>).group_fixture_logs;
+    expect(assignment.some((l) => l.championshipId === 'champ-grupos-d')).toBe(true);
+    expect(fixtures.some((l) => l.championshipId === 'champ-grupos-d')).toBe(true);
   });
 });
 

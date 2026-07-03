@@ -12,11 +12,19 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '../../stores/authStore';
+import { useChampionshipStore } from '../../stores/championshipStore';
+import { useMatchStore } from '../../stores/matchStore';
+import { useTeamStore } from '../../stores/teamStore';
 import { listenToNotifications, markAllAsRead, markAsRead } from '../../services/inAppNotifications';
+import {
+  getNotificationActionOrchestrator,
+} from '../../services/notificationActionOrchestrator';
 import { InAppNotification, InAppNotificationType } from '../../types';
+import { NotificationActionDestination } from '../../types/notificationActions';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
+import { TAB_NAMES } from '../../navigation/constants';
 
 const TYPE_META: Record<InAppNotificationType, { icon: string; color: string }> = {
   goal: { icon: '⚽', color: colors.accent },
@@ -29,6 +37,24 @@ const TYPE_META: Record<InAppNotificationType, { icon: string; color: string }> 
   join_request_approved: { icon: '✅', color: colors.success },
   join_request_rejected: { icon: '❌', color: colors.danger },
   waitlist_spot_available: { icon: '🔔', color: colors.warning },
+  match_postponed: { icon: '📆', color: colors.warning },
+  match_cancelled: { icon: '🚫', color: colors.danger },
+  match_wo: { icon: '⚖️', color: colors.warning },
+  convocation_received: { icon: '📋', color: colors.accent },
+  attendance_confirmed: { icon: '✅', color: colors.success },
+  attendance_declined: { icon: '🚷', color: colors.danger },
+  reconfirmation_required: { icon: '🔄', color: colors.warning },
+  convocation_closed: { icon: '🔒', color: colors.textSecondary as string },
+  // Bloco 10.4 — Grupos + mata-mata
+  groups_generated: { icon: '🎲', color: colors.accent },
+  group_fixtures_generated: { icon: '🗓️', color: colors.success },
+  group_stage_started: { icon: '🏁', color: colors.neon },
+  team_qualified: { icon: '🎉', color: colors.success },
+  team_eliminated: { icon: '🥲', color: colors.textSecondary as string },
+  knockout_generated: { icon: '🏆', color: colors.accent },
+  knockout_match_defined: { icon: '⚔️', color: colors.warning },
+  // Bloco 10.3/10.4 — correção de resultado
+  match_corrected: { icon: '📝', color: colors.warning },
 };
 
 function formatRelative(iso: string): string {
@@ -51,12 +77,12 @@ function NotificationRow({
   onPress,
 }: {
   item: InAppNotification;
-  onPress: (id: string) => void;
+  onPress: (item: InAppNotification) => void;
 }) {
   const meta = TYPE_META[item.type] ?? { icon: '🔔', color: colors.accent };
 
   return (
-    <Pressable style={[styles.row, !item.read && styles.rowUnread]} onPress={() => onPress(item.id)}>
+    <Pressable style={[styles.row, !item.read && styles.rowUnread]} onPress={() => onPress(item)}>
       <View style={[styles.iconWrap, { backgroundColor: `${meta.color}20` }]}>
         <Text style={styles.icon}>{meta.icon}</Text>
       </View>
@@ -94,8 +120,19 @@ function NotificationsSkeleton() {
 }
 
 export function NotificationCenterScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
+  const isOnboarded = useAuthStore((s) => s.isOnboarded);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const championships = useChampionshipStore((s) => s.championships);
+  const championshipsLoading = useChampionshipStore((s) => s.loading);
+  const selectedChampionshipId = useChampionshipStore((s) => s.selectedChampionshipId);
+  const setSelectedChampionshipId = useChampionshipStore((s) => s.setSelectedChampionshipId);
+  const teams = useTeamStore((s) => s.teams);
+  const players = useTeamStore((s) => s.players);
+  const teamsLoading = useTeamStore((s) => s.loading);
+  const matches = useMatchStore((s) => s.matches);
+  const matchesLoading = useMatchStore((s) => s.loading);
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -108,9 +145,69 @@ export function NotificationCenterScreen() {
     return unsub;
   }, [user?.id]);
 
-  const handlePress = useCallback(async (id: string) => {
-    await markAsRead(id);
-  }, []);
+  const navigateFromAction = useCallback((destination: NotificationActionDestination) => {
+    const parent = navigation.getParent?.();
+    if (destination.stack === 'fixtures') {
+      parent?.navigate(TAB_NAMES.CONFRONTOS, {
+        screen: destination.screen,
+        params: destination.params,
+      });
+      return;
+    }
+    if (destination.stack === 'captain') {
+      parent?.navigate(TAB_NAMES.TIME, {
+        screen: destination.screen,
+        params: destination.params,
+      });
+      return;
+    }
+    navigation.navigate(destination.screen, destination.params);
+  }, [navigation]);
+
+  const handlePress = useCallback(async (item: InAppNotification) => {
+    await markAsRead(item.id);
+
+    getNotificationActionOrchestrator().handleRaw(
+      {
+        ...item.data,
+        type: item.type,
+        actionId: item.id,
+      },
+      'internal',
+      {
+        user,
+        isOnboarded,
+        authLoading,
+        navigationReady: true,
+        championships,
+        teams,
+        players,
+        matches,
+        selectedChampionshipId,
+        championshipsLoading,
+        teamsLoading,
+        matchesLoading,
+      },
+      {
+        navigate: navigateFromAction,
+        selectChampionship: setSelectedChampionshipId,
+      },
+    );
+  }, [
+    authLoading,
+    championships,
+    championshipsLoading,
+    isOnboarded,
+    matches,
+    matchesLoading,
+    navigateFromAction,
+    players,
+    selectedChampionshipId,
+    setSelectedChampionshipId,
+    teams,
+    teamsLoading,
+    user,
+  ]);
 
   const handleMarkAll = useCallback(async () => {
     if (!user?.id) return;

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,11 @@ import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator'
 import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
 import { getSuspendedPlayers } from '../../services/statsService';
 import { isActiveRosterPlayer } from '../../utils/teamRules';
+import {
+  MatchStatusActionsSheet,
+  MatchStatusActionsSheetRef,
+} from '../../components/MatchStatusActionsSheet';
+import { MatchConvocationPanel } from '../../components/MatchConvocationPanel';
 
 type RouteT = RouteProp<FixturesStackParamList, 'PreMatch'>;
 type NavT = NativeStackNavigationProp<FixturesStackParamList>;
@@ -186,6 +191,8 @@ export function PreMatchScreen() {
   const isOrganizer =
     user?.role === 'organizador' && championship?.organizerId === user?.id;
 
+  const statusSheetRef = useRef<MatchStatusActionsSheetRef>(null);
+
   // Get players for each team (sorted: goalkeepers first, then by number).
   // Apenas elenco ATUAL: sem_time/removido mantêm o teamId antigo no doc e não
   // podem aparecer na escalação.
@@ -324,11 +331,26 @@ export function PreMatchScreen() {
   if (!match) return null;
 
   const isLive = match.status === 'ao_vivo';
+  const isScheduled = match.status === 'agendado';
+  const isPostponed = match.status === 'adiado';
   const statusBadge = isLive ? (
     <Badge label="AO VIVO" variant="live" />
+  ) : match.status === 'adiado' ? (
+    <Badge label="ADIADO" variant="pending" />
+  ) : match.status === 'cancelado' ? (
+    <Badge label="CANCELADO" variant="loss" />
+  ) : match.status === 'wo' ? (
+    <Badge label="W.O." variant="approved" />
+  ) : match.status === 'finalizado' ? (
+    <Badge label="FINALIZADO" variant="approved" />
   ) : (
     <Badge label="AGENDADO" variant="pending" />
   );
+
+  const openStatusAction = (action: 'wo' | 'adiar' | 'cancelar' | 'reativar') => {
+    if (!championship) return;
+    statusSheetRef.current?.open(action, match, championship, homeTeam, awayTeam);
+  };
 
   return (
     <View style={styles.container}>
@@ -445,6 +467,24 @@ export function PreMatchScreen() {
           </AppCard>
         </View>
 
+        {/* Convocação e presença (Bloco 5 — Fase B) */}
+        {championship && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📋 Convocação e presença</Text>
+            <MatchConvocationPanel
+              match={match}
+              championship={championship}
+              homeTeam={homeTeam}
+              awayTeam={awayTeam}
+              players={players}
+              allMatches={matches}
+              events={events}
+              teams={teams}
+              userId={user?.id ?? ''}
+            />
+          </View>
+        )}
+
         {/* Head to Head Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📊 Histórico de Confrontos</Text>
@@ -521,18 +561,60 @@ export function PreMatchScreen() {
         </View>
 
         {/* Bottom padding for FAB */}
-        {isOrganizer && <View style={{ height: 80 }} />}
+        {isOrganizer && <View style={{ height: 160 }} />}
       </ScrollView>
 
-      {/* Floating Button for Organizer */}
-      {isOrganizer && (
+      {/* Organizer actions */}
+      {isOrganizer && (isScheduled || isPostponed || isLive) && (
         <View style={styles.fabContainer}>
-          <AppButton
-            title="Iniciar registro da partida"
-            onPress={handleStartRegistration}
-            fullWidth
-          />
+          {(isScheduled || isLive) && (
+            <AppButton
+              title={isLive ? 'Continuar registro' : 'Iniciar registro da partida'}
+              onPress={handleStartRegistration}
+              fullWidth
+            />
+          )}
+          {isPostponed && (
+            <AppButton
+              title="Reativar partida"
+              onPress={() => openStatusAction('reativar')}
+              fullWidth
+            />
+          )}
+          <View style={styles.statusActionsRow}>
+            {(isScheduled || isPostponed) && (
+              <>
+                {isScheduled && (
+                  <TouchableOpacity
+                    style={styles.statusActionBtn}
+                    onPress={() => openStatusAction('adiar')}
+                  >
+                    <Ionicons name="calendar-outline" size={16} color={colors.accent} />
+                    <Text style={styles.statusActionText}>Adiar</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.statusActionBtn}
+                  onPress={() => openStatusAction('wo')}
+                >
+                  <Ionicons name="ribbon-outline" size={16} color={colors.accent} />
+                  <Text style={styles.statusActionText}>W.O.</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity
+              style={[styles.statusActionBtn, styles.statusActionDanger]}
+              onPress={() => openStatusAction('cancelar')}
+            >
+              <Ionicons name="close-circle-outline" size={16} color={colors.danger} />
+              <Text style={[styles.statusActionText, styles.statusActionDangerText]}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      )}
+
+      {isOrganizer && (
+        <MatchStatusActionsSheet ref={statusSheetRef} organizerId={user!.id} />
       )}
     </View>
   );
@@ -871,5 +953,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg100,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    gap: 12,
+  },
+  statusActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statusActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: colors.bg200,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusActionText: {
+    fontFamily: 'Barlow-SemiBold',
+    fontSize: 13,
+    color: colors.accent,
+  },
+  statusActionDanger: {
+    borderColor: 'rgba(255,59,71,0.4)',
+  },
+  statusActionDangerText: {
+    color: colors.danger,
   },
 });

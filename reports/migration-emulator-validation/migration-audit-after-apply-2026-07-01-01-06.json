@@ -1,0 +1,878 @@
+{
+  "migrationVersion": "block-6-legacy-data-v1",
+  "generatedAt": "2026-07-01T01:06:17.448Z",
+  "projectId": "fju-migration-emulator",
+  "environment": "emulator",
+  "mode": "apply",
+  "collectionsAnalyzed": [
+    "legacyConvocations",
+    "users",
+    "championships",
+    "teams",
+    "players",
+    "team_memberships",
+    "matches",
+    "match_events",
+    "match_convocations",
+    "match_attendance",
+    "round_awards",
+    "championship_results",
+    "career_stats",
+    "player_history",
+    "all_time_rankings",
+    "organizer_allowlist",
+    "match_status_changes",
+    "match_corrections",
+    "achievements"
+  ],
+  "totalDocuments": 22,
+  "collectionCounts": {
+    "legacyConvocations": 2,
+    "users": 3,
+    "championships": 1,
+    "teams": 3,
+    "players": 4,
+    "team_memberships": 1,
+    "matches": 3,
+    "match_events": 0,
+    "match_convocations": 1,
+    "match_attendance": 1,
+    "round_awards": 2,
+    "championship_results": 1,
+    "career_stats": 0,
+    "player_history": 0,
+    "all_time_rankings": 0,
+    "organizer_allowlist": 0,
+    "match_status_changes": 0,
+    "match_corrections": 0,
+    "achievements": 0
+  },
+  "categories": {
+    "team-memberships": {
+      "total": 2,
+      "issues": [
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/p2",
+          "message": "Player ativo sem team_memberships/team1_u2.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/team1_u2 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "p2",
+            "teamId": "team1",
+            "userId": "u2"
+          }
+        },
+        {
+          "category": "team-memberships",
+          "severity": "HIGH",
+          "documentPath": "players/p2b",
+          "message": "Player ativo sem team_memberships/team2_u2.",
+          "autoFixable": true,
+          "suggestedRepair": "Criar team_memberships/team2_u2 com ID deterministico.",
+          "conflicts": [],
+          "details": {
+            "playerId": "p2b",
+            "teamId": "team2",
+            "userId": "u2"
+          }
+        }
+      ],
+      "autoFixable": 2,
+      "manualReview": 0
+    },
+    "approved-player-counts": {
+      "total": 3,
+      "issues": [
+        {
+          "category": "approved-player-counts",
+          "severity": "HIGH",
+          "documentPath": "teams/team1",
+          "message": "approvedPlayersCount negativo.",
+          "autoFixable": false,
+          "suggestedRepair": "Recalcular para 2.",
+          "conflicts": [],
+          "details": {
+            "realCount": 2,
+            "current": -1
+          }
+        },
+        {
+          "category": "approved-player-counts",
+          "severity": "CRITICAL",
+          "documentPath": "players/*",
+          "message": "Player/user ocupa vaga em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_em_dois_times"
+          ],
+          "details": {
+            "key": "champ1_u2",
+            "playerIds": [
+              "p2",
+              "p2b"
+            ]
+          }
+        },
+        {
+          "category": "approved-player-counts",
+          "severity": "HIGH",
+          "documentPath": "players/*",
+          "message": "Numero de camisa duplicado dentro do elenco ativo.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "numero_duplicado"
+          ],
+          "details": {
+            "key": "team1_10",
+            "playerIds": [
+              "p1",
+              "p2"
+            ]
+          }
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 3
+    },
+    "registered-team-counts": {
+      "total": 0,
+      "issues": [],
+      "autoFixable": 0,
+      "manualReview": 0
+    },
+    "orphan-players": {
+      "total": 4,
+      "issues": [
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/p2",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "p2",
+            "userId": "u2",
+            "teamId": "team1"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "MEDIUM",
+          "documentPath": "players/p2b",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+          "conflicts": [
+            "membership_ausente"
+          ],
+          "details": {
+            "playerId": "p2b",
+            "userId": "u2",
+            "teamId": "team2"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "HIGH",
+          "documentPath": "players/removed",
+          "message": "Player com inconsistencias estruturais.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisao manual obrigatoria.",
+          "conflicts": [
+            "user_inexistente",
+            "player_removido_deve_ser_ignorado_em_contador"
+          ],
+          "details": {
+            "playerId": "removed",
+            "userId": "u3",
+            "teamId": "team1"
+          }
+        },
+        {
+          "category": "orphan-players",
+          "severity": "CRITICAL",
+          "documentPath": "players/*",
+          "message": "Mesmo userId ativo em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "player_em_dois_times"
+          ],
+          "details": {
+            "key": "champ1_u2",
+            "playerIds": [
+              "p2",
+              "p2b"
+            ]
+          }
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 4
+    },
+    "captains": {
+      "total": 4,
+      "issues": [
+        {
+          "category": "captains",
+          "severity": "HIGH",
+          "documentPath": "teams/rejected",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/team1",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/team2",
+          "message": "Time sem capitao valido.",
+          "autoFixable": false,
+          "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+          "conflicts": [
+            "captain_user_inexistente",
+            "capitao_fora_do_time",
+            "capitao_sem_membership_ativo",
+            "time_aprovado_sem_capitao_valido"
+          ],
+          "details": {}
+        },
+        {
+          "category": "captains",
+          "severity": "CRITICAL",
+          "documentPath": "teams/*",
+          "message": "Mesmo capitao em dois times no mesmo campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "capitao_duplicado"
+          ],
+          "details": {
+            "key": "champ1_cap1",
+            "teamIds": [
+              "rejected",
+              "team1"
+            ]
+          }
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 4
+    },
+    "legacy-convocations": {
+      "total": 2,
+      "issues": [
+        {
+          "category": "legacy-convocations",
+          "severity": "HIGH",
+          "documentPath": "teams/team1/convocations/99",
+          "message": "Convocacao legada sem partida compativel.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "partida_inexistente"
+          ],
+          "details": {}
+        },
+        {
+          "category": "legacy-convocations",
+          "severity": "MEDIUM",
+          "documentPath": "teams/team2/convocations/1",
+          "message": "Convocacao atual ja existe para a partida.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "convocacao_duplicada"
+          ],
+          "details": {}
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 2
+    },
+    "current-convocations-attendance": {
+      "total": 1,
+      "issues": [
+        {
+          "category": "current-convocations-attendance",
+          "severity": "HIGH",
+          "documentPath": "match_attendance/m1_p2",
+          "message": "match_attendance inconsistente.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "jogador_nao_convocado"
+          ],
+          "details": {}
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 1
+    },
+    "matches": {
+      "total": 3,
+      "issues": [
+        {
+          "category": "matches",
+          "severity": "HIGH",
+          "documentPath": "matches/m1",
+          "message": "Partida inconsistente.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "correctionVersion_ausente_em_legado",
+            "statusVersion_ausente_em_legado"
+          ],
+          "details": {}
+        },
+        {
+          "category": "matches",
+          "severity": "HIGH",
+          "documentPath": "matches/m2",
+          "message": "Partida inconsistente.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "correctionVersion_ausente_em_legado",
+            "statusVersion_ausente_em_legado"
+          ],
+          "details": {}
+        },
+        {
+          "category": "matches",
+          "severity": "HIGH",
+          "documentPath": "matches/wo-bad",
+          "message": "Partida inconsistente.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "wo_sem_resultSource",
+            "wo_sem_placar_3x0",
+            "correctionVersion_ausente_em_legado",
+            "statusVersion_ausente_em_legado"
+          ],
+          "details": {}
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 3
+    },
+    "round-awards": {
+      "total": 2,
+      "issues": [
+        {
+          "category": "round-awards",
+          "severity": "MEDIUM",
+          "documentPath": "round_awards/legacy-auto",
+          "message": "round_award inconsistente.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "id_automatico_legado"
+          ],
+          "details": {}
+        },
+        {
+          "category": "round-awards",
+          "severity": "HIGH",
+          "documentPath": "round_awards/*",
+          "message": "Awards duplicados com vencedores conflitantes.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "vencedores_conflitantes"
+          ],
+          "details": {
+            "key": "champ1_1",
+            "awardIds": [
+              "champ1_1",
+              "legacy-auto"
+            ]
+          }
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 2
+    },
+    "derived-results": {
+      "total": 2,
+      "issues": [
+        {
+          "category": "derived-results",
+          "severity": "MEDIUM",
+          "documentPath": "championship_results/champ1",
+          "message": "totalTeams diverge da quantidade atual de times.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [],
+          "details": {
+            "resultTotalTeams": 99,
+            "currentTeams": 3
+          }
+        },
+        {
+          "category": "derived-results",
+          "severity": "HIGH",
+          "documentPath": "championship_results/champ1",
+          "message": "Campeao aponta para time inexistente no campeonato.",
+          "autoFixable": false,
+          "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+          "conflicts": [
+            "winnerId_invalido"
+          ],
+          "details": {}
+        }
+      ],
+      "autoFixable": 0,
+      "manualReview": 2
+    }
+  },
+  "issues": [
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/p2",
+      "message": "Player ativo sem team_memberships/team1_u2.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/team1_u2 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "p2",
+        "teamId": "team1",
+        "userId": "u2"
+      }
+    },
+    {
+      "category": "team-memberships",
+      "severity": "HIGH",
+      "documentPath": "players/p2b",
+      "message": "Player ativo sem team_memberships/team2_u2.",
+      "autoFixable": true,
+      "suggestedRepair": "Criar team_memberships/team2_u2 com ID deterministico.",
+      "conflicts": [],
+      "details": {
+        "playerId": "p2b",
+        "teamId": "team2",
+        "userId": "u2"
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "HIGH",
+      "documentPath": "teams/team1",
+      "message": "approvedPlayersCount negativo.",
+      "autoFixable": false,
+      "suggestedRepair": "Recalcular para 2.",
+      "conflicts": [],
+      "details": {
+        "realCount": 2,
+        "current": -1
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "CRITICAL",
+      "documentPath": "players/*",
+      "message": "Player/user ocupa vaga em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_em_dois_times"
+      ],
+      "details": {
+        "key": "champ1_u2",
+        "playerIds": [
+          "p2",
+          "p2b"
+        ]
+      }
+    },
+    {
+      "category": "approved-player-counts",
+      "severity": "HIGH",
+      "documentPath": "players/*",
+      "message": "Numero de camisa duplicado dentro do elenco ativo.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "numero_duplicado"
+      ],
+      "details": {
+        "key": "team1_10",
+        "playerIds": [
+          "p1",
+          "p2"
+        ]
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/p2",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "p2",
+        "userId": "u2",
+        "teamId": "team1"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "MEDIUM",
+      "documentPath": "players/p2b",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Pode ser resolvido pelo backfill de team_memberships se os documentos fonte forem validos.",
+      "conflicts": [
+        "membership_ausente"
+      ],
+      "details": {
+        "playerId": "p2b",
+        "userId": "u2",
+        "teamId": "team2"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "HIGH",
+      "documentPath": "players/removed",
+      "message": "Player com inconsistencias estruturais.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisao manual obrigatoria.",
+      "conflicts": [
+        "user_inexistente",
+        "player_removido_deve_ser_ignorado_em_contador"
+      ],
+      "details": {
+        "playerId": "removed",
+        "userId": "u3",
+        "teamId": "team1"
+      }
+    },
+    {
+      "category": "orphan-players",
+      "severity": "CRITICAL",
+      "documentPath": "players/*",
+      "message": "Mesmo userId ativo em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "player_em_dois_times"
+      ],
+      "details": {
+        "key": "champ1_u2",
+        "playerIds": [
+          "p2",
+          "p2b"
+        ]
+      }
+    },
+    {
+      "category": "captains",
+      "severity": "HIGH",
+      "documentPath": "teams/rejected",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/team1",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/team2",
+      "message": "Time sem capitao valido.",
+      "autoFixable": false,
+      "suggestedRepair": "Corrigir capitao manualmente; nao atribuir automaticamente.",
+      "conflicts": [
+        "captain_user_inexistente",
+        "capitao_fora_do_time",
+        "capitao_sem_membership_ativo",
+        "time_aprovado_sem_capitao_valido"
+      ],
+      "details": {}
+    },
+    {
+      "category": "captains",
+      "severity": "CRITICAL",
+      "documentPath": "teams/*",
+      "message": "Mesmo capitao em dois times no mesmo campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "capitao_duplicado"
+      ],
+      "details": {
+        "key": "champ1_cap1",
+        "teamIds": [
+          "rejected",
+          "team1"
+        ]
+      }
+    },
+    {
+      "category": "legacy-convocations",
+      "severity": "HIGH",
+      "documentPath": "teams/team1/convocations/99",
+      "message": "Convocacao legada sem partida compativel.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "partida_inexistente"
+      ],
+      "details": {}
+    },
+    {
+      "category": "legacy-convocations",
+      "severity": "MEDIUM",
+      "documentPath": "teams/team2/convocations/1",
+      "message": "Convocacao atual ja existe para a partida.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "convocacao_duplicada"
+      ],
+      "details": {}
+    },
+    {
+      "category": "current-convocations-attendance",
+      "severity": "HIGH",
+      "documentPath": "match_attendance/m1_p2",
+      "message": "match_attendance inconsistente.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "jogador_nao_convocado"
+      ],
+      "details": {}
+    },
+    {
+      "category": "matches",
+      "severity": "HIGH",
+      "documentPath": "matches/m1",
+      "message": "Partida inconsistente.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "correctionVersion_ausente_em_legado",
+        "statusVersion_ausente_em_legado"
+      ],
+      "details": {}
+    },
+    {
+      "category": "matches",
+      "severity": "HIGH",
+      "documentPath": "matches/m2",
+      "message": "Partida inconsistente.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "correctionVersion_ausente_em_legado",
+        "statusVersion_ausente_em_legado"
+      ],
+      "details": {}
+    },
+    {
+      "category": "matches",
+      "severity": "HIGH",
+      "documentPath": "matches/wo-bad",
+      "message": "Partida inconsistente.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "wo_sem_resultSource",
+        "wo_sem_placar_3x0",
+        "correctionVersion_ausente_em_legado",
+        "statusVersion_ausente_em_legado"
+      ],
+      "details": {}
+    },
+    {
+      "category": "round-awards",
+      "severity": "MEDIUM",
+      "documentPath": "round_awards/legacy-auto",
+      "message": "round_award inconsistente.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "id_automatico_legado"
+      ],
+      "details": {}
+    },
+    {
+      "category": "round-awards",
+      "severity": "HIGH",
+      "documentPath": "round_awards/*",
+      "message": "Awards duplicados com vencedores conflitantes.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "vencedores_conflitantes"
+      ],
+      "details": {
+        "key": "champ1_1",
+        "awardIds": [
+          "champ1_1",
+          "legacy-auto"
+        ]
+      }
+    },
+    {
+      "category": "derived-results",
+      "severity": "MEDIUM",
+      "documentPath": "championship_results/champ1",
+      "message": "totalTeams diverge da quantidade atual de times.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [],
+      "details": {
+        "resultTotalTeams": 99,
+        "currentTeams": 3
+      }
+    },
+    {
+      "category": "derived-results",
+      "severity": "HIGH",
+      "documentPath": "championship_results/champ1",
+      "message": "Campeao aponta para time inexistente no campeonato.",
+      "autoFixable": false,
+      "suggestedRepair": "Revisar manualmente antes de aplicar qualquer alteração.",
+      "conflicts": [
+        "winnerId_invalido"
+      ],
+      "details": {}
+    }
+  ],
+  "proposedChanges": [],
+  "summary": {
+    "critical": 5,
+    "high": 13,
+    "medium": 5,
+    "low": 0,
+    "info": 0,
+    "autoFixable": 2,
+    "manualReview": 21,
+    "totalIssues": 23,
+    "totalProposedChanges": 0
+  },
+  "appliedChanges": [
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "team-memberships",
+      "operation": "set",
+      "documentPath": "team_memberships/team1_u1",
+      "collection": "team_memberships",
+      "id": "team1_u1",
+      "before": null,
+      "after": {
+        "teamId": "team1",
+        "championshipId": "champ1",
+        "userId": "u1",
+        "playerId": "p1",
+        "status": "ativo",
+        "active": true,
+        "createdByMigration": true,
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-01T01:06:17.305Z",
+        "sourcePlayerId": "p1",
+        "updatedAt": "2026-07-01T01:06:17.305Z"
+      },
+      "reason": "Backfill seguro de membership ausente."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "registered-team-counts",
+      "operation": "update",
+      "documentPath": "championships/champ1",
+      "collection": "championships",
+      "id": "champ1",
+      "before": {
+        "registeredTeamsCount": 3
+      },
+      "after": {
+        "registeredTeamsCount": 2
+      },
+      "reason": "Recalculo seguro do contador denormalizado de times conforme regra atual."
+    },
+    {
+      "migrationVersion": "block-6-legacy-data-v1",
+      "category": "legacy-convocations",
+      "operation": "set",
+      "documentPath": "match_convocations/m1_team2",
+      "collection": "match_convocations",
+      "id": "m1_team2",
+      "before": null,
+      "after": {
+        "id": "m1_team2",
+        "championshipId": "champ1",
+        "matchId": "m1",
+        "teamId": "team2",
+        "captainId": "missing",
+        "playerIds": [
+          "p2b"
+        ],
+        "status": "open",
+        "responseDeadline": null,
+        "requiresReconfirmation": false,
+        "version": 1,
+        "previousVersion": null,
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-07-01T01:06:17.305Z",
+        "migratedFromLegacy": true,
+        "legacySourcePath": "teams/team2/convocations/1",
+        "migrationVersion": "block-6-legacy-data-v1",
+        "migratedAt": "2026-07-01T01:06:17.305Z"
+      },
+      "reason": "Migracao segura de convocacao legada nao ambigua."
+    }
+  ]
+}

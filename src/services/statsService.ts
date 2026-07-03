@@ -9,7 +9,7 @@ import {
   PlayerDisciplineRanking,
   SuspendedPlayer,
 } from '../types';
-import { activeMatchEvents } from '../utils/matchRules';
+import { activeMatchEvents, matchCountsForStandings } from '../utils/matchRules';
 
 // ─── Standings ────────────────────────────────────────────────────────────────
 
@@ -85,7 +85,9 @@ export function calculateStandings(
 ): TeamStanding[] {
   const activeEvents = activeMatchEvents(events);
   const approvedTeams = teams.filter((team) => team.status == null || team.status === 'aprovado');
-  const finishedMatches = matches.filter((m) => m.status === 'finalizado');
+  // Bloco 5 — Fase A: conta partida jogada normalmente E W.O. (placar 3×0). Adiada,
+  // cancelada, agendada e ao vivo não contam como resultado final.
+  const finishedMatches = matches.filter((m) => matchCountsForStandings(m.status));
   const finishedMatchIds = new Set(finishedMatches.map((m) => m.id));
 
   const map: Record<string, TeamStanding> = {};

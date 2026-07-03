@@ -97,7 +97,7 @@ function calculateBracketRounds(numTeams: number): number {
  * cada BYE caia em um confronto separado (pareando com um time real, que avança),
  * em vez de gerar partidas vazio×vazio e travar o bracket.
  */
-function seedOrder(size: number): number[] {
+export function seedOrder(size: number): number[] {
   let seeds = [1, 2];
   while (seeds.length < size) {
     const sum = seeds.length * 2 + 1;

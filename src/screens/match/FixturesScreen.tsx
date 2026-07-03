@@ -22,18 +22,20 @@ import {
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonLoader } from '../../components/SkeletonLoader';
 import { colors } from '../../theme/colors';
-import { MatchModel, BracketRound, Team, Player } from '../../types';
+import { MatchModel, BracketRound, Team, Player, GroupStageQualificationSnapshot } from '../../types';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
-import { getCollection } from '../../services/index';
+import { getCollection, getDocument } from '../../services/index';
 import { registerForPushNotifications } from '../../services/notificationService';
 import { isRoundComplete } from '../../services/votingService';
 import { useRoundVoting } from '../../hooks/useRoundVoting';
 import { getBracketRoundLabel } from '../../utils/roundRobin';
 import { isActiveRosterPlayer } from '../../utils/teamRules';
+import { getGroupSnapshotId } from '../../utils/groupStageIds';
+import { buildQualifierOriginMap } from '../../utils/groupStagePresentation';
 
 type BracketColumn = {
   key: string;
@@ -142,6 +144,9 @@ export function FixturesScreen() {
   const isLoading = useChampionshipStore((s) => s.loading);
   const [selectedRound, setSelectedRound] = useState(activeChampionship?.currentRound ?? 1);
   const [refreshing, setRefreshing] = useState(false);
+  // Bloco 10.4 — origem do classificado na chave ("1º Grupo A"). Lida do
+  // snapshot congelado da transição (fonte de leitura oficial), fetch pontual.
+  const [bracketOrigins, setBracketOrigins] = useState<Map<string, string>>(new Map());
   const flatListRef = useRef<FlatList>(null);
   const roundScrollRef = useRef<ScrollView>(null);
   const scheduleSheetRef = useRef<ScheduleMatchBottomSheetRef>(null);
@@ -206,24 +211,66 @@ export function FixturesScreen() {
     registerForPushNotifications(user.id);
   }, [user?.id]);
 
+  // Versão do snapshot da transição (fonte de leitura oficial da origem). Derivada
+  // por memo para não re-disparar o fetch quando placares/eventos das partidas mudam.
+  const bracketSnapshotVersion = useMemo(() => {
+    if (!isGroupsAndKnockout || bracketMatches.length === 0) return null;
+    return bracketMatches.find((m) => m.originSnapshotVersion != null)?.originSnapshotVersion ?? 1;
+  }, [isGroupsAndKnockout, bracketMatches]);
+
+  // Carrega o snapshot da transição uma única vez por versão para rotular a origem
+  // dos classificados na chave. Depende de primitivos estáveis (id + versão), não
+  // do array de partidas, então não refaz o fetch a cada atualização de partida.
+  useEffect(() => {
+    const championshipId = activeChampionship?.id;
+    if (!championshipId || bracketSnapshotVersion == null) {
+      setBracketOrigins(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const snapshotId = getGroupSnapshotId(championshipId, bracketSnapshotVersion);
+        const snapshot = await getDocument<GroupStageQualificationSnapshot>(
+          'group_stage_snapshots',
+          snapshotId,
+        );
+        if (!cancelled) setBracketOrigins(buildQualifierOriginMap(snapshot));
+      } catch {
+        if (!cancelled) setBracketOrigins(new Map());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChampionship?.id, bracketSnapshotVersion]);
+
   const getTeam = (teamId: string) => teams.find((t) => t.id === teamId);
 
   const renderBracketTeam = (match: MatchModel, teamId: string, label: 'A' | 'B') => {
     const team = teamId ? getTeam(teamId) : undefined;
     const isWinner = !!teamId && match.status === 'finalizado' && match.winnerId === teamId;
+    const origin = teamId ? bracketOrigins.get(teamId) : undefined;
 
     return (
       <View style={[styles.bracketTeamRow, isWinner && styles.bracketTeamWinner]}>
-        <Text
-          style={[
-            styles.bracketTeamName,
-            !team && styles.bracketTeamUnknown,
-            isWinner && styles.bracketTeamNameWinner,
-          ]}
-          numberOfLines={1}
-        >
-          {team?.name ?? '?'}
-        </Text>
+        <View style={styles.bracketTeamInfo}>
+          <Text
+            style={[
+              styles.bracketTeamName,
+              !team && styles.bracketTeamUnknown,
+              isWinner && styles.bracketTeamNameWinner,
+            ]}
+            numberOfLines={1}
+          >
+            {team?.name ?? '?'}
+          </Text>
+          {origin ? (
+            <Text style={styles.bracketTeamOrigin} numberOfLines={1}>
+              {origin}
+            </Text>
+          ) : null}
+        </View>
         {match.status === 'finalizado' ? (
           <Text style={[styles.bracketScore, isWinner && styles.bracketScoreWinner]}>
             {label === 'A' ? match.homeScore ?? '-' : match.awayScore ?? '-'}
@@ -673,17 +720,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.bg300,
     paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   bracketTeamWinner: {
     borderWidth: 1,
     borderColor: colors.accent,
     backgroundColor: colors.accentGlow,
   },
-  bracketTeamName: {
+  bracketTeamInfo: {
     flex: 1,
+  },
+  bracketTeamName: {
     fontFamily: 'Barlow-SemiBold',
     fontSize: 12,
     color: colors.textPrimary,
+  },
+  bracketTeamOrigin: {
+    fontFamily: 'Barlow-Medium',
+    fontSize: 9,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   bracketTeamUnknown: {
     color: colors.textMuted,

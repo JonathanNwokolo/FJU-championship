@@ -32,8 +32,23 @@ import { useMatchStore } from '../../stores/matchStore';
 import { useTeamStore } from '../../stores/teamStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useAuthStore } from '../../stores/authStore';
-import { Championship, MatchEvent, MatchEventType, MatchModel } from '../../types';
-import { addDocument, updateDocument, deleteDocument, applyMatchCorrection } from '../../services/index';
+import {
+  Championship,
+  ChampionshipResultData,
+  Convocation,
+  MatchEvent,
+  MatchEventType,
+  MatchModel,
+} from '../../types';
+import {
+  addDocument,
+  updateDocument,
+  deleteDocument,
+  getDocument,
+  applyMatchCorrection,
+  applyMatchCorrectionWithClosedChampionshipReprocess,
+  getCorrectionErrorMessage,
+} from '../../services/index';
 import { db } from '../../services/firebase';
 import { collection, doc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { FixturesStackParamList } from '../../navigation/FixturesStackNavigator';
@@ -41,7 +56,9 @@ import {
   notifyGoal,
   notifyMatchStarted,
   notifyMatchFinished,
+  notifyMatchCorrected,
 } from '../../services/notificationService';
+import { normalizeGroupId, normalizeMatchStage } from '../../utils/groupStageStructure';
 import { checkAndGrantAchievements } from '../../services/achievementService';
 import { getPlayerSuspensionReason } from '../../services/statsService';
 import { finishChampionship } from '../../services/championshipFinisher';
@@ -49,7 +66,9 @@ import { AchievementToast } from '../../components/AchievementToast';
 import { AchievementDefinition } from '../../types';
 import { ACHIEVEMENTS } from '../../utils/achievementDefinitions';
 import { isPlayerInTeamActive } from '../../utils/teamRules';
-import { activeMatchEvents, canEditMatchEvents } from '../../utils/matchRules';
+import { isPlayerCalledUp } from '../../utils/convocationRules';
+import { getConvocationFor } from '../../services/attendanceService';
+import { activeMatchEvents, canEditMatchEvents, isMatchSettled } from '../../utils/matchRules';
 import { useVotingStore } from '../../stores/votingStore';
 import { generateBracketFixtures, getGroupClassified } from '../../utils/roundRobin';
 import { MOCK_DATA_ENABLED as USE_MOCK } from '../../config/appConfig';
@@ -143,6 +162,7 @@ export function MatchRegistrationScreen() {
   const [correctionEvents, setCorrectionEvents] = useState<MatchEvent[]>([]);
   const [editingCorrectionEventId, setEditingCorrectionEventId] = useState<string | null>(null);
   const [savingCorrection, setSavingCorrection] = useState(false);
+  const [checkingCorrectionLock, setCheckingCorrectionLock] = useState(false);
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
 
   const match = matches.find((m) => m.id === matchId);
@@ -194,6 +214,25 @@ export function MatchRegistrationScreen() {
   const [bsPlayerId, setBsPlayerId] = useState('');
   const [bsMinute, setBsMinute] = useState('');
 
+  // B9: convocação por time da partida. Não-convocado é bloqueado de receber
+  // eventos. Compat.: partida sem convocação (legado) cai no comportamento antigo
+  // via isPlayerCalledUp(null, ...) === true.
+  const [convocations, setConvocations] = useState<Record<string, Convocation | null>>({});
+  useEffect(() => {
+    if (!match) return;
+    let cancelled = false;
+    const teamIds = [match.homeTeamId, match.awayTeamId];
+    Promise.all(teamIds.map((tid) => getConvocationFor(match.id, tid).catch(() => null))).then(
+      (results) => {
+        if (cancelled) return;
+        setConvocations({ [teamIds[0]]: results[0], [teamIds[1]]: results[1] });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [match?.id, match?.homeTeamId, match?.awayTeamId]);
+
   const championshipRules = championships.find((c) => c.id === match?.championshipId)?.rules;
   const yellowLimit = championshipRules?.yellowCardLimit ?? 3;
   const redCardSuspend = championshipRules?.redCardSuspend !== false;
@@ -227,7 +266,9 @@ export function MatchRegistrationScreen() {
     ? players.filter((p) =>
         correctionMode
           ? p.teamId === bsTeamId
-          : isPlayerInTeamActive(p, bsTeamId) && !checkSuspended(p),
+          : isPlayerInTeamActive(p, bsTeamId) &&
+            !checkSuspended(p) &&
+            isPlayerCalledUp(convocations[bsTeamId], p.id),
       )
     : [];
 
@@ -251,14 +292,34 @@ export function MatchRegistrationScreen() {
     setCorrectionAwayScore(match?.awayScore != null ? String(match.awayScore) : '');
   }, [correctionMode, match?.id]);
 
-  const openCorrectionMode = () => {
-    if (!canManageMatch || !match || !isFinalized) return;
+  const openCorrectionMode = async () => {
+    if (!canManageMatch || !match || !isFinalized || checkingCorrectionLock) return;
     if (matchChampionship?.status === 'finalizado') {
       Alert.alert(
         'Correção bloqueada',
         'Este campeonato já foi encerrado definitivamente. O reprocessamento completo ficará para um bloco administrativo futuro.',
       );
       return;
+    }
+    // Bloqueio antecipado: descobre o fechamento definitivo (championship_results)
+    // ANTES de abrir o editor, para o organizador não preencher tudo à toa. O
+    // serviço mantém a checagem como defesa obrigatória — a UI não a substitui.
+    setCheckingCorrectionLock(true);
+    try {
+      const closingResult = await getDocument('championship_results', match.championshipId);
+      if (closingResult) {
+        Alert.alert(
+          'Correção bloqueada',
+          'Este campeonato já foi encerrado definitivamente. O reprocessamento completo ficará para um bloco administrativo futuro.',
+        );
+        return;
+      }
+    } catch (err) {
+      console.error('[MatchRegistration] results lookup error:', err);
+      Alert.alert('Correção indisponível', getCorrectionErrorMessage(err));
+      return;
+    } finally {
+      setCheckingCorrectionLock(false);
     }
     setCorrectionReason('');
     setCorrectionHomeScore(match.homeScore != null ? String(match.homeScore) : '');
@@ -323,7 +384,11 @@ export function MatchRegistrationScreen() {
 
     setSavingCorrection(true);
     try {
-      const result = await applyMatchCorrection({
+      const frozenResult = await getDocument<ChampionshipResultData>(
+        'championship_results',
+        matchChampionship.id,
+      );
+      const correctionPayload = {
         correctionId: makeCorrectionId(),
         organizerId: user.id,
         reason: correctionReason,
@@ -336,7 +401,14 @@ export function MatchRegistrationScreen() {
         nextAwayScore: correctionAwayScoreNum,
         nextEvents: correctionEvents,
         expectedCorrectionVersion: match.correctionVersion ?? 0,
-      });
+      };
+      const shouldUseClosedReprocessFlow = matchChampionship.status === 'finalizado' || !!frozenResult;
+      const result = shouldUseClosedReprocessFlow
+        ? await applyMatchCorrectionWithClosedChampionshipReprocess({
+            ...correctionPayload,
+            expectedReprocessVersion: frozenResult?.reprocessVersion,
+          })
+        : await applyMatchCorrection(correctionPayload);
 
       updateMatch(match.id, result.updatedMatch);
       if (result.nextMatchIdToUpdate && result.nextMatchUpdate) {
@@ -349,20 +421,46 @@ export function MatchRegistrationScreen() {
         ...events.filter((event) => event.matchId !== match.id),
         ...result.activeMatchEvents,
       ]);
+
+      // Bloco 10.3/10.4 — notifica a correção apenas quando ela realmente ocorreu
+      // (nunca em retry idempotente; nunca em falha, pois estamos no try pós-sucesso).
+      if (!result.idempotent) {
+        const involvedTeamIds = [match.homeTeamId, match.awayTeamId];
+        const allTeams = useTeamStore.getState().teams;
+        const captainIds = allTeams
+          .filter((t) => involvedTeamIds.includes(t.id))
+          .map((t) => t.captainId);
+        const playerUserIds = players
+          .filter((p) => p.teamId && involvedTeamIds.includes(p.teamId) && !!p.userId)
+          .map((p) => p.userId as string);
+        const stage = normalizeMatchStage(match, matchChampionship).stage ?? 'league';
+        void notifyMatchCorrected({
+          championshipId: match.championshipId,
+          matchId: match.id,
+          stage,
+          groupId: normalizeGroupId(match.groupId, matchChampionship.id),
+          correctionVersion: result.correction.newMatchVersion,
+          userIds: [...captainIds, ...playerUserIds],
+        }).catch((notifyErr) =>
+          console.warn('[MatchRegistration] notifyMatchCorrected error:', notifyErr),
+        );
+      }
+
       cancelCorrectionMode();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Toast.show({
         type: 'success',
         text1: 'Resultado corrigido',
-        text2: 'Log de auditoria registrado.',
+        text2: result.reprocess
+          ? 'Resultado final, historico, rankings e conquistas recalculados.'
+          : 'Log de auditoria registrado.',
         visibilityTime: 3000,
       });
     } catch (err) {
+      // O erro técnico cru vai só para o console (removido em produção pelo
+      // transform-remove-console); o usuário vê uma mensagem amigável mapeada.
       console.error('[MatchRegistration] correction error:', err);
-      Alert.alert(
-        'Correção bloqueada',
-        err instanceof Error ? err.message : 'Não foi possível aplicar a correção.',
-      );
+      Alert.alert('Correção bloqueada', getCorrectionErrorMessage(err));
     } finally {
       setSavingCorrection(false);
     }
@@ -401,6 +499,15 @@ export function MatchRegistrationScreen() {
     if (!bsTeamId || !bsPlayerId || !minute || !match) return;
     if (minute < 1 || minute > 120) {
       Alert.alert('Minuto inválido', 'Informe um minuto entre 1 e 120.');
+      return;
+    }
+    // B9: defesa no submit — jogador não convocado não pode receber eventos
+    // (a correção controlada tem seu próprio fluxo e não passa por aqui).
+    if (!correctionMode && !isPlayerCalledUp(convocations[bsTeamId], bsPlayerId)) {
+      Alert.alert(
+        'Atleta não convocado',
+        'Apenas atletas convocados para esta partida podem registrar eventos.',
+      );
       return;
     }
 
@@ -828,7 +935,8 @@ export function MatchRegistrationScreen() {
         );
         if (
           roundMatches.length > 0 &&
-          roundMatches.every((m) => m.status === 'finalizado') &&
+          // Bloco 5 — Fase A: W.O./cancelada também liquidam a rodada.
+          roundMatches.every((m) => isMatchSettled(m.status)) &&
           matchChampionship?.currentRound === match.round
         ) {
           const nextCurrentRound = match.round + 1;
@@ -1039,7 +1147,8 @@ export function MatchRegistrationScreen() {
           );
           const roundComplete =
             roundMatchesAfterUpdate.length > 0 &&
-            roundMatchesAfterUpdate.every((m) => m.status === 'finalizado');
+            // Bloco 5 — Fase A: W.O./cancelada também liquidam a rodada.
+            roundMatchesAfterUpdate.every((m) => isMatchSettled(m.status));
 
           if (roundComplete && persistedChampionship.currentRound === match.round) {
             nextCurrentRound = match.round + 1;
@@ -1333,9 +1442,17 @@ export function MatchRegistrationScreen() {
               multiline
             />
 
-            <Text style={correctionStyles.impactText}>
+            {matchChampionship?.status === 'finalizado' && (
+              <Text style={correctionStyles.impactText}>
+                Esta partida pertence a um campeonato encerrado. Ao salvar, o resultado final, historico, rankings e conquistas serao recalculados.
+              </Text>
+            )}
+
+            {matchChampionship?.status !== 'finalizado' && (
+              <Text style={correctionStyles.impactText}>
               A correção recalcula classificação, artilharia, assistências, cartões e suspensões. O log será imutável.
-            </Text>
+              </Text>
+            )}
 
             <View style={correctionStyles.actions}>
               <TouchableOpacity
@@ -1475,10 +1592,14 @@ export function MatchRegistrationScreen() {
             <TouchableOpacity
               style={styles.correctionButton}
               onPress={correctionMode ? () => setShowCorrectionModal(true) : openCorrectionMode}
-              disabled={savingCorrection}
+              disabled={savingCorrection || checkingCorrectionLock}
             >
               <Text style={styles.correctionButtonText}>
-                {correctionMode ? 'Revisar' : 'Corrigir resultado'}
+                {correctionMode
+                  ? 'Revisar'
+                  : checkingCorrectionLock
+                    ? 'Verificando…'
+                    : 'Corrigir resultado'}
               </Text>
             </TouchableOpacity>
             {correctionMode && (

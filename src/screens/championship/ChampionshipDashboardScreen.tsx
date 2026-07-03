@@ -11,6 +11,7 @@ import {
   Platform,
   FlatList,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
@@ -49,6 +50,62 @@ import { POSITION_LABELS, POSITION_COLORS } from '../../utils/constants';
 import { isActiveRosterPlayer, isPlayerInTeamActive } from '../../utils/teamRules';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
 import { activeMatchEvents } from '../../utils/matchRules';
+import { navigateToFixtures } from '../../navigation/crossTabNavigation';
+import {
+  summarizeGroupStageDashboard,
+  getGroupServiceErrorMessage,
+  GROUP_STAGE_ACTION_LABELS,
+  type GroupStageDashboardSummary,
+  type GroupStageAction,
+} from '../../utils/groupStagePresentation';
+import {
+  generateAndPersistGroupAssignments,
+  generateAndPersistGroupFixtures,
+  GroupAssignmentError,
+  GroupFixturesError,
+} from '../../services/index';
+import { refreshGroupStageData } from '../../services/championshipRefresh';
+import { GroupStageStatus, KnockoutStageStatus } from '../../types';
+
+// Ordem canônica de exibição das ações da fase de grupos.
+const GROUP_ACTION_ORDER: GroupStageAction[] = [
+  'generate_groups',
+  'view_groups',
+  'generate_fixtures',
+  'view_fixtures',
+  'view_standings',
+  'review_and_complete',
+  'view_bracket',
+];
+
+// Ações que disparam mutação/decisão importante — recebem destaque de CTA.
+const PRIMARY_GROUP_ACTIONS = new Set<GroupStageAction>([
+  'generate_groups',
+  'generate_fixtures',
+  'review_and_complete',
+]);
+
+const GROUP_ACTION_ICONS: Record<GroupStageAction, React.ComponentProps<typeof Ionicons>['name']> = {
+  generate_groups: 'shuffle-outline',
+  view_groups: 'grid-outline',
+  generate_fixtures: 'calendar-outline',
+  view_fixtures: 'list-outline',
+  view_standings: 'podium-outline',
+  review_and_complete: 'checkmark-done-outline',
+  view_bracket: 'git-network-outline',
+};
+
+/** Extrai o código tipado de erros dos services de grupos (nunca vaza cru). */
+function groupServiceErrorCode(error: unknown): string | null {
+  if (error instanceof GroupAssignmentError || error instanceof GroupFixturesError) {
+    return error.code;
+  }
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') return code;
+  }
+  return null;
+}
 
 type NavT = NavigationProp<HomeStackParamList>;
 type RouteT = RouteProp<HomeStackParamList, 'ChampionshipDashboard'>;
@@ -642,6 +699,235 @@ const cardStyles = StyleSheet.create({
   },
 });
 
+// ─── Group stage phase panel (Bloco 10.4) ────────────────────────────────────
+const GROUP_STATUS_LABELS: Record<GroupStageStatus, string> = {
+  not_generated: 'Não iniciada',
+  groups_generated: 'Grupos sorteados',
+  fixtures_generated: 'Partidas geradas',
+  in_progress: 'Em andamento',
+  ready_to_complete: 'Pronta para concluir',
+  completed: 'Concluída',
+};
+
+const KNOCKOUT_STATUS_LABELS: Record<KnockoutStageStatus, string> = {
+  not_generated: 'Não gerado',
+  generated: 'Gerado',
+  in_progress: 'Em andamento',
+  completed: 'Concluído',
+};
+
+function GroupPhaseRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={groupPanelStyles.row}>
+      <Text style={groupPanelStyles.rowLabel}>{label}</Text>
+      <Text style={groupPanelStyles.rowValue}>{value}</Text>
+    </View>
+  );
+}
+
+function GroupStagePanel({
+  summary,
+  isOrganizer,
+  busyAction,
+  onAction,
+}: {
+  summary: GroupStageDashboardSummary;
+  isOrganizer: boolean;
+  busyAction: GroupStageAction | null;
+  onAction: (action: GroupStageAction) => void;
+}) {
+  const progressPct =
+    summary.expectedTotal > 0
+      ? Math.min(100, Math.round((summary.resolvedTotal / summary.expectedTotal) * 100))
+      : 0;
+
+  // Fonte de estado: apenas as ações válidas para o estado real (§1/§2).
+  // Organizador dono vê ações administrativas + visualização; demais só veem
+  // visualização. Nenhuma ação inválida é renderizada como botão desabilitado.
+  const availableActions = new Set<GroupStageAction>(
+    isOrganizer ? [...summary.organizerActions, ...summary.viewerActions] : summary.viewerActions,
+  );
+  const actions = GROUP_ACTION_ORDER.filter((action) => availableActions.has(action));
+  const anyBusy = busyAction !== null;
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="FASE DO CAMPEONATO" subtitle="Grupos + mata-mata" />
+      <View style={groupPanelStyles.card}>
+        <GroupPhaseRow label="Fase atual" value={summary.phaseLabel} />
+        <GroupPhaseRow
+          label="Fase de grupos"
+          value={GROUP_STATUS_LABELS[summary.groupStageStatus]}
+        />
+        <GroupPhaseRow
+          label="Mata-mata"
+          value={KNOCKOUT_STATUS_LABELS[summary.knockoutStageStatus]}
+        />
+        <GroupPhaseRow label="Grupos" value={String(summary.groupCount)} />
+        <GroupPhaseRow
+          label="Classificados por grupo"
+          value={String(summary.qualifiersPerGroup)}
+        />
+
+        {summary.hasGeneratedFixtures && (
+          <View style={groupPanelStyles.progressBlock}>
+            <View style={groupPanelStyles.progressHeader}>
+              <Text style={groupPanelStyles.rowLabel}>Partidas concluídas</Text>
+              <Text style={groupPanelStyles.rowValue}>
+                {summary.resolvedTotal} de {summary.expectedTotal}
+              </Text>
+            </View>
+            <View
+              style={groupPanelStyles.progressTrack}
+              accessibilityLabel={`Progresso das partidas: ${progressPct} por cento`}
+            >
+              <View style={[groupPanelStyles.progressFill, { width: `${progressPct}%` }]} />
+            </View>
+            <View style={groupPanelStyles.groupProgressRow}>
+              {summary.progressByGroup.map((g) => (
+                <Text key={g.groupId} style={groupPanelStyles.groupProgressText}>
+                  Grupo {g.groupId}: {g.resolved}/{g.expected}
+                </Text>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {summary.readyToComplete && (
+          <View style={groupPanelStyles.readyNotice}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+            <Text style={groupPanelStyles.readyText}>
+              Todas as partidas dos grupos foram concluídas. A fase pode ser encerrada e o
+              mata-mata gerado.
+            </Text>
+          </View>
+        )}
+
+        {!summary.hasGeneratedGroups && (
+          <View style={groupPanelStyles.readyNotice}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
+            <Text style={groupPanelStyles.readyText}>
+              Os grupos ainda não foram sorteados. O sorteio divide os times em 2 grupos.
+            </Text>
+          </View>
+        )}
+
+        {/* Ações por estado (Fase 2). Só ações válidas; mutações confirmam e
+            travam toque duplo no chamador. */}
+        {actions.length > 0 && (
+          <View style={groupPanelStyles.actionsList}>
+            {actions.map((action) => {
+              const primary = PRIMARY_GROUP_ACTIONS.has(action);
+              const isBusy = busyAction === action;
+              // Durante uma mutação em andamento, as demais ações ficam inertes.
+              const disabled = anyBusy && !isBusy;
+              return (
+                <TouchableOpacity
+                  key={action}
+                  style={[
+                    groupPanelStyles.actionBtnFull,
+                    primary && groupPanelStyles.actionBtnPrimary,
+                    disabled && groupPanelStyles.actionBtnDisabled,
+                  ]}
+                  onPress={() => onAction(action)}
+                  disabled={disabled || isBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel={GROUP_STAGE_ACTION_LABELS[action]}
+                  accessibilityState={{ disabled: disabled || isBusy, busy: isBusy }}
+                  activeOpacity={0.85}
+                >
+                  {isBusy ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={primary ? colors.bg100 : colors.accent}
+                    />
+                  ) : (
+                    <Ionicons
+                      name={GROUP_ACTION_ICONS[action]}
+                      size={18}
+                      color={primary ? colors.bg100 : colors.accent}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      groupPanelStyles.actionText,
+                      primary && groupPanelStyles.actionTextPrimary,
+                    ]}
+                  >
+                    {GROUP_STAGE_ACTION_LABELS[action]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const groupPanelStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.bg200,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
+  },
+  rowLabel: { fontFamily: 'Barlow-Medium', fontSize: 14, color: colors.textSecondary },
+  rowValue: { fontFamily: 'Barlow-SemiBold', fontSize: 14, color: colors.textPrimary },
+  progressBlock: { paddingTop: 12, gap: 8 },
+  progressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.bg300,
+    overflow: 'hidden',
+  },
+  progressFill: { height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  groupProgressRow: { flexDirection: 'row', gap: 16 },
+  groupProgressText: { fontFamily: 'Barlow-Medium', fontSize: 12, color: colors.textMuted },
+  readyNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    backgroundColor: colors.bg300,
+    borderRadius: 12,
+    padding: 12,
+  },
+  readyText: { flex: 1, fontFamily: 'Barlow-Regular', fontSize: 13, color: colors.textSecondary },
+  actionsList: { gap: 10, marginTop: 14 },
+  actionBtnFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg300,
+    paddingHorizontal: 12,
+  },
+  actionBtnPrimary: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  actionBtnDisabled: { opacity: 0.5 },
+  actionText: { fontFamily: 'Barlow-SemiBold', fontSize: 14, color: colors.accent },
+  actionTextPrimary: { color: colors.bg100 },
+});
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export function ChampionshipDashboardScreen() {
   const navigation = useNavigation<NavT>();
@@ -707,6 +993,8 @@ export function ChampionshipDashboardScreen() {
   const [editHomeScore, setEditHomeScore] = useState('');
   const [editAwayScore, setEditAwayScore] = useState('');
   const [finishingChampionship, setFinishingChampionship] = useState(false);
+  // Bloco 10.4 — ação da fase de grupos em andamento (trava de toque duplo).
+  const [busyGroupAction, setBusyGroupAction] = useState<GroupStageAction | null>(null);
 
   const { unreadCount: announcementsUnread } = useAnnouncementsBadge(championshipId);
   
@@ -864,10 +1152,118 @@ export function ChampionshipDashboardScreen() {
     championship.format === 'mata_mata' ? 2
     : championship.format === 'grupos_e_mata_mata' ? 4
     : 2;
+  // Bloco 10.4 — Resumo da fase de grupos (só para o formato grupos + mata-mata).
+  const groupSummary =
+    championship.format === 'grupos_e_mata_mata'
+      ? summarizeGroupStageDashboard(championship, champTeams, matches)
+      : null;
+  // O sorteio genérico (DrawFullscreen) é para pontos corridos / mata-mata.
+  // Grupos + mata-mata usa o painel de fase próprio (geração na Fase 2).
   const showGenerateButton =
     isOrganizer &&
     championship.status === 'inscricoes_abertas' &&
+    championship.format !== 'grupos_e_mata_mata' &&
     approvedTeams.length >= minTeamsToStart;
+
+  // ─── Ações da fase de grupos (Bloco 10.4 — Fase 2) ───
+  // Chamam apenas os services existentes; nenhuma regra de domínio nova aqui.
+
+  const handleGenerateGroups = () => {
+    if (!isOrganizer || !authUser?.id || busyGroupAction) return;
+    Alert.alert(
+      'Gerar grupos',
+      'Os times aprovados serão distribuídos automaticamente em 2 grupos. ' +
+        'Depois que a fase começar, a distribuição fica congelada.\n\nDeseja continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Gerar grupos',
+          onPress: async () => {
+            if (busyGroupAction) return; // ignora segundo toque
+            setBusyGroupAction('generate_groups');
+            try {
+              await generateAndPersistGroupAssignments({
+                championshipId,
+                organizerId: authUser.id,
+                expectedGenerationVersion: championship.groupGenerationVersion ?? 0,
+              });
+              await refreshGroupStageData(championshipId);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Toast.show({ type: 'success', text1: 'Grupos gerados!', visibilityTime: 2500 });
+              navigateToFixtures(navigation, 'GroupsOverview', { championshipId });
+            } catch (error) {
+              Alert.alert(
+                'Não foi possível gerar os grupos',
+                getGroupServiceErrorMessage(groupServiceErrorCode(error)),
+              );
+            } finally {
+              setBusyGroupAction(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleGenerateGroupFixtures = () => {
+    if (!isOrganizer || !authUser?.id || busyGroupAction) return;
+    Alert.alert(
+      'Gerar partidas dos grupos',
+      'Serão criadas as partidas de cada grupo (todos contra todos). ' +
+        'Isso inicia a fase de grupos.\n\nDeseja continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Gerar partidas',
+          onPress: async () => {
+            if (busyGroupAction) return; // ignora segundo toque
+            setBusyGroupAction('generate_fixtures');
+            try {
+              await generateAndPersistGroupFixtures({
+                championshipId,
+                organizerId: authUser.id,
+                expectedGroupGenerationVersion: championship.groupGenerationVersion ?? 0,
+                expectedFixturesVersion: championship.groupFixturesVersion ?? 0,
+              });
+              await refreshGroupStageData(championshipId);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Toast.show({ type: 'success', text1: 'Partidas geradas!', visibilityTime: 2500 });
+              navigateToFixtures(navigation, 'GroupFixtures', { championshipId });
+            } catch (error) {
+              Alert.alert(
+                'Não foi possível gerar as partidas',
+                getGroupServiceErrorMessage(groupServiceErrorCode(error)),
+              );
+            } finally {
+              setBusyGroupAction(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleGroupAction = (action: GroupStageAction) => {
+    switch (action) {
+      case 'generate_groups':
+        return handleGenerateGroups();
+      case 'generate_fixtures':
+        return handleGenerateGroupFixtures();
+      case 'review_and_complete':
+        navigateToFixtures(navigation, 'GroupStageReview', { championshipId });
+        return;
+      case 'view_groups':
+      case 'view_standings':
+        navigateToFixtures(navigation, 'GroupsOverview', { championshipId });
+        return;
+      case 'view_fixtures':
+        navigateToFixtures(navigation, 'GroupFixtures', { championshipId });
+        return;
+      case 'view_bracket':
+        navigateToFixtures(navigation, 'FixturesMain', undefined);
+        return;
+    }
+  };
 
   const handleApprove = (team: Team) => {
     if (!isOrganizer) return;
@@ -1315,6 +1711,16 @@ export function ChampionshipDashboardScreen() {
             valueColor={colors.textPrimary}
           />
         </ScrollView>
+
+        {/* ─── FASE DO CAMPEONATO (Grupos + mata-mata) ─── */}
+        {groupSummary?.isGroupsFormat && (
+          <GroupStagePanel
+            summary={groupSummary}
+            isOrganizer={!!isOrganizer}
+            busyAction={busyGroupAction}
+            onAction={handleGroupAction}
+          />
+        )}
 
         {/* ─── VISÃO GERAL ─── */}
         <View style={styles.section}>

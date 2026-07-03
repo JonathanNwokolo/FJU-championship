@@ -2,6 +2,15 @@ import { MatchEvent, MatchModel } from '../types';
 
 export type MatchResult = 'home' | 'away' | 'draw' | 'pending';
 
+// Bloco 5 — Fase A: reexporta os predicados de status para que consumidores de
+// estatística/progressão importem tudo de matchRules.
+export {
+  matchCountsForStandings,
+  isMatchSettled,
+  canTransitionMatchStatus,
+  isTerminalMatchStatus,
+} from './matchStatusRules';
+
 export function isFinalScoreRequired(match: Pick<MatchModel, 'status'>): boolean {
   return match.status === 'finalizado';
 }

@@ -37,6 +37,8 @@ import { EmptyState } from '../../components/EmptyState';
 import { useChampionshipHistory } from '../../hooks/useChampionshipHistory';
 import { useNotificationBadge } from '../../hooks/useNotificationBadge';
 import { useAnnouncementsBadge } from '../../hooks/useAnnouncementsBadge';
+import { usePendingItemsSummary } from '../../hooks/usePendingItems';
+import { PendingSummaryCard } from '../../components/PendingSummaryCard';
 import { useAuthStore } from '../../stores/authStore';
 import { useChampionshipStore } from '../../stores/championshipStore';
 import { useMatchStore } from '../../stores/matchStore';
@@ -911,6 +913,14 @@ export function HomeScreen() {
   const { unreadCount: inAppUnread } = useNotificationBadge();
   const { unreadCount: announcementsUnread } = useAnnouncementsBadge(selectedChampionshipId);
   const unreadCount = inAppUnread + announcementsUnread;
+  const {
+    criticalCount: pendingCritical,
+    total: pendingTotal,
+    topItem: pendingTop,
+    isPartial: pendingSummaryPartial,
+    partialReason: pendingPartialReason,
+  } =
+    usePendingItemsSummary();
   const [modalVisible, setModalVisible] = useState(false);
   const [champSelectorVisible, setChampSelectorVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -1140,6 +1150,20 @@ export function HomeScreen() {
 
         {!isLoading && (role === 'capitao' || role === 'atleta') && (
           <TeamSection role={role} activeChampionship={activeChampionship} />
+        )}
+
+        {!isLoading && (pendingTotal > 0 || pendingSummaryPartial) && (
+          <View style={styles.pendingSummaryWrap}>
+            <PendingSummaryCard
+              total={pendingTotal}
+              criticalCount={pendingCritical}
+              topItem={pendingTop}
+              isPartial={pendingSummaryPartial}
+              partialReason={pendingPartialReason}
+              onPress={() => navigation.navigate('PendingCenter')}
+              testID="pending-summary-home"
+            />
+          </View>
         )}
 
         <View style={styles.section}>
@@ -1422,6 +1446,9 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 22,
     paddingHorizontal: 20,
+  },
+  pendingSummaryWrap: {
+    marginTop: 16,
   },
   teamCard: {
     marginTop: 12,

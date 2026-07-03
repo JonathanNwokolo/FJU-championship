@@ -2,6 +2,33 @@
 
 ## Public Expo variables
 
+`EXPO_PUBLIC_APP_ENV` is required and must be one of:
+
+- `development`
+- `staging`
+- `production`
+
+`EXPO_PUBLIC_USE_FIREBASE_EMULATOR` is required and must be explicitly `true`
+or `false`.
+
+Rules:
+
+- `development` can use Firebase Emulator.
+- `staging` must use a staging Firebase project and cannot use Emulator.
+- `production` must use the production Firebase project and cannot use
+  Emulator.
+- `development` without Emulator cannot point to the production project
+  `fju-championship`.
+- Invalid combinations fail during app initialization with a fatal
+  configuration error.
+
+`EXPO_PUBLIC_FIREBASE_EMULATOR_HOST` is optional. Leave it blank for web
+localhost or Android Emulator auto-resolution. Set it to the computer LAN IP
+when testing on a physical device.
+
+Do not put secrets in `EXPO_PUBLIC_*`. Firebase client identifiers are public
+configuration, not credentials.
+
 `EXPO_PUBLIC_USE_MOCK` is the single environment variable for demo/mock mode.
 The shorter name was chosen to avoid carrying older mock-data wording as an
 environment contract and to make the value clearly Expo-public.
@@ -11,6 +38,32 @@ Expo inlines `EXPO_PUBLIC_*` variables into the client bundle. For that reason,
 authorization. It can expose the organizer option during local development, but
 Firestore Rules still require `organizer_allowlist/{uid}` for a user to save
 `role: "organizador"`.
+
+## Firebase Emulator
+
+Local manual validation uses one explicit emulator project:
+
+`fju-operational-emulator`
+
+Configured services:
+
+- Auth Emulator: `9099`
+- Firestore Emulator: `8080`
+- Storage Emulator: `9199`
+
+The client connects to all three services only when
+`EXPO_PUBLIC_APP_ENV=development` and
+`EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true`.
+
+Host resolution:
+
+- Web/desktop: `127.0.0.1`
+- Android Emulator: `10.0.2.2`
+- Physical device: set `EXPO_PUBLIC_FIREBASE_EMULATOR_HOST` to the machine LAN
+  IP.
+
+The app shows a small non-production badge (`DEV EMULATOR`, `DEVELOPMENT`, or
+`STAGING`) so manual testers can see that the app is not running as production.
 
 ## Organizer allowlist
 
