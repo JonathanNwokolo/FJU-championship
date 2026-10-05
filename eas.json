@@ -40,6 +40,17 @@
         "EXPO_PUBLIC_USE_FIREBASE_EMULATOR": "false",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fju-championship"
       }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATOR": "false",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fju-championship"
+      }
     }
   },
   "submit": {
